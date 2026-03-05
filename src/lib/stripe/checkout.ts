@@ -8,6 +8,7 @@ export async function createSubscriptionCheckoutSession(input: {
 	userId: string;
 	email: string;
 	userRecord: UserRow | null;
+	appUrl?: string;
 	upsertUser: (payload: Database["public"]["Tables"]["users"]["Update"] & { id: string }) => Promise<void>;
 }) {
 	let customerId = input.userRecord?.stripe_customer_id ?? null;
@@ -39,8 +40,8 @@ export async function createSubscriptionCheckoutSession(input: {
 				quantity: 1
 			}
 		],
-		success_url: `${stripeConfig.stripeAppUrl}/dashboard?billing=success`,
-		cancel_url: `${stripeConfig.stripeAppUrl}/subscribe?billing=cancelled`,
+		success_url: `${input.appUrl ?? stripeConfig.stripeAppUrl}/dashboard?billing=success`,
+		cancel_url: `${input.appUrl ?? stripeConfig.stripeAppUrl}/subscribe?billing=cancelled`,
 		allow_promotion_codes: true,
 		subscription_data: {
 			metadata: {

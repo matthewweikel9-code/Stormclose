@@ -5,7 +5,22 @@ import { stripeConfig } from "@/lib/stripe/config";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+function normalizeBaseUrl(url: string) {
+  return url.replace(/\/$/, "");
+}
+
+function getRequestOrigin(request: Request) {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+
+  if (forwardedProto && forwardedHost) {
+    return normalizeBaseUrl(`${forwardedProto}://${forwardedHost}`);
+  }
+
+  return normalizeBaseUrl(new URL(request.url).origin);
+}
+
+export async function POST(request: Request) {
   if (!stripeConfig.secretKey || !stripeConfig.monthlyPriceId) {
     return NextResponse.json(
       { error: "Stripe is not configured. Missing STRIPE_SECRET_KEY or STRIPE_PRICE_ID_MONTHLY." },
@@ -32,6 +47,7 @@ export async function POST() {
     userId: user.id,
     email: user.email,
     userRecord,
+    appUrl: getRequestOrigin(request),
     upsertUser: async (payload) => {
       await (supabase.from("users") as any).upsert(payload, { onConflict: "id" });
     }
