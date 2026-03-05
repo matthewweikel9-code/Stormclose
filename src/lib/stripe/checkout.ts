@@ -40,7 +40,7 @@ export async function createSubscriptionCheckoutSession(input: {
 				quantity: 1
 			}
 		],
-		success_url: `${input.appUrl ?? stripeConfig.stripeAppUrl}/dashboard?billing=success`,
+		success_url: `${input.appUrl ?? stripeConfig.stripeAppUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
 		cancel_url: `${input.appUrl ?? stripeConfig.stripeAppUrl}/subscribe?billing=cancelled`,
 		allow_promotion_codes: true,
 		subscription_data: {

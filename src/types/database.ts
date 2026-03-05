@@ -114,18 +114,21 @@ export type Database = {
 					id: string;
 					email: string | null;
 					stripe_customer_id: string | null;
+					stripe_subscription_id: string | null;
 					subscription_status: string | null;
 				};
 				Insert: {
 					id: string;
 					email?: string | null;
 					stripe_customer_id?: string | null;
+					stripe_subscription_id?: string | null;
 					subscription_status?: string | null;
 				};
 				Update: {
 					id?: string;
 					email?: string | null;
 					stripe_customer_id?: string | null;
+					stripe_subscription_id?: string | null;
 					subscription_status?: string | null;
 				};
 				Relationships: [];
