@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	color-scheme: light;
+}
+
+body {
+	@apply bg-slate-50 text-slate-900 antialiased;
+}
+
+.auth-card {
+	@apply w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm;
+}
+
+.input {
+	@apply mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none ring-brand-500 focus:ring-2;
+}
+
+.textarea {
+	@apply input min-h-28 resize-y;
+}
+
+.select {
+	@apply input;
+}
+
+.button-primary {
+	@apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.button-secondary {
+	@apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100;
+}
+
+.saas-shell {
+	@apply mx-auto max-w-6xl space-y-6;
+}
+
+.saas-page-header {
+	@apply rounded-2xl border border-slate-200 bg-white p-6 shadow-sm;
+}
+
+.saas-kicker {
+	@apply text-xs font-semibold uppercase tracking-wider text-slate-500;
+}
+
+.saas-title {
+	@apply mt-2 text-2xl font-semibold text-slate-900 md:text-3xl;
+}
+
+.saas-subtitle {
+	@apply mt-2 text-sm text-slate-600;
+}
+
+.saas-grid {
+	@apply grid gap-6 lg:grid-cols-[1.05fr_1fr];
+}
+
+.saas-card {
+	@apply rounded-2xl border border-slate-200 bg-white p-6 shadow-sm;
+}
+
+.saas-label {
+	@apply block text-sm font-medium text-slate-700;
+}
+
+.saas-error {
+	@apply rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700;
+}
+
+.saas-empty {
+	@apply rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500;
+}
