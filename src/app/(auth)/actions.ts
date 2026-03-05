@@ -12,6 +12,15 @@ function normalizeNextPath(path: string) {
   return path;
 }
 
+function isRedirectException(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const digest = (error as { digest?: unknown }).digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -29,7 +38,11 @@ export async function login(formData: FormData) {
 
     revalidatePath("/", "layout");
     redirect(nextPath);
-  } catch {
+  } catch (error) {
+    if (isRedirectException(error)) {
+      throw error;
+    }
+
     redirect(
       `/login?error=${encodeURIComponent("Login is temporarily unavailable. Please try again.")}&next=${encodeURIComponent(nextPath)}`
     );
@@ -57,7 +70,11 @@ export async function signup(formData: FormData) {
 
     revalidatePath("/", "layout");
     redirect("/login?message=Check your email to confirm your account.");
-  } catch {
+  } catch (error) {
+    if (isRedirectException(error)) {
+      throw error;
+    }
+
     redirect(`/signup?error=${encodeURIComponent("Sign up is temporarily unavailable. Please try again.")}`);
   }
 }
@@ -77,7 +94,11 @@ export async function forgotPassword(formData: FormData) {
     }
 
     redirect("/forgot-password?message=Check your email for a reset link.");
-  } catch {
+  } catch (error) {
+    if (isRedirectException(error)) {
+      throw error;
+    }
+
     redirect(
       `/forgot-password?error=${encodeURIComponent("Password reset is temporarily unavailable. Please try again.")}`
     );
@@ -96,7 +117,11 @@ export async function updatePassword(formData: FormData) {
     }
 
     redirect("/login?message=Password updated. Please log in.");
-  } catch {
+  } catch (error) {
+    if (isRedirectException(error)) {
+      throw error;
+    }
+
     redirect(
       `/reset-password?error=${encodeURIComponent("Password update is temporarily unavailable. Please try again.")}`
     );
