@@ -17,68 +17,90 @@ export async function login(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "/dashboard"));
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) {
+    if (error) {
+      redirect(
+        `/login?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(nextPath)}`
+      );
+    }
+
+    revalidatePath("/", "layout");
+    redirect(nextPath);
+  } catch {
     redirect(
-      `/login?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(nextPath)}`
+      `/login?error=${encodeURIComponent("Login is temporarily unavailable. Please try again.")}&next=${encodeURIComponent(nextPath)}`
     );
   }
-
-  revalidatePath("/", "layout");
-  redirect(nextPath);
 }
 
 export async function signup(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
-  const supabase = await createClient();
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${origin}/callback?next=/dashboard`
+  try {
+    const supabase = await createClient();
+    const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${origin}/callback?next=/dashboard`
+      }
+    });
+
+    if (error) {
+      redirect(`/signup?error=${encodeURIComponent(error.message)}`);
     }
-  });
 
-  if (error) {
-    redirect(`/signup?error=${encodeURIComponent(error.message)}`);
+    revalidatePath("/", "layout");
+    redirect("/login?message=Check your email to confirm your account.");
+  } catch {
+    redirect(`/signup?error=${encodeURIComponent("Sign up is temporarily unavailable. Please try again.")}`);
   }
-
-  revalidatePath("/", "layout");
-  redirect("/login?message=Check your email to confirm your account.");
 }
 
 export async function forgotPassword(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
 
-  const supabase = await createClient();
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/callback?next=/reset-password`
-  });
+  try {
+    const supabase = await createClient();
+    const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${origin}/callback?next=/reset-password`
+    });
 
-  if (error) {
-    redirect(`/forgot-password?error=${encodeURIComponent(error.message)}`);
+    if (error) {
+      redirect(`/forgot-password?error=${encodeURIComponent(error.message)}`);
+    }
+
+    redirect("/forgot-password?message=Check your email for a reset link.");
+  } catch {
+    redirect(
+      `/forgot-password?error=${encodeURIComponent("Password reset is temporarily unavailable. Please try again.")}`
+    );
   }
-
-  redirect("/forgot-password?message=Check your email for a reset link.");
 }
 
 export async function updatePassword(formData: FormData) {
   const password = String(formData.get("password") ?? "");
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password });
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.updateUser({ password });
 
-  if (error) {
-    redirect(`/reset-password?error=${encodeURIComponent(error.message)}`);
+    if (error) {
+      redirect(`/reset-password?error=${encodeURIComponent(error.message)}`);
+    }
+
+    redirect("/login?message=Password updated. Please log in.");
+  } catch {
+    redirect(
+      `/reset-password?error=${encodeURIComponent("Password update is temporarily unavailable. Please try again.")}`
+    );
   }
-
-  redirect("/login?message=Password updated. Please log in.");
 }
 
 export async function logout() {

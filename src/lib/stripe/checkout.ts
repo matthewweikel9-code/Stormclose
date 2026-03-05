@@ -45,11 +45,13 @@ export async function createSubscriptionCheckoutSession(input: {
 		allow_promotion_codes: true,
 		subscription_data: {
 			metadata: {
-				userId: input.userId
+				userId: input.userId,
+				user_id: input.userId
 			}
 		},
 		metadata: {
-			userId: input.userId
+			userId: input.userId,
+			user_id: input.userId
 		}
 	});
 

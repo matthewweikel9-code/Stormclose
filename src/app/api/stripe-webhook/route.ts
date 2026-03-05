@@ -1,7 +1,7 @@
-import { handleStripeWebhookRequest } from "@/lib/stripe/webhook-endpoint";
+import { POST as stripeWebhookPost } from "../stripe/webhook/route";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  return handleStripeWebhookRequest(request);
+  return stripeWebhookPost(request);
 }
