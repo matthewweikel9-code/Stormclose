@@ -62,7 +62,7 @@ async function upsertUserSubscriptionByUserId(input: {
     return;
   }
 
-  await (admin.from("users") as any).upsert(
+  const fallbackResult = await (admin.from("users") as any).upsert(
     {
       id: input.userId,
       stripe_customer_id: input.customerId ?? null,
@@ -70,6 +70,10 @@ async function upsertUserSubscriptionByUserId(input: {
     },
     { onConflict: "id" }
   );
+
+  if (fallbackResult.error) {
+    throw new Error(`Failed to upsert user subscription: ${fallbackResult.error.message}`);
+  }
 }
 
 async function updateUserSubscriptionByCustomerId(input: {
@@ -91,11 +95,15 @@ async function updateUserSubscriptionByCustomerId(input: {
     return;
   }
 
-  await (admin.from("users") as any)
+  const fallbackResult = await (admin.from("users") as any)
     .update({
       subscription_status: input.active ? "active" : "inactive"
     })
     .eq("stripe_customer_id", input.customerId);
+
+  if (fallbackResult.error) {
+    throw new Error(`Failed to update user by customer ID: ${fallbackResult.error.message}`);
+  }
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
@@ -104,7 +112,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = session.client_reference_id ?? session.metadata?.user_id ?? session.metadata?.userId ?? null;
 
   if (!userId) {
-    console.warn("Stripe webhook checkout.session.completed missing user ID");
+    if (customerId) {
+      await updateUserSubscriptionByCustomerId({
+        customerId,
+        subscriptionId,
+        active: true
+      });
+      return;
+    }
+
+    console.warn("Stripe webhook checkout.session.completed missing user ID and customer ID");
     return;
   }
 
