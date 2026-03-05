@@ -39,8 +39,8 @@ export async function createSubscriptionCheckoutSession(input: {
 				quantity: 1
 			}
 		],
-		success_url: `${stripeConfig.appUrl}/dashboard?billing=success`,
-		cancel_url: `${stripeConfig.appUrl}/subscribe?billing=cancelled`,
+		success_url: `${stripeConfig.stripeAppUrl}/dashboard?billing=success`,
+		cancel_url: `${stripeConfig.stripeAppUrl}/subscribe?billing=cancelled`,
 		allow_promotion_codes: true,
 		subscription_data: {
 			metadata: {

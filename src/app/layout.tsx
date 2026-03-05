@@ -13,10 +13,17 @@ export default async function RootLayout({
 }: {
 	children: React.ReactNode;
 }) {
-	const supabase = await createClient();
-	const {
-		data: { user }
-	} = await supabase.auth.getUser();
+	let user: { email?: string | null } | null = null;
+
+	try {
+		const supabase = await createClient();
+		const {
+			data: { user: authUser }
+		} = await supabase.auth.getUser();
+		user = authUser;
+	} catch {
+		user = null;
+	}
 
 	return (
 		<html lang="en">
