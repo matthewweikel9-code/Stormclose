@@ -3,19 +3,60 @@
 @tailwind utilities;
 
 :root {
-	color-scheme: light;
+	color-scheme: dark;
+}
+
+html {
+	scroll-behavior: smooth;
 }
 
 body {
-	@apply bg-slate-50 text-slate-900 antialiased;
+	@apply bg-[#0B0F1A] text-slate-100 antialiased;
 }
 
+/* Selection styling */
+::selection {
+	@apply bg-[#6D5CFF]/30 text-white;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	@apply bg-slate-900;
+}
+
+::-webkit-scrollbar-thumb {
+	@apply rounded-full bg-slate-700;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	@apply bg-slate-600;
+}
+
+/* Dashboard dark theme inputs */
+.dashboard-input {
+	@apply block w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition-all focus:border-[#6D5CFF] focus:ring-2 focus:ring-[#6D5CFF]/20;
+}
+
+.dashboard-select {
+	@apply dashboard-input appearance-none;
+}
+
+.dashboard-textarea {
+	@apply dashboard-input min-h-28 resize-y;
+}
+
+/* Legacy light theme styles (for auth pages) */
 .auth-card {
-	@apply w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm;
+	@apply w-full max-w-md rounded-2xl border border-slate-700 bg-[#111827] p-8 shadow-xl;
 }
 
 .input {
-	@apply mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none ring-brand-500 focus:ring-2;
+	@apply mt-1 block w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none ring-[#6D5CFF] focus:border-[#6D5CFF] focus:ring-2 focus:ring-[#6D5CFF]/20;
 }
 
 .textarea {
@@ -27,31 +68,32 @@ body {
 }
 
 .button-primary {
-	@apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50;
+	@apply inline-flex items-center justify-center rounded-lg bg-[#6D5CFF] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#5B4AE8] disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .button-secondary {
-	@apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100;
+	@apply inline-flex items-center justify-center rounded-lg border border-[#1F2937] bg-[#111827] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-[#1E293B] hover:text-white;
 }
 
+/* Legacy SaaS shell styles (updated for dark theme) */
 .saas-shell {
 	@apply mx-auto max-w-6xl space-y-6;
 }
 
 .saas-page-header {
-	@apply rounded-2xl border border-slate-200 bg-white p-6 shadow-sm;
+	@apply rounded-2xl border border-[#1F2937] bg-[#111827] p-6 shadow-xl;
 }
 
 .saas-kicker {
-	@apply text-xs font-semibold uppercase tracking-wider text-slate-500;
+	@apply text-xs font-semibold uppercase tracking-wider text-[#A78BFA];
 }
 
 .saas-title {
-	@apply mt-2 text-2xl font-semibold text-slate-900 md:text-3xl;
+	@apply mt-2 text-2xl font-semibold text-white md:text-3xl;
 }
 
 .saas-subtitle {
-	@apply mt-2 text-sm text-slate-600;
+	@apply mt-2 text-sm text-slate-400;
 }
 
 .saas-grid {
@@ -59,17 +101,17 @@ body {
 }
 
 .saas-card {
-	@apply rounded-2xl border border-slate-200 bg-white p-6 shadow-sm;
+	@apply rounded-2xl border border-[#1F2937] bg-[#111827] p-6 shadow-xl;
 }
 
 .saas-label {
-	@apply block text-sm font-medium text-slate-700;
+	@apply block text-sm font-medium text-slate-300;
 }
 
 .saas-error {
-	@apply rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700;
+	@apply rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400;
 }
 
 .saas-empty {
-	@apply rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500;
+	@apply rounded-xl border border-dashed border-[#1F2937] bg-[#0B0F1A]/50 p-6 text-sm text-slate-500;
 }

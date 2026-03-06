@@ -8,17 +8,17 @@ export default function LoginPage({
 }) {
 	return (
 		<div>
-			<h1 className="text-2xl font-bold text-slate-900">Log in</h1>
-			<p className="mt-2 text-sm text-slate-600">Welcome back to StormClose AI.</p>
+			<h1 className="text-2xl font-bold text-white">Log in</h1>
+			<p className="mt-2 text-sm text-slate-400">Welcome back to StormClose AI.</p>
 
 			{searchParams.error ? (
-				<p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+				<p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
 					{searchParams.error}
 				</p>
 			) : null}
 
 			{searchParams.message ? (
-				<p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+				<p className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
 					{searchParams.message}
 				</p>
 			) : null}
@@ -26,13 +26,13 @@ export default function LoginPage({
 			<form action={login} className="mt-6 space-y-4">
 				<input type="hidden" name="next" value={searchParams.next ?? "/dashboard"} />
 				<div>
-					<label htmlFor="email" className="text-sm font-medium text-slate-700">
+					<label htmlFor="email" className="text-sm font-medium text-slate-300">
 						Email
 					</label>
 					<input id="email" name="email" type="email" required className="input" />
 				</div>
 				<div>
-					<label htmlFor="password" className="text-sm font-medium text-slate-700">
+					<label htmlFor="password" className="text-sm font-medium text-slate-300">
 						Password
 					</label>
 					<input id="password" name="password" type="password" required className="input" />
@@ -40,7 +40,7 @@ export default function LoginPage({
 				<div className="text-right">
 					<Link
 						href="/forgot-password"
-						className="text-sm font-medium text-brand-700 hover:text-brand-600"
+						className="text-sm font-medium text-[#A78BFA] hover:text-[#6D5CFF]"
 					>
 						Forgot password?
 					</Link>
@@ -50,9 +50,9 @@ export default function LoginPage({
 				</button>
 			</form>
 
-			<p className="mt-4 text-sm text-slate-600">
+			<p className="mt-4 text-sm text-slate-400">
 				No account yet?{" "}
-				<Link href="/signup" className="font-semibold text-brand-700 hover:text-brand-600">
+				<Link href="/signup" className="font-semibold text-[#A78BFA] hover:text-[#6D5CFF]">
 					Sign up
 				</Link>
 			</p>

@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { PageHeader, Card, Button } from "@/components/dashboard";
 
 type ReportFormState = {
   propertyAddress: string;
@@ -205,169 +207,211 @@ export default function ReportPage() {
   }
 
   return (
-    <section className="saas-shell">
-      <header className="saas-page-header">
-        <p className="saas-kicker">Reports</p>
-        <h1 className="saas-title">Insurance Report Builder</h1>
-        <p className="saas-subtitle">
-          Fill in the claim details and generate a polished report you can send to the carrier.
-        </p>
-      </header>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <PageHeader
+        kicker="Reports"
+        title="Insurance Report Builder"
+        description="Fill in the claim details and generate a polished report you can send to the carrier."
+      />
 
-      <div className="saas-grid">
-        <form onSubmit={handleSubmit} className="saas-card space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="saas-label sm:col-span-2">
-              Property address
-              <input
-                className="input"
-                value={form.propertyAddress}
-                onChange={(event) => setForm((prev) => ({ ...prev, propertyAddress: event.target.value }))}
-                placeholder="123 Main St, Dallas, TX"
-                required
-              />
-            </label>
+      <div className="grid gap-6 lg:grid-cols-[1.05fr_1fr]">
+        {/* Form Card */}
+        <Card>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="sm:col-span-2">
+                <span className="mb-1.5 block text-sm font-medium text-slate-300">
+                  Property address
+                </span>
+                <input
+                  className="dashboard-input"
+                  value={form.propertyAddress}
+                  onChange={(event) => setForm((prev) => ({ ...prev, propertyAddress: event.target.value }))}
+                  placeholder="123 Main St, Dallas, TX"
+                  required
+                />
+              </label>
 
-            <label className="saas-label">
-              Roof type
-              <input
-                className="input"
-                value={form.roofType}
-                onChange={(event) => setForm((prev) => ({ ...prev, roofType: event.target.value }))}
-                placeholder="Gable"
-                required
-              />
-            </label>
+              <label>
+                <span className="mb-1.5 block text-sm font-medium text-slate-300">
+                  Roof type
+                </span>
+                <input
+                  className="dashboard-input"
+                  value={form.roofType}
+                  onChange={(event) => setForm((prev) => ({ ...prev, roofType: event.target.value }))}
+                  placeholder="Gable"
+                  required
+                />
+              </label>
 
-            <label className="saas-label">
-              Shingle type
-              <input
-                className="input"
-                value={form.shingleType}
-                onChange={(event) => setForm((prev) => ({ ...prev, shingleType: event.target.value }))}
-                placeholder="Architectural asphalt"
-                required
-              />
-            </label>
+              <label>
+                <span className="mb-1.5 block text-sm font-medium text-slate-300">
+                  Shingle type
+                </span>
+                <input
+                  className="dashboard-input"
+                  value={form.shingleType}
+                  onChange={(event) => setForm((prev) => ({ ...prev, shingleType: event.target.value }))}
+                  placeholder="Architectural asphalt"
+                  required
+                />
+              </label>
 
-            <label className="saas-label">
-              Insurance company
-              <input
-                className="input"
-                value={form.insuranceCompany}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, insuranceCompany: event.target.value }))
-                }
-                placeholder="State Farm"
-                required
-              />
-            </label>
+              <label>
+                <span className="mb-1.5 block text-sm font-medium text-slate-300">
+                  Insurance company
+                </span>
+                <input
+                  className="dashboard-input"
+                  value={form.insuranceCompany}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, insuranceCompany: event.target.value }))
+                  }
+                  placeholder="State Farm"
+                  required
+                />
+              </label>
 
-            <label className="saas-label">
-              Claim number
-              <input
-                className="input"
-                value={form.claimNumber}
-                onChange={(event) => setForm((prev) => ({ ...prev, claimNumber: event.target.value }))}
-                placeholder="CLM-123456"
-                required
-              />
-            </label>
+              <label>
+                <span className="mb-1.5 block text-sm font-medium text-slate-300">
+                  Claim number
+                </span>
+                <input
+                  className="dashboard-input"
+                  value={form.claimNumber}
+                  onChange={(event) => setForm((prev) => ({ ...prev, claimNumber: event.target.value }))}
+                  placeholder="CLM-123456"
+                  required
+                />
+              </label>
 
-            <label className="saas-label">
-              Slopes damaged
-              <input
-                type="number"
-                min={0}
-                className="input"
-                value={form.slopesDamaged}
-                onChange={(event) => setForm((prev) => ({ ...prev, slopesDamaged: event.target.value }))}
-                placeholder="2"
-                required
-              />
-            </label>
+              <label>
+                <span className="mb-1.5 block text-sm font-medium text-slate-300">
+                  Slopes damaged
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  className="dashboard-input"
+                  value={form.slopesDamaged}
+                  onChange={(event) => setForm((prev) => ({ ...prev, slopesDamaged: event.target.value }))}
+                  placeholder="2"
+                  required
+                />
+              </label>
 
-            <label className="saas-label sm:col-span-2">
-              Damage notes
-              <textarea
-                className="textarea"
-                value={form.damageNotes}
-                onChange={(event) => setForm((prev) => ({ ...prev, damageNotes: event.target.value }))}
-                placeholder="Granule loss, hail bruising, ridge cap impact, lifted tabs on west-facing slope..."
-                required
-              />
-            </label>
-          </div>
+              <label className="sm:col-span-2">
+                <span className="mb-1.5 block text-sm font-medium text-slate-300">
+                  Damage notes
+                </span>
+                <textarea
+                  className="dashboard-input min-h-28 resize-y"
+                  value={form.damageNotes}
+                  onChange={(event) => setForm((prev) => ({ ...prev, damageNotes: event.target.value }))}
+                  placeholder="Granule loss, hail bruising, ridge cap impact, lifted tabs on west-facing slope..."
+                  required
+                />
+              </label>
+            </div>
 
-          {error ? <div className="saas-error">{error}</div> : null}
+            {error && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                {error}
+              </div>
+            )}
 
-          <button type="submit" disabled={!canSubmit || loading} className="button-primary w-full">
-            {loading ? "Generating report..." : "Generate report"}
-          </button>
-        </form>
+            <Button
+              type="submit"
+              disabled={!canSubmit || loading}
+              isLoading={loading}
+              className="w-full"
+            >
+              {loading ? "Generating report..." : "Generate report"}
+            </Button>
+          </form>
+        </Card>
 
-        <aside className="saas-card">
+        {/* Output Card */}
+        <Card>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Generated output</h2>
-            <button
-              type="button"
+            <h2 className="text-lg font-semibold text-white">Generated output</h2>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleCopy}
               disabled={!result?.report}
-              className="button-secondary disabled:opacity-50"
             >
-              {copied ? "Copied" : "Copy"}
-            </button>
+              {copied ? "Copied!" : "Copy"}
+            </Button>
           </div>
 
           <div className="mb-4 flex flex-wrap gap-2">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleDownloadCsv}
               disabled={!result || csvLoading || loading}
-              className="button-secondary disabled:opacity-50"
+              isLoading={csvLoading}
             >
-              {csvLoading ? "Downloading CSV..." : "Download CSV"}
-            </button>
+              {csvLoading ? "Downloading..." : "Download CSV"}
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleGenerateEmailDraft}
               disabled={!result || emailLoading || loading}
-              className="button-secondary disabled:opacity-50"
+              isLoading={emailLoading}
             >
-              {emailLoading ? "Generating email..." : "Generate Email Draft"}
-            </button>
+              {emailLoading ? "Generating..." : "Generate Email"}
+            </Button>
           </div>
 
           {loading ? (
             <div className="space-y-3">
-              <div className="h-4 w-4/5 animate-pulse rounded bg-slate-200" />
-              <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
-              <div className="h-4 w-5/6 animate-pulse rounded bg-slate-200" />
-              <div className="h-4 w-3/5 animate-pulse rounded bg-slate-200" />
+              <div className="h-4 w-4/5 animate-pulse rounded bg-slate-700" />
+              <div className="h-4 w-full animate-pulse rounded bg-slate-700" />
+              <div className="h-4 w-5/6 animate-pulse rounded bg-slate-700" />
+              <div className="h-4 w-3/5 animate-pulse rounded bg-slate-700" />
             </div>
           ) : result ? (
-            <>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
               <p className="mb-3 text-xs text-slate-500">
                 Report #{result.reportId.slice(0, 8)} • {new Date(result.createdAt).toLocaleString()}
               </p>
-              <article className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800">
+              <article className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-xl border border-[#1F2937] bg-[#0B0F1A] p-4 text-sm leading-6 text-slate-300">
                 {result.report}
               </article>
 
-              {emailDraft ? (
-                <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email draft</p>
-                  <p className="text-sm font-semibold text-slate-900">Subject: {emailDraft.subject}</p>
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">{emailDraft.body}</p>
-                </div>
-              ) : null}
-            </>
+              {emailDraft && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 space-y-2 rounded-xl border border-[#1F2937] bg-[#0B0F1A] p-4"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#A78BFA]">
+                    Email draft
+                  </p>
+                  <p className="text-sm font-semibold text-white">
+                    Subject: {emailDraft.subject}
+                  </p>
+                  <p className="whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                    {emailDraft.body}
+                  </p>
+                </motion.div>
+              )}
+            </motion.div>
           ) : (
-            <div className="saas-empty">Generated report appears here after submission.</div>
+            <div className="rounded-xl border border-dashed border-[#1F2937] bg-[#0B0F1A]/50 p-6 text-center text-sm text-slate-500">
+              Generated report appears here after submission.
+            </div>
           )}
-        </aside>
+        </Card>
       </div>
-    </section>
+    </div>
   );
 }

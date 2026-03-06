@@ -141,7 +141,7 @@ export default function FollowupPage() {
 
         <aside className="saas-card">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Generated message</h2>
+            <h2 className="text-lg font-semibold text-white">Generated message</h2>
             <button
               type="button"
               onClick={handleCopy}
@@ -154,16 +154,16 @@ export default function FollowupPage() {
 
           {loading ? (
             <div className="space-y-3">
-              <div className="h-4 w-4/5 animate-pulse rounded bg-slate-200" />
-              <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
-              <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+              <div className="h-4 w-4/5 animate-pulse rounded bg-slate-700" />
+              <div className="h-4 w-full animate-pulse rounded bg-slate-700" />
+              <div className="h-4 w-3/4 animate-pulse rounded bg-slate-700" />
             </div>
           ) : result ? (
             <>
-              <p className="mb-3 text-xs text-slate-500">
+              <p className="mb-3 text-xs text-slate-400">
                 {statusLabels[result.status]} • #{result.followupId.slice(0, 8)} • {new Date(result.createdAt).toLocaleString()}
               </p>
-              <article className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800">
+              <article className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-xl border border-[#1F2937] bg-[#0B0F1A] p-4 text-sm leading-6 text-slate-200">
                 {result.content}
               </article>
             </>
