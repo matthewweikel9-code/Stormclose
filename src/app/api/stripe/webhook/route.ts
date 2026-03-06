@@ -52,9 +52,24 @@ function metadataUserId(metadata: Record<string, string> | null | undefined) {
   return metadata?.user_id ?? metadata?.userId ?? null;
 }
 
+function metadataTier(metadata: Record<string, string> | null | undefined): "free" | "pro" | "pro_plus" {
+  const tier = metadata?.tier ?? metadata?.subscription_tier ?? "pro";
+  if (tier === "pro_plus" || tier === "pro+") return "pro_plus";
+  if (tier === "pro") return "pro";
+  return "free";
+}
+
+function calculateTrialEnd(trialDays: number = 7): string {
+  const trialEnd = new Date();
+  trialEnd.setDate(trialEnd.getDate() + trialDays);
+  return trialEnd.toISOString();
+}
+
 async function upsertUserById(input: {
   userId: string;
   status: "active" | "inactive";
+  tier?: "free" | "pro" | "pro_plus" | "trial";
+  trialEnd?: string | null;
   customerId?: string | null;
   subscriptionId?: string | null;
 }) {
@@ -64,6 +79,8 @@ async function upsertUserById(input: {
     {
       id: input.userId,
       subscription_status: input.status,
+      subscription_tier: input.tier ?? (input.status === "active" ? "pro" : "free"),
+      trial_end: input.trialEnd ?? null,
       stripe_customer_id: input.customerId ?? null,
       stripe_subscription_id: input.subscriptionId ?? null
     },
@@ -77,6 +94,7 @@ async function upsertUserById(input: {
   
   console.log("[WEBHOOK] upsertUserById SUCCESS:", JSON.stringify(data));
 }
+
 
 async function updateUserByCustomerId(input: {
   customerId: string;
@@ -139,6 +157,8 @@ export async function POST(req: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
 
         const userId = session.client_reference_id ?? metadataUserId(session.metadata) ?? null;
+        const tier = metadataTier(session.metadata);
+        const isTrialCheckout = session.metadata?.trial === "true";
 
         const stripeCustomerId = customerIdOf(session.customer);
         const stripeSubscriptionId = subscriptionIdOf(session.subscription as string | Stripe.Subscription | null);
@@ -146,6 +166,8 @@ export async function POST(req: Request) {
         console.log("[WEBHOOK] checkout.session.completed:", {
           sessionId: session.id,
           userId,
+          tier,
+          isTrialCheckout,
           customerId: stripeCustomerId,
           subscriptionId: stripeSubscriptionId
         });
@@ -155,6 +177,8 @@ export async function POST(req: Request) {
           await upsertUserById({
             userId,
             status: "active",
+            tier: isTrialCheckout ? "trial" : tier,
+            trialEnd: isTrialCheckout ? calculateTrialEnd(7) : null,
             customerId: stripeCustomerId,
             subscriptionId: stripeSubscriptionId
           });

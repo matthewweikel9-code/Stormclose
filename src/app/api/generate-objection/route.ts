@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { estimateUsageCostUsd, generateObjectionResponse } from "@/lib/ai";
+import { checkFeatureAccess } from "@/lib/subscriptions";
 
 export const runtime = "nodejs";
 
@@ -35,34 +36,14 @@ function isValidPayload(body: unknown): body is GenerateObjectionRequest {
 }
 
 async function enforceAccess(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-  const { data: billingUser } = (await supabase
-    .from("users")
-    .select("subscription_status")
-    .eq("id", userId)
-    .maybeSingle()) as { data: { subscription_status: string | null } | null };
-
-  const isActive = billingUser?.subscription_status === "active";
-
-  // Active subscribers have unlimited access
-  if (isActive) {
-    return { ok: true as const };
-  }
-
-  // Free tier: enforce 3-report limit
-  const { count, error } = await (supabase
-    .from("reports") as any)
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId);
-
-  if (error) {
-    throw new Error(`Failed to check usage limit: ${error.message}`);
-  }
-
-  if ((count ?? 0) >= 3) {
+  // Objection handler is Pro+ only
+  const access = await checkFeatureAccess(userId, "objection_handler");
+  
+  if (!access.allowed) {
     return {
       ok: false as const,
       status: 403,
-      error: "Free tier limit reached. Subscribe for unlimited access."
+      error: access.reason || "Objection Handler requires Pro+ subscription."
     };
   }
 

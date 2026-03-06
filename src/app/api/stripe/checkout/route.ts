@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createSubscriptionCheckoutSession } from "@/lib/stripe/checkout";
-import { stripeConfig } from "@/lib/stripe/config";
+import { stripeConfig, getPriceIdForTier, type SubscriptionPriceTier } from "@/lib/stripe/config";
 
 export const runtime = "nodejs";
 
@@ -21,9 +21,21 @@ function getRequestOrigin(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!stripeConfig.secretKey || !stripeConfig.monthlyPriceId) {
+  // Parse request body for tier
+  let tier: SubscriptionPriceTier = "pro";
+  try {
+    const body = await request.json();
+    if (body.tier === "pro" || body.tier === "pro_plus") {
+      tier = body.tier;
+    }
+  } catch {
+    // Default to pro if no body or invalid JSON
+  }
+
+  const priceId = getPriceIdForTier(tier);
+  if (!stripeConfig.secretKey || !priceId) {
     return NextResponse.json(
-      { error: "Stripe is not configured. Missing STRIPE_SECRET_KEY or STRIPE_PRICE_ID_MONTHLY." },
+      { error: `Stripe is not configured. Missing STRIPE_SECRET_KEY or price ID for ${tier} tier.` },
       { status: 500 }
     );
   }
@@ -37,8 +49,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: userRecord } = await supabase
-    .from("users")
+  const { data: userRecord } = await (supabase
+    .from("users") as any)
     .select("id,email,stripe_customer_id,subscription_status")
     .eq("id", user.id)
     .maybeSingle();
@@ -47,6 +59,7 @@ export async function POST(request: Request) {
     userId: user.id,
     email: user.email,
     userRecord,
+    tier,
     appUrl: getRequestOrigin(request),
     upsertUser: async (payload) => {
       await (supabase.from("users") as any).upsert(payload, { onConflict: "id" });

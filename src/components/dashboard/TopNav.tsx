@@ -1,15 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { getDaysRemaining, TIER_DISPLAY_NAMES, type SubscriptionTier } from "@/lib/subscriptions/tiers";
 
 interface TopNavProps {
 	user: {
 		email?: string | null;
 	} | null;
 	subscriptionStatus: string;
+	tier?: SubscriptionTier;
+	reportsThisMonth?: number;
+	trialEnd?: string | null;
 }
 
-export function TopNav({ user, subscriptionStatus }: TopNavProps) {
+export function TopNav({ user, subscriptionStatus, tier = "free", reportsThisMonth = 0, trialEnd }: TopNavProps) {
+	const displayTier = TIER_DISPLAY_NAMES[tier] || "Free";
+	const daysUntilTrialEnd = trialEnd ? getDaysRemaining(trialEnd) : null;
+	const isOnTrial = daysUntilTrialEnd !== null && daysUntilTrialEnd > 0;
+	
 	return (
 		<header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#1F2937] bg-[#0B0F1A]/80 px-6 backdrop-blur-xl">
 			{/* Left side - Breadcrumb or search */}
@@ -41,24 +49,36 @@ export function TopNav({ user, subscriptionStatus }: TopNavProps) {
 
 			{/* Right side - User info */}
 			<div className="flex items-center gap-4">
+				{/* Trial countdown */}
+				{isOnTrial && (
+					<span className="hidden items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400 sm:inline-flex">
+						<svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						{daysUntilTrialEnd} day{daysUntilTrialEnd !== 1 ? "s" : ""} left in trial
+					</span>
+				)}
+
 				{/* Subscription badge */}
 				<span
 					className={`hidden rounded-full px-3 py-1 text-xs font-semibold sm:inline-flex ${
-						subscriptionStatus === "active"
+						tier === "pro_plus"
+							? "bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-400"
+							: tier === "pro" || tier === "trial"
 							? "bg-emerald-500/10 text-emerald-400"
-							: "bg-amber-500/10 text-amber-400"
+							: "bg-slate-700/50 text-slate-400"
 					}`}
 				>
-					{subscriptionStatus === "active" ? "Pro" : "Free"}
+					{displayTier}
 				</span>
 
-				{/* Upgrade button (if not active) */}
-				{subscriptionStatus !== "active" && (
+				{/* Upgrade button (if not pro_plus) */}
+				{tier !== "pro_plus" && (
 					<Link
-						href="/subscribe"
+						href="/settings/billing"
 						className="hidden rounded-lg bg-[#6D5CFF] px-3 py-1.5 text-sm font-semibold text-white transition-all hover:bg-[#5B4AE8] sm:inline-flex"
 					>
-						Upgrade
+						{tier === "free" ? "Upgrade" : "Go Pro+"}
 					</Link>
 				)}
 
