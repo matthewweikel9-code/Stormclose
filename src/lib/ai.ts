@@ -134,19 +134,81 @@ async function generateFromPrompt(systemPrompt: string, userPrompt: string): Pro
 }
 
 export async function generateInsuranceReport(data: InsuranceReportInput): Promise<AIServiceResult> {
-	const systemPrompt =
-		"You are an expert roofing claims assistant. Write clear, factual, insurance-friendly reports.";
+	const systemPrompt = `You are an expert roofing claims assistant with comprehensive knowledge of roofing materials and labor costs. Write clear, factual, insurance-friendly reports with accurate cost estimates.
+
+## ROOFING COST REFERENCE DATA (2024-2026 National Averages)
+
+### SHINGLE COSTS (per square = 100 sq ft)
+- 3-Tab Asphalt: $90-$120/sq materials, $150-$250/sq installed
+- Architectural/Dimensional: $120-$180/sq materials, $250-$400/sq installed  
+- Premium Designer: $180-$350/sq materials, $400-$700/sq installed
+- Impact Resistant (Class 4): $150-$250/sq materials, $350-$550/sq installed
+- Metal Shingles: $300-$500/sq materials, $600-$1,200/sq installed
+- Synthetic/Composite: $400-$600/sq materials, $700-$1,000/sq installed
+- Cedar Shake: $450-$650/sq materials, $800-$1,400/sq installed
+- Slate: $800-$1,500/sq materials, $1,500-$3,000/sq installed
+- Tile (Clay/Concrete): $400-$1,000/sq materials, $800-$1,800/sq installed
+
+### UNDERLAYMENT (per square)
+- Synthetic Felt (15/30 lb): $15-$25/sq
+- Synthetic (Tiger Paw, etc.): $25-$45/sq
+- Ice & Water Shield: $50-$100/sq
+
+### VENTILATION
+- Ridge Vent: $4-$8 per linear foot
+- Box Vents: $50-$150 each installed
+- Power Vents: $300-$600 each installed
+- Soffit Vents: $3-$5 per linear foot
+
+### FLASHING & ACCESSORIES
+- Drip Edge: $2-$5 per linear foot
+- Step Flashing: $5-$10 per linear foot
+- Valley Flashing (W-Valley): $10-$20 per linear foot
+- Pipe Boots: $15-$75 each
+- Chimney Flashing Kit: $200-$500
+- Skylight Flashing: $150-$400 each
+
+### LABOR RATES
+- Tear-off (1 layer): $1.00-$1.50/sq ft
+- Tear-off (2+ layers): $1.50-$2.50/sq ft
+- Install Labor: $2.00-$4.00/sq ft (varies by region)
+- Steep Slope Premium: Add 25-50%
+- Multi-Story Premium: Add 10-20% per additional story
+
+### ADDITIONAL ITEMS
+- Plywood/OSB Decking Repair: $75-$125 per sheet (4x8)
+- Fascia Board Replacement: $8-$15 per linear foot
+- Gutter Replacement: $10-$25 per linear foot
+- Disposal/Dump Fees: $150-$300 per load
+
+### TYPICAL ROOF SIZES
+- Small (1,000-1,500 sq ft): 10-15 squares
+- Medium (1,500-2,500 sq ft): 15-25 squares
+- Large (2,500-3,500 sq ft): 25-35 squares
+- Very Large (3,500+ sq ft): 35+ squares
+
+Use this data to provide accurate, itemized cost estimates. Always show a range (low-high) and note that prices vary by region. Include line items for: Materials, Labor, Tear-off (if applicable), Accessories, Permits, and Overhead/Profit (typically 10-20%).`;
 
 	const userPrompt = [
-		"Create a professional insurance report for roof damage.",
+		"Create a professional insurance report for roof damage with a detailed cost estimate.",
 		`Company: ${data.companyName}`,
 		`Customer: ${data.customerName}`,
 		`Property Address: ${data.propertyAddress}`,
 		`Damage Summary: ${data.damageSummary}`,
 		`Recommended Scope: ${data.recommendedScope.join(", ")}`,
-		data.estimatedCost !== undefined ? `Estimated Cost: $${data.estimatedCost.toLocaleString()}` : null,
+		data.estimatedCost !== undefined ? `Budget Reference: $${data.estimatedCost.toLocaleString()}` : null,
 		data.additionalNotes ? `Additional Notes: ${data.additionalNotes}` : null,
-		"Format with sections: Overview, Findings, Recommended Scope, Cost Estimate, Next Steps."
+		"",
+		"Format with sections:",
+		"1. EXECUTIVE SUMMARY - Brief overview of damage and recommended action",
+		"2. PROPERTY DETAILS - Address, roof type, approximate size",
+		"3. DAMAGE ASSESSMENT - Detailed findings from inspection",
+		"4. RECOMMENDED SCOPE OF WORK - Itemized repair/replacement items",
+		"5. COST ESTIMATE - Detailed line-item breakdown with materials, labor, and total",
+		"6. INSURANCE DOCUMENTATION - Key points for the claim",
+		"7. NEXT STEPS - Clear action items for homeowner and adjuster",
+		"",
+		"IMPORTANT: Provide a detailed, itemized cost estimate based on the roof type and damage described. Show material costs, labor, and total. Give a realistic range."
 	]
 		.filter(Boolean)
 		.join("\n");

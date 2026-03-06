@@ -12,6 +12,7 @@ type GenerateReportRequest = {
   damageNotes: string;
   insuranceCompany: string;
   slopesDamaged: number;
+  roofSquares?: number;
 };
 
 function isValidPayload(body: unknown): body is GenerateReportRequest {
@@ -27,7 +28,8 @@ function isValidPayload(body: unknown): body is GenerateReportRequest {
     typeof payload.shingleType === "string" &&
     typeof payload.damageNotes === "string" &&
     typeof payload.insuranceCompany === "string" &&
-    typeof payload.slopesDamaged === "number"
+    typeof payload.slopesDamaged === "number" &&
+    (payload.roofSquares === undefined || typeof payload.roofSquares === "number")
   );
 }
 
@@ -76,7 +78,8 @@ export async function POST(request: Request) {
       shingleType: body.shingleType.trim(),
       damageNotes: body.damageNotes.trim(),
       insuranceCompany: body.insuranceCompany.trim(),
-      slopesDamaged: body.slopesDamaged
+      slopesDamaged: body.slopesDamaged,
+      roofSquares: body.roofSquares
     };
 
     if (
@@ -91,17 +94,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Please fill out all required fields correctly." }, { status: 400 });
     }
 
+    // Build scope with roof size if provided
+    const scopeItems = [
+      `${payload.roofType} roof inspection`,
+      `${payload.shingleType} shingle replacement review`,
+      `${payload.slopesDamaged} slope(s) affected`
+    ];
+    
+    // Build additional notes with roof size for cost estimation
+    const additionalNotesParts = [`Insurance carrier: ${payload.insuranceCompany}`];
+    if (payload.roofSquares && payload.roofSquares > 0) {
+      additionalNotesParts.push(`Roof size: approximately ${payload.roofSquares} squares (${payload.roofSquares * 100} sq ft)`);
+    }
+
     const aiResult = await generateInsuranceReport({
       companyName: "StormClose AI Roofing",
       customerName: user.email ?? "Homeowner",
       propertyAddress: payload.propertyAddress,
       damageSummary: payload.damageNotes,
-      recommendedScope: [
-        `${payload.roofType} roof inspection`,
-        `${payload.shingleType} shingle replacement review`,
-        `${payload.slopesDamaged} slope(s) affected`
-      ],
-      additionalNotes: `Insurance carrier: ${payload.insuranceCompany}`
+      recommendedScope: scopeItems,
+      additionalNotes: additionalNotesParts.join(". ")
     });
 
     const insertPayload = {

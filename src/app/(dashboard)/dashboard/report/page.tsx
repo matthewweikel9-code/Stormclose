@@ -13,6 +13,7 @@ type ReportFormState = {
   insuranceCompany: string;
   claimNumber: string;
   slopesDamaged: string;
+  roofSquares: string;
 };
 
 type GenerateResponse = {
@@ -35,7 +36,8 @@ const initialForm: ReportFormState = {
   damageNotes: "",
   insuranceCompany: "",
   claimNumber: "",
-  slopesDamaged: ""
+  slopesDamaged: "",
+  roofSquares: ""
 };
 
 export default function ReportPage() {
@@ -102,7 +104,8 @@ export default function ReportPage() {
           shingleType: form.shingleType,
           damageNotes: form.damageNotes,
           insuranceCompany: form.insuranceCompany,
-          slopesDamaged: Number(form.slopesDamaged)
+          slopesDamaged: Number(form.slopesDamaged),
+          roofSquares: form.roofSquares ? Number(form.roofSquares) : undefined
         })
       });
 
@@ -323,6 +326,23 @@ export default function ReportPage() {
                   placeholder="2"
                   required
                 />
+              </label>
+
+              <label>
+                <span className="mb-1.5 block text-sm font-medium text-slate-300">
+                  Roof size (squares)
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  className="dashboard-input"
+                  value={form.roofSquares}
+                  onChange={(event) => setForm((prev) => ({ ...prev, roofSquares: event.target.value }))}
+                  placeholder="25 (1 sq = 100 sq ft)"
+                />
+                <span className="mt-1 block text-xs text-slate-500">
+                  Optional – helps generate accurate cost estimates
+                </span>
               </label>
 
               <label className="sm:col-span-2">
