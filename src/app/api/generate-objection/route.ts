@@ -41,14 +41,14 @@ async function enforceAccess(supabase: Awaited<ReturnType<typeof createClient>>,
     .eq("id", userId)
     .maybeSingle()) as { data: { subscription_status: string | null } | null };
 
-  if (billingUser?.subscription_status !== "active") {
-    return {
-      ok: false as const,
-      status: 403,
-      error: "Active subscription required."
-    };
+  const isActive = billingUser?.subscription_status === "active";
+
+  // Active subscribers have unlimited access
+  if (isActive) {
+    return { ok: true as const };
   }
 
+  // Free tier: enforce 3-report limit
   const { count, error } = await (supabase
     .from("reports") as any)
     .select("id", { count: "exact", head: true })
@@ -61,8 +61,8 @@ async function enforceAccess(supabase: Awaited<ReturnType<typeof createClient>>,
   if ((count ?? 0) >= 3) {
     return {
       ok: false as const,
-      status: 429,
-      error: "Usage limit exceeded. Free tier allows up to 3 reports."
+      status: 403,
+      error: "Free tier limit reached. Subscribe for unlimited access."
     };
   }
 
