@@ -189,35 +189,30 @@ export async function POST(req: Request) {
         const subscription = event.data.object as Stripe.Subscription;
         const stripeCustomerId = customerIdOf(subscription.customer);
         const status = normalizeSubscriptionStatus(subscription.status);
-        const userId = metadataUserId(subscription.metadata);
 
-        if (stripeCustomerId) {
-          const updated = await updateUserByCustomerId({
-            customerId: stripeCustomerId,
-            status,
-            subscriptionId: subscription.id
-          });
+        // get user id from metadata
+        const userId = subscription.metadata?.user_id;
 
-          if (updated) {
-            break;
-          }
+        if (!userId) {
+          console.error("Missing user_id in subscription metadata");
+          return NextResponse.json({ error: "Missing user id" }, { status: 400 });
         }
 
-        if (userId) {
-          await upsertUserById({
-            userId,
-            status,
-            customerId: stripeCustomerId,
-            subscriptionId: subscription.id
-          });
-          break;
+        const { error } = await supabaseAdmin
+          .from("users")
+          .update({
+            subscription_status: status,
+            stripe_subscription_id: subscription.id,
+            stripe_customer_id: stripeCustomerId
+          })
+          .eq("id", userId);
+
+        if (error) {
+          console.error("Failed to update subscription:", error);
+          return NextResponse.json({ error: "Database update failed" }, { status: 500 });
         }
 
-        console.error("subscription.updated could not map to user", {
-          subscriptionId: subscription.id,
-          customerId: stripeCustomerId
-        });
-
+        console.log("[WEBHOOK] subscription.updated success for user:", userId);
         break;
       }
 
