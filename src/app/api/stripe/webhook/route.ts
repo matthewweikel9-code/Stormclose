@@ -256,7 +256,56 @@ export async function POST(req: Request) {
         break;
       }
 
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripeCustomerId = customerIdOf(invoice.customer);
+        const stripeSubscriptionId = subscriptionIdOf(invoice.subscription as string | Stripe.Subscription | null);
+
+        console.log("[WEBHOOK] invoice.payment_succeeded:", {
+          invoiceId: invoice.id,
+          customerId: stripeCustomerId,
+          subscriptionId: stripeSubscriptionId,
+          billingReason: invoice.billing_reason
+        });
+
+        // Only update for subscription-related invoices
+        if (stripeCustomerId && stripeSubscriptionId) {
+          const updated = await updateUserByCustomerId({
+            customerId: stripeCustomerId,
+            status: "active",
+            subscriptionId: stripeSubscriptionId
+          });
+
+          if (updated) {
+            console.log("[WEBHOOK] User activated via invoice.payment_succeeded");
+          }
+        }
+
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripeCustomerId = customerIdOf(invoice.customer);
+
+        console.log("[WEBHOOK] invoice.payment_failed:", {
+          invoiceId: invoice.id,
+          customerId: stripeCustomerId
+        });
+
+        // Mark as inactive when payment fails
+        if (stripeCustomerId) {
+          await updateUserByCustomerId({
+            customerId: stripeCustomerId,
+            status: "inactive"
+          });
+        }
+
+        break;
+      }
+
       default:
+        console.log("[WEBHOOK] Unhandled event type:", event.type);
         break;
     }
 
