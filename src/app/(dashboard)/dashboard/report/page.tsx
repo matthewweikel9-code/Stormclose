@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { PageHeader, Card, Button } from "@/components/dashboard";
 
@@ -38,6 +39,7 @@ const initialForm: ReportFormState = {
 };
 
 export default function ReportPage() {
+  const searchParams = useSearchParams();
   const [form, setForm] = useState<ReportFormState>(initialForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +48,28 @@ export default function ReportPage() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [csvLoading, setCsvLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [photoDataLoaded, setPhotoDataLoaded] = useState(false);
+
+  // Load photo analysis data if coming from photos page
+  useEffect(() => {
+    if (searchParams.get("from") === "photos" && !photoDataLoaded) {
+      try {
+        const photoData = sessionStorage.getItem("photoAnalysisData");
+        if (photoData) {
+          const parsed = JSON.parse(photoData);
+          setForm((prev) => ({
+            ...prev,
+            damageNotes: parsed.damageNotes || prev.damageNotes
+          }));
+          // Clear the data after loading
+          sessionStorage.removeItem("photoAnalysisData");
+          setPhotoDataLoaded(true);
+        }
+      } catch (e) {
+        console.error("Failed to load photo analysis data:", e);
+      }
+    }
+  }, [searchParams, photoDataLoaded]);
 
   const canSubmit = useMemo(() => {
     return Boolean(

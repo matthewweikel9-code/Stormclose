@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { PhotoUpload } from "@/components/features/PhotoUpload";
 
 interface AnalyzedPhoto {
@@ -24,12 +25,55 @@ const SEVERITY_COLORS = {
 };
 
 export function PhotosClient() {
+	const router = useRouter();
 	const [analyzedPhotos, setAnalyzedPhotos] = useState<AnalyzedPhoto[]>([]);
 	const [selectedPhoto, setSelectedPhoto] = useState<AnalyzedPhoto | null>(null);
 
 	const handlePhotoAnalyzed = (photo: AnalyzedPhoto) => {
 		setAnalyzedPhotos((prev) => [...prev, photo]);
 		setSelectedPhoto(photo);
+	};
+
+	const generateReportFromPhotos = () => {
+		if (analyzedPhotos.length === 0) return;
+
+		// Combine all photo analyses into damage notes
+		const allDamageTypes = new Set<string>();
+		const allDescriptions: string[] = [];
+		let maxSeverity: "none" | "minor" | "moderate" | "severe" = "none";
+		const severityOrder = { none: 0, minor: 1, moderate: 2, severe: 3 };
+
+		analyzedPhotos.forEach((photo) => {
+			photo.analysis.damageTypes.forEach((type) => allDamageTypes.add(type));
+			allDescriptions.push(photo.analysis.description);
+			if (severityOrder[photo.analysis.severity] > severityOrder[maxSeverity]) {
+				maxSeverity = photo.analysis.severity;
+			}
+		});
+
+		// Build comprehensive damage notes from AI analysis
+		const damageNotes = [
+			`AI Photo Analysis Summary (${analyzedPhotos.length} photo${analyzedPhotos.length > 1 ? "s" : ""} analyzed):`,
+			"",
+			`Overall Severity: ${maxSeverity.charAt(0).toUpperCase() + maxSeverity.slice(1)}`,
+			"",
+			"Damage Types Detected:",
+			...Array.from(allDamageTypes).map((type) => `• ${type}`),
+			"",
+			"Detailed Findings:",
+			...allDescriptions.map((desc, i) => `${i + 1}. ${desc}`),
+		].join("\n");
+
+		// Store in sessionStorage for the report page to pick up
+		sessionStorage.setItem("photoAnalysisData", JSON.stringify({
+			damageNotes,
+			photoIds: analyzedPhotos.map((p) => p.id),
+			severity: maxSeverity,
+			damageTypes: Array.from(allDamageTypes),
+		}));
+
+		// Navigate to report page
+		router.push("/dashboard/report?from=photos");
 	};
 
 	return (
@@ -147,6 +191,38 @@ export function PhotosClient() {
 					)}
 				</div>
 			</div>
+
+			{/* Generate Report CTA */}
+			{analyzedPhotos.length > 0 && (
+				<div className="rounded-xl border border-[#6D5CFF]/30 bg-gradient-to-r from-[#6D5CFF]/10 via-[#111827] to-[#A78BFA]/10 p-6">
+					<div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+						<div>
+							<h3 className="text-lg font-semibold text-white">
+								Ready to Generate a Report?
+							</h3>
+							<p className="mt-1 text-sm text-slate-400">
+								Create an insurance-ready report using AI analysis from{" "}
+								{analyzedPhotos.length} photo{analyzedPhotos.length > 1 ? "s" : ""}. 
+								Damage notes will be pre-filled automatically.
+							</p>
+						</div>
+						<button
+							onClick={generateReportFromPhotos}
+							className="inline-flex items-center gap-2 rounded-xl bg-[#6D5CFF] px-6 py-3 font-semibold text-white transition-all hover:bg-[#5B4DE0] hover:shadow-lg hover:shadow-[#6D5CFF]/25"
+						>
+							<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/>
+							</svg>
+							Generate Report
+						</button>
+					</div>
+				</div>
+			)}
 
 			{/* Photo History */}
 			{analyzedPhotos.length > 1 && (
