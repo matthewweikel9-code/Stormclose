@@ -24,8 +24,39 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
 		.eq("id", userId)
 		.maybeSingle();
 
-	if (error || !data) {
+	if (error) {
+		console.error("[getUserSubscription] Error fetching user:", error.message);
 		return null;
+	}
+
+	// If user doesn't exist in users table, create them with free tier
+	if (!data) {
+		console.log("[getUserSubscription] User not found, creating with free tier:", userId);
+		const { error: insertError } = await (supabase
+			.from("users") as any)
+			.upsert({
+				id: userId,
+				subscription_tier: "free",
+				subscription_status: "inactive",
+				reports_this_month: 0,
+				reports_reset_at: new Date().toISOString()
+			}, { onConflict: "id" });
+
+		if (insertError) {
+			console.error("[getUserSubscription] Error creating user:", insertError.message);
+			return null;
+		}
+
+		return {
+			tier: "free",
+			effectiveTier: "free",
+			trialEnd: null,
+			trialDaysRemaining: 0,
+			reportsThisMonth: 0,
+			reportsResetAt: new Date().toISOString(),
+			stripeCustomerId: null,
+			stripeSubscriptionId: null
+		};
 	}
 
 	const tier = (data.subscription_tier as SubscriptionTier) || "free";
