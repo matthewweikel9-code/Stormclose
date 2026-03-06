@@ -68,7 +68,7 @@ function calculateTrialEnd(trialDays: number = 7): string {
 async function upsertUserById(input: {
   userId: string;
   status: "active" | "inactive";
-  tier?: "free" | "pro" | "pro_plus" | "trial";
+  tier?: "free" | "pro" | "pro_plus";
   trialEnd?: string | null;
   customerId?: string | null;
   subscriptionId?: string | null;
@@ -99,16 +99,24 @@ async function upsertUserById(input: {
 async function updateUserByCustomerId(input: {
   customerId: string;
   status: "active" | "inactive";
+  tier?: "free" | "pro" | "pro_plus";
   subscriptionId?: string | null;
 }) {
   console.log("[WEBHOOK] updateUserByCustomerId called:", JSON.stringify(input));
   
+  const updatePayload: Record<string, unknown> = {
+    subscription_status: input.status,
+    stripe_subscription_id: input.subscriptionId ?? null
+  };
+  
+  // Only update tier if provided
+  if (input.tier) {
+    updatePayload.subscription_tier = input.tier;
+  }
+  
   const { data, error } = await supabaseAdmin
     .from("users")
-    .update({
-      subscription_status: input.status,
-      stripe_subscription_id: input.subscriptionId ?? null
-    })
+    .update(updatePayload)
     .eq("stripe_customer_id", input.customerId)
     .select("id")
     .limit(1);
@@ -177,7 +185,7 @@ export async function POST(req: Request) {
           await upsertUserById({
             userId,
             status: "active",
-            tier: isTrialCheckout ? "trial" : tier,
+            tier: tier,
             trialEnd: isTrialCheckout ? calculateTrialEnd(7) : null,
             customerId: stripeCustomerId,
             subscriptionId: stripeSubscriptionId
@@ -191,6 +199,7 @@ export async function POST(req: Request) {
           const updated = await updateUserByCustomerId({
             customerId: stripeCustomerId,
             status: "active",
+            tier: tier,
             subscriptionId: stripeSubscriptionId
           });
 
