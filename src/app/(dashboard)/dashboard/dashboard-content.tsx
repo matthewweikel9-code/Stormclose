@@ -4,12 +4,14 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { PageHeader, StatCard, Card } from "@/components/dashboard";
 import { Button } from "@/components/dashboard/Button";
+import { useUserStats } from "@/hooks";
 
 interface DashboardContentProps {
 	user: {
 		email?: string | null;
 	};
 	subscriptionStatus: string;
+	subscriptionTier?: "free" | "pro" | "pro_plus";
 	logoutAction: () => Promise<void>;
 }
 
@@ -64,8 +66,33 @@ const quickActions = [
 export function DashboardContent({
 	user,
 	subscriptionStatus,
+	subscriptionTier = "free",
 	logoutAction,
 }: DashboardContentProps) {
+	const { reports, followups, objections, photos, emails, isLoading } = useUserStats();
+
+	const getTierDisplay = () => {
+		switch (subscriptionTier) {
+			case "pro_plus":
+				return "Pro+";
+			case "pro":
+				return "Pro";
+			default:
+				return "Free";
+		}
+	};
+
+	const getTierDescription = () => {
+		switch (subscriptionTier) {
+			case "pro_plus":
+				return "All features unlocked";
+			case "pro":
+				return "Active plan";
+			default:
+				return "Limited features";
+		}
+	};
+
 	return (
 		<div className="mx-auto max-w-6xl space-y-8">
 			{/* Header */}
@@ -86,9 +113,8 @@ export function DashboardContent({
 			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<StatCard
 					title="Reports Generated"
-					value="12"
-					description="this month"
-					trend={{ value: 24, isPositive: true }}
+					value={isLoading ? "..." : reports.toString()}
+					description="total"
 					icon={
 						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path
@@ -101,25 +127,24 @@ export function DashboardContent({
 					}
 				/>
 				<StatCard
-					title="Claims Processed"
-					value="$47.2K"
-					description="total value"
-					trend={{ value: 12, isPositive: true }}
+					title="Follow-ups"
+					value={isLoading ? "..." : followups.toString()}
+					description="created"
 					icon={
 						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
 								strokeWidth={1.5}
-								d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+								d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
 							/>
 						</svg>
 					}
 				/>
 				<StatCard
 					title="Subscription"
-					value={subscriptionStatus === "active" ? "Pro" : "Free"}
-					description={subscriptionStatus === "active" ? "Active plan" : "Limited features"}
+					value={getTierDisplay()}
+					description={getTierDescription()}
 					icon={
 						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path
@@ -132,9 +157,9 @@ export function DashboardContent({
 					}
 				/>
 				<StatCard
-					title="Emails Sent"
-					value="8"
-					description="to adjusters"
+					title="Emails Generated"
+					value={isLoading ? "..." : emails.toString()}
+					description="total"
 					icon={
 						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path

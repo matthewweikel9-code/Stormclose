@@ -16,16 +16,18 @@ export default async function DashboardPage() {
 
 	const { data: accountData } = (await supabase
 		.from("users")
-		.select("subscription_status")
+		.select("subscription_status, subscription_tier")
 		.eq("id", user.id)
-		.maybeSingle()) as { data: { subscription_status: string | null } | null };
+		.maybeSingle()) as { data: { subscription_status: string | null; subscription_tier: string | null } | null };
 
 	const subscriptionStatus = accountData?.subscription_status ?? "inactive";
+	const subscriptionTier = (accountData?.subscription_tier as "free" | "pro" | "pro_plus") ?? "free";
 
 	return (
 		<DashboardContent
 			user={user}
 			subscriptionStatus={subscriptionStatus}
+			subscriptionTier={subscriptionTier}
 			logoutAction={logout}
 		/>
 	);
