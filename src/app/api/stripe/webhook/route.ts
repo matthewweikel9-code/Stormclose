@@ -58,7 +58,9 @@ async function upsertUserById(input: {
   customerId?: string | null;
   subscriptionId?: string | null;
 }) {
-  const { error } = await supabaseAdmin.from("users").upsert(
+  console.log("[WEBHOOK] upsertUserById called:", JSON.stringify(input));
+  
+  const { data, error } = await supabaseAdmin.from("users").upsert(
     {
       id: input.userId,
       subscription_status: input.status,
@@ -66,11 +68,14 @@ async function upsertUserById(input: {
       stripe_subscription_id: input.subscriptionId ?? null
     },
     { onConflict: "id" }
-  );
+  ).select();
 
   if (error) {
+    console.error("[WEBHOOK] upsertUserById ERROR:", error.message);
     throw new Error(`Failed to upsert user ${input.userId}: ${error.message}`);
   }
+  
+  console.log("[WEBHOOK] upsertUserById SUCCESS:", JSON.stringify(data));
 }
 
 async function updateUserByCustomerId(input: {
@@ -78,6 +83,8 @@ async function updateUserByCustomerId(input: {
   status: "active" | "inactive";
   subscriptionId?: string | null;
 }) {
+  console.log("[WEBHOOK] updateUserByCustomerId called:", JSON.stringify(input));
+  
   const { data, error } = await supabaseAdmin
     .from("users")
     .update({
@@ -89,9 +96,11 @@ async function updateUserByCustomerId(input: {
     .limit(1);
 
   if (error) {
+    console.error("[WEBHOOK] updateUserByCustomerId ERROR:", error.message);
     throw new Error(`Failed update by customer ${input.customerId}: ${error.message}`);
   }
 
+  console.log("[WEBHOOK] updateUserByCustomerId result:", JSON.stringify(data));
   return (data?.length ?? 0) > 0;
 }
 
@@ -118,7 +127,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
   }
 
-  console.log("Stripe event:", event.type);
+  console.log("[WEBHOOK] Stripe event:", event.type, event.id);
 
   try {
     switch (event.type) {
@@ -130,17 +139,27 @@ export async function POST(req: Request) {
         const stripeCustomerId = customerIdOf(session.customer);
         const stripeSubscriptionId = subscriptionIdOf(session.subscription as string | Stripe.Subscription | null);
 
+        console.log("[WEBHOOK] checkout.session.completed:", {
+          sessionId: session.id,
+          userId,
+          customerId: stripeCustomerId,
+          subscriptionId: stripeSubscriptionId
+        });
+
         if (userId) {
+          console.log("[WEBHOOK] Activating by userId:", userId);
           await upsertUserById({
             userId,
             status: "active",
             customerId: stripeCustomerId,
             subscriptionId: stripeSubscriptionId
           });
+          console.log("[WEBHOOK] User activated successfully");
           break;
         }
 
         if (stripeCustomerId) {
+          console.log("[WEBHOOK] Activating by customerId:", stripeCustomerId);
           const updated = await updateUserByCustomerId({
             customerId: stripeCustomerId,
             status: "active",
@@ -148,11 +167,12 @@ export async function POST(req: Request) {
           });
 
           if (updated) {
+            console.log("[WEBHOOK] User activated by customer ID");
             break;
           }
         }
 
-        console.error("checkout.session.completed could not map to user", {
+        console.error("[WEBHOOK] checkout.session.completed could not map to user", {
           sessionId: session.id,
           customerId: stripeCustomerId,
           subscriptionId: stripeSubscriptionId
