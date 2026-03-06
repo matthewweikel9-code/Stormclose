@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { PageHeader, Card, Button } from "@/components/dashboard";
+import { downloadReportPDF, type ReportPDFData } from "@/lib/pdf";
 
 type ReportFormState = {
   propertyAddress: string;
@@ -233,6 +234,23 @@ export default function ReportPage() {
     }
   }
 
+  function handleDownloadPdf() {
+    if (!result) {
+      return;
+    }
+
+    const pdfData: ReportPDFData = {
+      companyName: "StormClose", // Could make this configurable per user
+      customerName: "Homeowner",
+      propertyAddress: form.propertyAddress,
+      reportContent: result.report,
+      generatedAt: new Date(result.createdAt),
+      reportType: "insurance"
+    };
+
+    downloadReportPDF(pdfData);
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
@@ -391,6 +409,15 @@ export default function ReportPage() {
           </div>
 
           <div className="mb-4 flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleDownloadPdf}
+              disabled={!result || loading}
+            >
+              Download PDF
+            </Button>
+
             <Button
               variant="secondary"
               size="sm"

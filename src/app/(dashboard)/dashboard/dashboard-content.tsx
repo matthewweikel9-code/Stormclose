@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { PageHeader, StatCard, Card } from "@/components/dashboard";
 import { Button } from "@/components/dashboard/Button";
 import { useUserStats } from "@/hooks";
+import { Pipeline } from "@/components/dashboard/Pipeline";
 
 interface DashboardContentProps {
 	user: {
@@ -198,6 +200,17 @@ export function DashboardContent({
 					</div>
 				</motion.div>
 			)}
+
+			{/* Sales Pipeline */}
+			<motion.div
+				initial={{ opacity: 0, y: 10 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ delay: 0.1 }}
+			>
+				<Card className="p-6">
+					<Pipeline />
+				</Card>
+			</motion.div>
 
 			{/* Quick Actions */}
 			<div>
