@@ -8,7 +8,7 @@ export type FeatureKey =
 	| "negotiation_coach"
 	| "carrier_intelligence"
 	| "lead_scoring"
-	| "sms_responder";
+	| "roof_measurement";
 
 export interface TierLimits {
 	features: FeatureKey[];
@@ -38,7 +38,7 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
 			"negotiation_coach",
 			"carrier_intelligence",
 			"lead_scoring",
-			"sms_responder"
+			"roof_measurement"
 		]
 	}
 };
@@ -63,7 +63,7 @@ export const FEATURE_DISPLAY_NAMES: Record<FeatureKey, string> = {
 	negotiation_coach: "AI Insurance Negotiation Coach",
 	carrier_intelligence: "Insurance Carrier Intelligence",
 	lead_scoring: "Predictive Lead Scoring",
-	sms_responder: "SMS/WhatsApp AI Responder"
+	roof_measurement: "Instant Roof Measurement AI"
 };
 
 export function hasFeature(tier: SubscriptionTier, feature: FeatureKey): boolean {

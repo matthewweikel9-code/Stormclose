@@ -42,7 +42,7 @@ const tiers = [
 		features: [
 			"Everything in Pro",
 			"AI Negotiation Coach",
-			"SMS AI Responder",
+			"Live Roof Measurement AI",
 			"State-specific arguments",
 			"Priority support",
 		],

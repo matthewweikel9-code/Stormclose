@@ -93,7 +93,7 @@ export async function checkFeatureAccess(
 			negotiation_coach: "Negotiation Coach",
 			carrier_intelligence: "Carrier Intelligence",
 			lead_scoring: "Lead Scoring",
-			sms_responder: "SMS AI Responder"
+			roof_measurement: "Roof Measurement AI"
 		};
 
 		return {
