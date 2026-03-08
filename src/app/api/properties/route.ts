@@ -345,11 +345,43 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { lat, lng, radius, pageNumber, pageSize } = body;
+		let { lat, lng, radius, pageNumber, pageSize, address, zipCode } = body;
+
+		// If address or zipCode provided, geocode it first
+		if ((address || zipCode) && (!lat || !lng)) {
+			const searchQuery = address || zipCode;
+			const GOOGLE_API_KEY = process.env.GOOGLE_SOLAR_API_KEY || "AIzaSyB4EuYOLXgQ0sd9AYlx0bJ709VcNLi9HyI";
+			
+			try {
+				const geocodeResponse = await fetch(
+					`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchQuery)}&key=${GOOGLE_API_KEY}`
+				);
+				const geocodeData = await geocodeResponse.json();
+				
+				if (geocodeData.status === "OK" && geocodeData.results?.length > 0) {
+					const location = geocodeData.results[0].geometry.location;
+					lat = location.lat;
+					lng = location.lng;
+					console.log("Geocoded address:", searchQuery, "to:", lat, lng);
+				} else {
+					console.error("Geocode failed:", geocodeData.status, geocodeData.error_message);
+					return NextResponse.json(
+						{ error: `Could not find location for: ${searchQuery}` },
+						{ status: 400 }
+					);
+				}
+			} catch (geoError) {
+				console.error("Geocoding error:", geoError);
+				return NextResponse.json(
+					{ error: "Failed to geocode address" },
+					{ status: 500 }
+				);
+			}
+		}
 
 		if (!lat || !lng) {
 			return NextResponse.json(
-				{ error: "Provide 'lat' and 'lng' coordinates" },
+				{ error: "Provide 'address', 'zipCode', or 'lat' and 'lng' coordinates" },
 				{ status: 400 }
 			);
 		}

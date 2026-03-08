@@ -130,40 +130,36 @@ export default function LeadsPage() {
 		
 		setIsLoading(true);
 		setError(null);
+		setProperties([]);
+		setZoneStats(null);
 		
 		try {
-			// First, geocode the address to get coordinates
-			const geocodeResponse = await fetch(
-				`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchAddress)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyB4EuYOLXgQ0sd9AYlx0bJ709VcNLi9HyI"}`
-			);
-			const geocodeData = await geocodeResponse.json();
+			// Search for properties - geocoding happens server-side
+			const response = await fetch("/api/properties", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					address: searchAddress,
+					radius: searchRadius,
+					pageSize: 100
+				})
+			});
 			
-			if (geocodeData.results && geocodeData.results.length > 0) {
-				const { lat, lng } = geocodeData.results[0].geometry.location;
-				setSearchCoords({ lat, lng });
-				
-				// Now search for properties in the radius
-				const response = await fetch("/api/properties", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						lat,
-						lng,
-						radius: searchRadius,
-						pageSize: 100
-					})
-				});
-				
-				const data = await response.json();
-				
-				if (!response.ok) {
-					throw new Error(data.error || "Failed to search properties");
-				}
-				
-				setProperties(data.properties || []);
-				setZoneStats(data.statistics || null);
-			} else {
-				throw new Error("Could not find location for this address");
+			const data = await response.json();
+			
+			if (!response.ok) {
+				throw new Error(data.error || "Failed to search properties");
+			}
+			
+			if (data.zone?.center) {
+				setSearchCoords(data.zone.center);
+			}
+			
+			setProperties(data.properties || []);
+			setZoneStats(data.statistics || null);
+			
+			if (!data.properties || data.properties.length === 0) {
+				setError("No properties found in this area. Try a different location or larger radius.");
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to search properties");
@@ -286,7 +282,14 @@ export default function LeadsPage() {
 								setShowPredictions(true);
 							}}
 							onFocus={() => setShowPredictions(true)}
-							placeholder="Enter address, city, or zip code..."
+							onKeyDown={(e) => {
+								if (e.key === "Enter") {
+									e.preventDefault();
+									setShowPredictions(false);
+									handleSearch();
+								}
+							}}
+							placeholder="Enter address, city, or zip code (e.g., 75001 or Dallas, TX)..."
 							className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6D5CFF] focus:border-transparent"
 						/>
 						
