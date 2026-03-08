@@ -39,7 +39,7 @@ export async function createSubscriptionCheckoutSession(input: {
 	}
 
 	// Map checkout tier to subscription tier for metadata
-	const subscriptionTier = tier === "pro_plus" ? "pro_plus" : "pro";
+	const subscriptionTier = tier;
 
 	const session = await stripe.checkout.sessions.create({
 		mode: "subscription",
