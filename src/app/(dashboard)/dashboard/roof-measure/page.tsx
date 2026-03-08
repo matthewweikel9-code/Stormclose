@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { PageHeader, Card } from "@/components/dashboard";
 import { Button } from "@/components/dashboard/Button";
+
+interface AddressPrediction {
+	placeId: string;
+	description: string;
+	mainText: string;
+	secondaryText: string;
+}
 
 interface RoofSegment {
 	id: number;
@@ -47,6 +54,88 @@ export default function RoofMeasurementPage() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [result, setResult] = useState<MeasurementResult | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	
+	// Autocomplete state
+	const [predictions, setPredictions] = useState<AddressPrediction[]>([]);
+	const [showPredictions, setShowPredictions] = useState(false);
+	const [isLoadingPredictions, setIsLoadingPredictions] = useState(false);
+	const inputRef = useRef<HTMLInputElement>(null);
+	const dropdownRef = useRef<HTMLDivElement>(null);
+	
+	// Street View state
+	const [streetViewUrl, setStreetViewUrl] = useState<string | null>(null);
+	const [streetViewAvailable, setStreetViewAvailable] = useState(true);
+
+	// Fetch address predictions
+	useEffect(() => {
+		const fetchPredictions = async () => {
+			if (address.length < 3) {
+				setPredictions([]);
+				return;
+			}
+
+			setIsLoadingPredictions(true);
+			try {
+				const response = await fetch(`/api/places-autocomplete?input=${encodeURIComponent(address)}`);
+				const data = await response.json();
+				setPredictions(data.predictions || []);
+			} catch {
+				console.error("Failed to fetch predictions");
+			} finally {
+				setIsLoadingPredictions(false);
+			}
+		};
+
+		const debounce = setTimeout(fetchPredictions, 300);
+		return () => clearTimeout(debounce);
+	}, [address]);
+
+	// Close dropdown when clicking outside
+	useEffect(() => {
+		const handleClickOutside = (e: MouseEvent) => {
+			if (
+				dropdownRef.current &&
+				!dropdownRef.current.contains(e.target as Node) &&
+				!inputRef.current?.contains(e.target as Node)
+			) {
+				setShowPredictions(false);
+			}
+		};
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
+	}, []);
+
+	// Fetch Street View when result changes
+	useEffect(() => {
+		const fetchStreetView = async () => {
+			if (!result?.address) return;
+			
+			try {
+				const response = await fetch(
+					`/api/street-view?address=${encodeURIComponent(result.address)}&size=600x300`
+				);
+				const data = await response.json();
+				
+				if (data.available) {
+					setStreetViewUrl(data.imageUrl);
+					setStreetViewAvailable(true);
+				} else {
+					setStreetViewAvailable(false);
+					setStreetViewUrl(null);
+				}
+			} catch {
+				setStreetViewAvailable(false);
+			}
+		};
+
+		fetchStreetView();
+	}, [result?.address]);
+
+	const selectPrediction = (prediction: AddressPrediction) => {
+		setAddress(prediction.description);
+		setShowPredictions(false);
+		setPredictions([]);
+	};
 
 	const handleMeasure = async () => {
 		if (!address.trim()) return;
@@ -96,18 +185,57 @@ export default function RoofMeasurementPage() {
 			{/* Search Input */}
 			<Card className="p-6">
 				<div className="flex flex-col gap-4 sm:flex-row">
-					<div className="flex-1">
+					<div className="flex-1 relative">
 						<label className="mb-2 block text-sm font-medium text-slate-300">
 							Property Address
 						</label>
 						<input
+							ref={inputRef}
 							type="text"
 							value={address}
-							onChange={(e) => setAddress(e.target.value)}
-							onKeyDown={(e) => e.key === "Enter" && handleMeasure()}
-							placeholder="Enter full address (e.g., 123 Main St, Dallas, TX 75201)"
+							onChange={(e) => {
+								setAddress(e.target.value);
+								setShowPredictions(true);
+							}}
+							onFocus={() => predictions.length > 0 && setShowPredictions(true)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") {
+									setShowPredictions(false);
+									handleMeasure();
+								}
+							}}
+							placeholder="Start typing an address..."
 							className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-[#6D5CFF] focus:outline-none focus:ring-1 focus:ring-[#6D5CFF]"
 						/>
+						
+						{/* Autocomplete Dropdown */}
+						{showPredictions && predictions.length > 0 && (
+							<div
+								ref={dropdownRef}
+								className="absolute z-50 mt-1 w-full rounded-xl border border-slate-700 bg-slate-800 shadow-xl overflow-hidden"
+							>
+								{predictions.map((prediction) => (
+									<button
+										key={prediction.placeId}
+										onClick={() => selectPrediction(prediction)}
+										className="w-full px-4 py-3 text-left hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 last:border-b-0"
+									>
+										<p className="font-medium text-white">{prediction.mainText}</p>
+										<p className="text-sm text-slate-400">{prediction.secondaryText}</p>
+									</button>
+								))}
+							</div>
+						)}
+						
+						{/* Loading indicator */}
+						{isLoadingPredictions && address.length >= 3 && (
+							<div className="absolute right-3 top-10">
+								<svg className="h-5 w-5 animate-spin text-slate-400" viewBox="0 0 24 24">
+									<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+									<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+								</svg>
+							</div>
+						)}
 					</div>
 					<div className="flex items-end">
 						<Button
@@ -169,6 +297,27 @@ export default function RoofMeasurementPage() {
 							</span>
 						</div>
 					</Card>
+
+					{/* Street View */}
+					{streetViewAvailable && streetViewUrl && (
+						<Card className="overflow-hidden">
+							<div className="relative">
+								<img 
+									src={streetViewUrl} 
+									alt="Street View of property"
+									className="w-full h-64 object-cover"
+								/>
+								<div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+									<div className="flex items-center gap-2 text-white">
+										<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+										</svg>
+										<span className="text-sm font-medium">Google Street View</span>
+									</div>
+								</div>
+							</div>
+						</Card>
+					)}
 
 					{/* Key Metrics */}
 					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

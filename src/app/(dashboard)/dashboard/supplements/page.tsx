@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { PageHeader, Card } from "@/components/dashboard";
 import { Button } from "@/components/dashboard/Button";
@@ -45,6 +45,71 @@ export default function SupplementGeneratorPage() {
 	const [isAnalyzing, setIsAnalyzing] = useState(false);
 	const [result, setResult] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	
+	// OCR Upload state
+	const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+	const [ocrResult, setOcrResult] = useState<{
+		lineItems: Array<{ code: string; description: string; quantity: string; unit: string; unitCost: string; total: string }>;
+		summary: { subtotal: string; overhead: string; profit: string; total: string; rcv: string; depreciation: string; acv: string };
+		claimInfo: { claimNumber: string; insured: string; dateOfLoss: string; carrier: string; adjuster: string };
+	} | null>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		// Validate file type
+		const validTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+		if (!validTypes.includes(file.type)) {
+			setError("Please upload an image (JPG, PNG) or PDF file");
+			return;
+		}
+
+		setIsOcrProcessing(true);
+		setError(null);
+		setOcrResult(null);
+
+		try {
+			// Convert file to base64
+			const reader = new FileReader();
+			reader.onload = async () => {
+				const base64 = reader.result as string;
+				
+				const response = await fetch("/api/estimate-ocr", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ imageBase64: base64 }),
+				});
+
+				const data = await response.json();
+
+				if (!response.ok) {
+					throw new Error(data.error || "OCR processing failed");
+				}
+
+				setOcrResult(data.parsed);
+				
+				// Auto-populate the text area with extracted line items
+				if (data.parsed?.lineItems) {
+					const lineItemsText = data.parsed.lineItems
+						.map((item: { code: string; description: string; quantity: string; unit: string; unitCost: string; total: string }) => 
+							`${item.code}: ${item.description} - Qty: ${item.quantity} ${item.unit} @ ${item.unitCost} = ${item.total}`
+						)
+						.join("\n");
+					
+					setAdjusterEstimate(lineItemsText);
+				}
+
+				setIsOcrProcessing(false);
+			};
+
+			reader.readAsDataURL(file);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to process file");
+			setIsOcrProcessing(false);
+		}
+	};
 
 	const handleAnalyze = async () => {
 		if (!adjusterEstimate || !damageType || !state) {
@@ -105,6 +170,69 @@ export default function SupplementGeneratorPage() {
 					</h3>
 					
 					<div className="space-y-4">
+						{/* OCR Upload Section */}
+						<div>
+							<label className="block text-sm font-medium text-slate-400 mb-2">
+								Upload Estimate (Image/PDF)
+							</label>
+							<input
+								ref={fileInputRef}
+								type="file"
+								accept="image/jpeg,image/png,image/webp,application/pdf"
+								onChange={handleFileUpload}
+								className="hidden"
+							/>
+							<button
+								onClick={() => fileInputRef.current?.click()}
+								disabled={isOcrProcessing}
+								className="w-full rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/50 p-6 text-center hover:border-[#6D5CFF] hover:bg-slate-800 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								{isOcrProcessing ? (
+									<div className="flex flex-col items-center gap-2">
+										<svg className="animate-spin h-8 w-8 text-[#A78BFA]" viewBox="0 0 24 24">
+											<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+											<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+										</svg>
+										<span className="text-[#A78BFA] font-medium">Processing with AI OCR...</span>
+									</div>
+								) : (
+									<div className="flex flex-col items-center gap-2">
+										<svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+										</svg>
+										<span className="text-slate-300 font-medium">Click to upload estimate image</span>
+										<span className="text-slate-500 text-sm">JPG, PNG, or PDF • AI will extract line items</span>
+									</div>
+								)}
+							</button>
+						</div>
+
+						{/* OCR Results Preview */}
+						{ocrResult && (
+							<div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-4">
+								<div className="flex items-center gap-2 mb-2">
+									<svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+									<span className="font-medium text-emerald-400">Extracted {ocrResult.lineItems?.length || 0} line items</span>
+								</div>
+								{ocrResult.claimInfo?.claimNumber !== "N/A" && (
+									<p className="text-sm text-slate-400">
+										Claim: {ocrResult.claimInfo.claimNumber} • {ocrResult.claimInfo.carrier}
+									</p>
+								)}
+							</div>
+						)}
+
+						<div className="relative">
+							<div className="absolute inset-0 flex items-center">
+								<div className="w-full border-t border-slate-700"></div>
+							</div>
+							<div className="relative flex justify-center text-sm">
+								<span className="bg-slate-900 px-4 text-slate-500">or paste text manually</span>
+							</div>
+						</div>
+
 						{/* State Selection */}
 						<div>
 							<label className="block text-sm font-medium text-slate-400 mb-2">
