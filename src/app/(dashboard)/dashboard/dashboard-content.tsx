@@ -19,31 +19,16 @@ interface DashboardContentProps {
 
 const quickActions = [
 	{
-		title: "Generate Report",
-		description: "Create insurance-ready roof damage reports with AI.",
-		href: "/dashboard/report",
+		title: "Storm Command",
+		description: "Track storms, find leads, and build door-knocking routes.",
+		href: "/dashboard/storms",
 		icon: (
 			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path
 					strokeLinecap="round"
 					strokeLinejoin="round"
 					strokeWidth={1.5}
-					d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-				/>
-			</svg>
-		),
-	},
-	{
-		title: "Follow-up Builder",
-		description: "Generate polished homeowner follow-up messages.",
-		href: "/dashboard/followup",
-		icon: (
-			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+					d="M13 10V3L4 14h7v7l9-11h-7z"
 				/>
 			</svg>
 		),
@@ -215,7 +200,7 @@ export function DashboardContent({
 			{/* Quick Actions */}
 			<div>
 				<h2 className="mb-4 text-lg font-semibold text-white">Quick Actions</h2>
-				<div className="grid gap-4 md:grid-cols-3">
+				<div className="grid gap-4 md:grid-cols-2">
 					{quickActions.map((action, index) => (
 						<motion.div
 							key={action.href}
@@ -255,18 +240,18 @@ export function DashboardContent({
 				<div className="space-y-4">
 					{[
 						{
-							title: "Report generated",
-							description: "Insurance claim report for 123 Oak St",
+							title: "Storm detected",
+							description: "Hail storm in Dallas County, TX - 1.5\" hail",
 							time: "2 hours ago",
 						},
 						{
-							title: "Email sent",
-							description: "Follow-up to State Farm adjuster",
+							title: "Route completed",
+							description: "North Dallas AM Route - 24 doors knocked",
 							time: "Yesterday",
 						},
 						{
-							title: "CSV uploaded",
-							description: "Xactimate estimate imported",
+							title: "Lead converted",
+							description: "Johnson Property - Inspection scheduled",
 							time: "2 days ago",
 						},
 					].map((activity, index) => (
