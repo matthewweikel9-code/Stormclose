@@ -242,7 +242,7 @@ export async function GET(request: NextRequest) {
 		}
 
 		// Check feature access
-		const access = await checkFeatureAccess(user.id, "storm_command");
+		const access = await checkFeatureAccess(user.id, "lead_generator");
 		if (!access.allowed) {
 			return NextResponse.json({
 				error: "Feature not available",
@@ -336,7 +336,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Check feature access
-		const access = await checkFeatureAccess(user.id, "storm_command");
+		const access = await checkFeatureAccess(user.id, "lead_generator");
 		if (!access.allowed) {
 			return NextResponse.json({
 				error: "Feature not available",

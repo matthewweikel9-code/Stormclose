@@ -92,7 +92,7 @@ export async function checkFeatureAccess(
 			supplement_generator: "Supplement Generator",
 			negotiation_coach: "Negotiation Coach",
 			carrier_intelligence: "Carrier Intelligence",
-			storm_command: "Storm Command Center",
+			lead_generator: "Lead Generator + Route Planner",
 			roof_measurement: "Roof Measurement AI"
 		};
 

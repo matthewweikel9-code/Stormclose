@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { PageHeader, Card } from "@/components/dashboard";
 import { Button } from "@/components/dashboard/Button";
+import { useSearchParams } from "next/navigation";
 
 interface AddressPrediction {
 	placeId: string;
@@ -50,6 +51,7 @@ interface MeasurementResult {
 }
 
 export default function RoofMeasurementPage() {
+	const searchParams = useSearchParams();
 	const [address, setAddress] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [result, setResult] = useState<MeasurementResult | null>(null);
@@ -65,6 +67,14 @@ export default function RoofMeasurementPage() {
 	// Street View state
 	const [streetViewUrl, setStreetViewUrl] = useState<string | null>(null);
 	const [streetViewAvailable, setStreetViewAvailable] = useState(true);
+
+	// Pre-fill address from URL query parameter (from Lead Generator import)
+	useEffect(() => {
+		const addressParam = searchParams.get("address");
+		if (addressParam && !address) {
+			setAddress(addressParam);
+		}
+	}, [searchParams, address]);
 
 	// Fetch address predictions
 	useEffect(() => {

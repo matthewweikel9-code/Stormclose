@@ -59,8 +59,8 @@ const tiers = [
 		features: [
 			"Everything in Pro+",
 			"Supplement Generator AI",
-			"AI Storm Command Center",
-			"Custom integrations",
+			"Lead Generator + Route Planner",
+			"Roof Measurement AI",
 			"Dedicated support",
 		],
 		cta: "Get Enterprise",

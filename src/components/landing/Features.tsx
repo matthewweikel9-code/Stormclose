@@ -55,13 +55,19 @@ const features = [
 					strokeLinecap="round"
 					strokeLinejoin="round"
 					strokeWidth={1.5}
-					d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
+					d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+				/>
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
 				/>
 			</svg>
 		),
-		title: "AI Storm Command Center",
+		title: "Lead Generator + Route Planner",
 		description:
-			"Real-time storm tracking meets property data. Get live hail reports, automated lead lists with property values, and roof ages - know where to knock before your competitors.",
+			"Search any area for property data including owner names, roof ages, and estimated claim values. Plan optimized door-knocking routes with one-click Google Maps navigation.",
 	},
 	{
 		icon: (

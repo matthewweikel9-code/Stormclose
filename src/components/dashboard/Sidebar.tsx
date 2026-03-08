@@ -93,9 +93,9 @@ const navItems: NavItem[] = [
 		),
 	},
 	{
-		label: "Storm Command",
-		href: "/dashboard/storm-command",
-		feature: "storm_command",
+		label: "Lead Generator",
+		href: "/dashboard/leads",
+		feature: "lead_generator",
 		badge: "Enterprise",
 		icon: (
 			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -103,7 +103,29 @@ const navItems: NavItem[] = [
 					strokeLinecap="round"
 					strokeLinejoin="round"
 					strokeWidth={1.5}
-					d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
+					d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+				/>
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+				/>
+			</svg>
+		),
+	},
+	{
+		label: "Route Planner",
+		href: "/dashboard/route-planner",
+		feature: "lead_generator",
+		badge: "Enterprise",
+		icon: (
+			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
 				/>
 			</svg>
 		),
