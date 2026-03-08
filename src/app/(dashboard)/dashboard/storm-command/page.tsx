@@ -48,9 +48,6 @@ interface StormData {
 
 interface ZoneStats {
 	totalProperties: number;
-	totalPropertyValue: number;
-	avgPropertyValue: number;
-	avgRoofAge: number;
 	totalEstimatedClaimValue: number;
 	avgClaimValue: number;
 	opportunity: {
@@ -71,13 +68,11 @@ interface Property {
 	};
 	owner?: { name: string };
 	property: {
-		yearBuilt: number;
-		squareFeet: number;
+		apn?: string;
+		fips?: string;
+		type?: string;
 	};
-	value: {
-		estimated: number;
-	};
-	estimatedRoofAge: number;
+	estimatedRoofAge: number | null;
 	estimatedClaim: {
 		low: number;
 		high: number;
@@ -197,11 +192,9 @@ export default function StormCommandPage() {
 			p.address.state,
 			p.address.zip,
 			p.owner?.name || "N/A",
-			p.property.yearBuilt || "N/A",
-			p.property.squareFeet || "N/A",
-			p.value.estimated || "N/A",
+			p.property?.apn || "N/A",
 			p.estimatedRoofAge || "N/A",
-			p.estimatedClaim.average || "N/A"
+			p.estimatedClaim?.average || "N/A"
 		]);
 
 		const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
@@ -307,26 +300,20 @@ export default function StormCommandPage() {
 									<span>💰</span> Zone Opportunity Analysis
 								</h3>
 
-								<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-									<div className="text-center">
-										<p className="text-3xl font-bold text-white">{zoneStats.totalProperties}</p>
-										<p className="text-sm text-slate-400">Properties</p>
-									</div>
-									<div className="text-center">
-										<p className="text-3xl font-bold text-[#A78BFA]">{formatCurrency(zoneStats.totalPropertyValue)}</p>
-										<p className="text-sm text-slate-400">Total Value</p>
-									</div>
-									<div className="text-center">
-										<p className="text-3xl font-bold text-amber-400">{zoneStats.avgRoofAge} yrs</p>
-										<p className="text-sm text-slate-400">Avg Roof Age</p>
-									</div>
-									<div className="text-center">
-										<p className="text-3xl font-bold text-emerald-400">{formatCurrency(zoneStats.avgClaimValue)}</p>
-										<p className="text-sm text-slate-400">Avg Claim</p>
-									</div>
-								</div>
-
-								<div className="border-t border-slate-700 pt-4">
+                    <div className="grid grid-cols-3 gap-4 mb-6">
+							<div className="text-center">
+								<p className="text-3xl font-bold text-white">{zoneStats.totalProperties}</p>
+								<p className="text-sm text-slate-400">Properties</p>
+							</div>
+							<div className="text-center">
+								<p className="text-3xl font-bold text-[#A78BFA]">{formatCurrency(zoneStats.totalEstimatedClaimValue)}</p>
+								<p className="text-sm text-slate-400">Total Est. Claims</p>
+							</div>
+							<div className="text-center">
+								<p className="text-3xl font-bold text-emerald-400">{formatCurrency(zoneStats.avgClaimValue)}</p>
+								<p className="text-sm text-slate-400">Avg Claim</p>
+							</div>
+						</div>								<div className="border-t border-slate-700 pt-4">
 									<p className="text-sm text-slate-400 mb-3">Estimated Revenue Opportunity</p>
 									<div className="grid grid-cols-3 gap-4">
 										<div className="rounded-lg bg-slate-800/50 p-3 text-center">
@@ -458,13 +445,10 @@ export default function StormCommandPage() {
 											<p className="text-xs text-slate-400">{property.address.city}, {property.address.state}</p>
 											<div className="flex gap-4 mt-2 text-xs">
 												<span className="text-slate-300">
-													Est: {formatCurrency(property.value.estimated || 0)}
-												</span>
-												<span className="text-amber-400">
-													Roof: ~{property.estimatedRoofAge}yrs
+													{property.owner?.name || "Owner N/A"}
 												</span>
 												<span className="text-emerald-400">
-													Claim: {formatCurrency(property.estimatedClaim.average)}
+													Claim: {formatCurrency(property.estimatedClaim?.average || 0)}
 												</span>
 											</div>
 										</div>
