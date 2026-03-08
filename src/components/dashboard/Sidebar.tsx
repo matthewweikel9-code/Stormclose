@@ -93,9 +93,9 @@ const navItems: NavItem[] = [
 		),
 	},
 	{
-		label: "Lead Scoring",
-		href: "/dashboard/leads",
-		feature: "lead_scoring",
+		label: "Storm Command",
+		href: "/dashboard/storm-command",
+		feature: "storm_command",
 		badge: "Enterprise",
 		icon: (
 			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -103,7 +103,7 @@ const navItems: NavItem[] = [
 					strokeLinecap="round"
 					strokeLinejoin="round"
 					strokeWidth={1.5}
-					d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+					d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
 				/>
 			</svg>
 		),
@@ -299,7 +299,7 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 							{subscriptionTier === "free" && "Unlock Objection AI responses."}
 							{subscriptionTier === "trial" && "Keep your access after trial ends."}
 							{subscriptionTier === "pro" && "Get Supplement AI & Negotiation Coach."}
-							{subscriptionTier === "pro_plus" && "Full access to Carrier Intel, Lead Scoring & SMS AI."}
+							{subscriptionTier === "pro_plus" && "Full access to Carrier Intel, Storm Command & SMS AI."}
 						</p>
 						<Link
 							href="/settings/billing"

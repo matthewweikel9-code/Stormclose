@@ -85,10 +85,10 @@ const quickActions = [
 		),
 	},
 	{
-		title: "Lead Scoring",
-		description: "AI prioritizes your best prospects.",
-		href: "/dashboard/leads",
-		feature: "lead_scoring" as const,
+		title: "Storm Command",
+		description: "Real-time storm tracking with property data.",
+		href: "/dashboard/storm-command",
+		feature: "storm_command" as const,
 		tier: "Enterprise",
 		icon: (
 			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -96,7 +96,7 @@ const quickActions = [
 					strokeLinecap="round"
 					strokeLinejoin="round"
 					strokeWidth={1.5}
-					d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+					d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
 				/>
 			</svg>
 		),
@@ -219,16 +219,16 @@ export function DashboardContent({
 					}
 				/>
 				<StatCard
-					title="Leads Scored"
-					value="156"
-					description="23 hot leads"
+					title="Storm Alerts"
+					value="8"
+					description="3 active zones"
 					icon={
 						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
 								strokeWidth={1.5}
-								d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+								d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
 							/>
 						</svg>
 					}
@@ -270,7 +270,7 @@ export function DashboardContent({
 								{subscriptionTier === "free" && "Get Objection AI, Supplement Generator, and Negotiation Coach."}
 								{subscriptionTier === "trial" && "Explore all Pro features before your trial ends."}
 								{subscriptionTier === "pro" && "Add Supplement Generation and AI Negotiation coaching."}
-								{subscriptionTier === "pro_plus" && "Carrier Intelligence, Lead Scoring, and SMS AI."}
+								{subscriptionTier === "pro_plus" && "Carrier Intelligence, Storm Command, and SMS AI."}
 							</p>
 						</div>
 						<Link href="/settings/billing">
@@ -345,7 +345,7 @@ export function DashboardContent({
 				<div className="space-y-4">
 					{[
 						{ action: "Supplement approved", detail: "State Farm - $4,250 recovered", time: "2 hours ago", type: "success" },
-						{ action: "Hot lead identified", detail: "John Martinez - 92 score", time: "3 hours ago", type: "info" },
+						{ action: "Storm alert detected", detail: "Hail event - 127 properties identified", time: "3 hours ago", type: "info" },
 						{ action: "Negotiation won", detail: "O&P approved by Allstate", time: "Yesterday", type: "success" },
 						{ action: "SMS response sent", detail: "Maria Garcia - Appointment booked", time: "Yesterday", type: "info" },
 					].map((item, i) => (

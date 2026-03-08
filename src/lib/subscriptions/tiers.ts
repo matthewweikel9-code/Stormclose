@@ -7,7 +7,7 @@ export type FeatureKey =
 	| "supplement_generator"
 	| "negotiation_coach"
 	| "carrier_intelligence"
-	| "lead_scoring"
+	| "storm_command"
 	| "roof_measurement";
 
 export interface TierLimits {
@@ -37,7 +37,7 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
 			"supplement_generator",
 			"negotiation_coach",
 			"carrier_intelligence",
-			"lead_scoring",
+			"storm_command",
 			"roof_measurement"
 		]
 	}
@@ -62,7 +62,7 @@ export const FEATURE_DISPLAY_NAMES: Record<FeatureKey, string> = {
 	supplement_generator: "Automated Supplement Generation",
 	negotiation_coach: "AI Insurance Negotiation Coach",
 	carrier_intelligence: "Insurance Carrier Intelligence",
-	lead_scoring: "Predictive Lead Scoring",
+	storm_command: "AI Storm Command Center",
 	roof_measurement: "Instant Roof Measurement AI"
 };
 

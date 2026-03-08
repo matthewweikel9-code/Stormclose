@@ -55,13 +55,13 @@ const features = [
 					strokeLinecap="round"
 					strokeLinejoin="round"
 					strokeWidth={1.5}
-					d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+					d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
 				/>
 			</svg>
 		),
-		title: "Predictive Lead Scoring",
+		title: "AI Storm Command Center",
 		description:
-			"Focus on claims that close. Our AI analyzes claim value, carrier, damage type, and your history to predict close probability before you knock.",
+			"Real-time storm tracking meets property data. Get live hail reports, automated lead lists with property values, and roof ages - know where to knock before your competitors.",
 	},
 	{
 		icon: (

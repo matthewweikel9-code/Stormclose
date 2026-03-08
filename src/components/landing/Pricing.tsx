@@ -26,8 +26,8 @@ const tiers = [
 		features: [
 			"Everything in Free",
 			"Carrier Intelligence Database",
-			"Lead Scoring AI",
 			"Insurance approval rates",
+			"Negotiation strategies",
 			"Email support",
 		],
 		cta: "Get Pro",
@@ -59,7 +59,7 @@ const tiers = [
 		features: [
 			"Everything in Pro+",
 			"Supplement Generator AI",
-			"Unlimited supplements",
+			"AI Storm Command Center",
 			"Custom integrations",
 			"Dedicated support",
 		],
