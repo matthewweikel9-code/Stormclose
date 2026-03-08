@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { StormEvent, WeatherAlert } from "@/lib/storms/types";
+import { StormMap } from "./StormMap";
 
 interface StormRadarProps {
 	storms: StormEvent[];
@@ -130,19 +131,12 @@ export function StormRadar({
 
 			{/* Map Placeholder + Storm List */}
 			<div className="grid gap-6 lg:grid-cols-2">
-				{/* Map Placeholder */}
-				<div className="rounded-xl border border-slate-700 bg-slate-800/50 p-6">
-					<div className="flex h-[400px] flex-col items-center justify-center text-center">
-						<div className="mb-4 text-6xl">🗺️</div>
-						<h3 className="text-lg font-semibold text-white">Interactive Storm Map</h3>
-						<p className="mt-2 max-w-sm text-sm text-slate-400">
-							Live radar integration coming soon. For now, browse storms by state below.
-						</p>
-						<p className="mt-4 text-xs text-slate-500">
-							Add MAPBOX_API_KEY to enable interactive maps
-						</p>
-					</div>
-				</div>
+				{/* Interactive Map */}
+				<StormMap 
+					storms={filteredStorms}
+					selectedStorm={selectedStorm}
+					onStormSelect={onStormSelect}
+				/>
 
 				{/* Storm List */}
 				<div className="rounded-xl border border-slate-700 bg-slate-800/50 p-4">
