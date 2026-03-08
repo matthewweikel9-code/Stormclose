@@ -5,8 +5,8 @@ import { motion } from "framer-motion";
 const steps = [
 	{
 		number: "01",
-		title: "Upload Estimate",
-		description: "Upload your CSV file from Xactimate or JobNimbus. Our system automatically parses and validates your roofing estimate data.",
+		title: "Upload Adjuster Estimate",
+		description: "Upload your insurance adjuster's estimate. Our AI automatically identifies missing line items and underpayment opportunities.",
 		icon: (
 			<svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path
@@ -20,8 +20,8 @@ const steps = [
 	},
 	{
 		number: "02",
-		title: "AI Generates Report",
-		description: "StormClose AI analyzes your estimate and builds a professional insurance claim summary with all required documentation.",
+		title: "AI Generates Supplement",
+		description: "StormClose AI builds a professional supplement request with industry-standard pricing, code references, and justification language.",
 		icon: (
 			<svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path
@@ -35,8 +35,8 @@ const steps = [
 	},
 	{
 		number: "03",
-		title: "Send to Insurance",
-		description: "Copy the report or use our AI-generated email templates to send directly to insurance adjusters. Track responses in one place.",
+		title: "Negotiate & Close",
+		description: "Use AI coaching during adjuster calls, track carrier patterns, and maximize every claim with data-driven negotiation strategies.",
 		icon: (
 			<svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path

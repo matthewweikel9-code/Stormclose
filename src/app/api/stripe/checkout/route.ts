@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   let tier: SubscriptionPriceTier = "pro";
   try {
     const body = await request.json();
-    if (body.tier === "pro" || body.tier === "pro_plus") {
+    if (body.tier === "pro" || body.tier === "pro_plus" || body.tier === "enterprise") {
       tier = body.tier;
     }
   } catch {

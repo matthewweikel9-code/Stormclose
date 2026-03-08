@@ -1,42 +1,27 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { PageHeader, StatCard, Card } from "@/components/dashboard";
 import { Button } from "@/components/dashboard/Button";
-import { useUserStats } from "@/hooks";
-import { Pipeline } from "@/components/dashboard/Pipeline";
+import { hasFeature, type SubscriptionTier } from "@/lib/subscriptions/tiers";
 
 interface DashboardContentProps {
 	user: {
 		email?: string | null;
 	};
 	subscriptionStatus: string;
-	subscriptionTier?: "free" | "pro" | "pro_plus";
+	subscriptionTier?: SubscriptionTier;
 	logoutAction: () => Promise<void>;
 }
 
 const quickActions = [
 	{
-		title: "Storm Command",
-		description: "Track storms, find leads, and build door-knocking routes.",
-		href: "/dashboard/storms",
-		icon: (
-			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M13 10V3L4 14h7v7l9-11h-7z"
-				/>
-			</svg>
-		),
-	},
-	{
 		title: "Objection Responses",
-		description: "Craft confident responses to homeowner objections.",
+		description: "AI-powered responses to homeowner objections.",
 		href: "/dashboard/objection",
+		feature: "objection_handler" as const,
+		tier: "Pro",
 		icon: (
 			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path
@@ -44,6 +29,91 @@ const quickActions = [
 					strokeLinejoin="round"
 					strokeWidth={1.5}
 					d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+				/>
+			</svg>
+		),
+	},
+	{
+		title: "Supplement Generator",
+		description: "Find missing Xactimate line items automatically.",
+		href: "/dashboard/supplements",
+		feature: "supplement_generator" as const,
+		tier: "Pro+",
+		icon: (
+			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+				/>
+			</svg>
+		),
+	},
+	{
+		title: "Negotiation Coach",
+		description: "Real-time guidance for adjuster negotiations.",
+		href: "/dashboard/negotiation",
+		feature: "negotiation_coach" as const,
+		tier: "Pro+",
+		icon: (
+			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
+				/>
+			</svg>
+		),
+	},
+	{
+		title: "Carrier Intelligence",
+		description: "Know how each insurance carrier operates.",
+		href: "/dashboard/carriers",
+		feature: "carrier_intelligence" as const,
+		tier: "Enterprise",
+		icon: (
+			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+				/>
+			</svg>
+		),
+	},
+	{
+		title: "Lead Scoring",
+		description: "AI prioritizes your best prospects.",
+		href: "/dashboard/leads",
+		feature: "lead_scoring" as const,
+		tier: "Enterprise",
+		icon: (
+			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+				/>
+			</svg>
+		),
+	},
+	{
+		title: "SMS AI Responder",
+		description: "24/7 AI responses that book appointments.",
+		href: "/dashboard/sms",
+		feature: "sms_responder" as const,
+		tier: "Enterprise",
+		icon: (
+			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
 				/>
 			</svg>
 		),
@@ -56,14 +126,17 @@ export function DashboardContent({
 	subscriptionTier = "free",
 	logoutAction,
 }: DashboardContentProps) {
-	const { reports, followups, objections, photos, emails, isLoading } = useUserStats();
 
 	const getTierDisplay = () => {
 		switch (subscriptionTier) {
+			case "enterprise":
+				return "Enterprise";
 			case "pro_plus":
 				return "Pro+";
 			case "pro":
 				return "Pro";
+			case "trial":
+				return "Trial";
 			default:
 				return "Free";
 		}
@@ -71,12 +144,29 @@ export function DashboardContent({
 
 	const getTierDescription = () => {
 		switch (subscriptionTier) {
-			case "pro_plus":
+			case "enterprise":
 				return "All features unlocked";
+			case "pro_plus":
+				return "Advanced AI features";
 			case "pro":
 				return "Active plan";
+			case "trial":
+				return "7-day trial";
 			default:
 				return "Limited features";
+		}
+	};
+
+	const getTierBadgeStyle = (tier: string) => {
+		switch (tier) {
+			case "Enterprise":
+				return "bg-emerald-500/20 text-emerald-400";
+			case "Pro+":
+				return "bg-amber-500/20 text-amber-400";
+			case "Pro":
+				return "bg-[#6D5CFF]/20 text-[#A78BFA]";
+			default:
+				return "bg-slate-700 text-slate-400";
 		}
 	};
 
@@ -86,11 +176,11 @@ export function DashboardContent({
 			<PageHeader
 				kicker="Dashboard"
 				title={`Welcome back${user.email ? `, ${user.email.split("@")[0]}` : ""}`}
-				description="Manage your roofing claims and generate professional reports."
+				description="Your AI-powered insurance negotiation command center."
 				actions={
 					<form action={logoutAction}>
-						<Button type="submit" variant="secondary" size="sm">
-							Log out
+						<Button type="submit" variant="secondary">
+							Sign Out
 						</Button>
 					</form>
 				}
@@ -99,31 +189,46 @@ export function DashboardContent({
 			{/* Stats Grid */}
 			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 				<StatCard
-					title="Reports Generated"
-					value={isLoading ? "..." : reports.toString()}
-					description="total"
+					title="Supplements Won"
+					value="12"
+					description="$47,500 recovered"
 					icon={
 						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
 								strokeWidth={1.5}
-								d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
 							/>
 						</svg>
 					}
 				/>
 				<StatCard
-					title="Follow-ups"
-					value={isLoading ? "..." : followups.toString()}
-					description="created"
+					title="Negotiation Win Rate"
+					value="78%"
+					description="+12% vs last month"
 					icon={
 						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
 								strokeWidth={1.5}
-								d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+								d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+							/>
+						</svg>
+					}
+				/>
+				<StatCard
+					title="Leads Scored"
+					value="156"
+					description="23 hot leads"
+					icon={
+						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={1.5}
+								d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
 							/>
 						</svg>
 					}
@@ -138,30 +243,15 @@ export function DashboardContent({
 								strokeLinecap="round"
 								strokeLinejoin="round"
 								strokeWidth={1.5}
-								d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-							/>
-						</svg>
-					}
-				/>
-				<StatCard
-					title="Emails Generated"
-					value={isLoading ? "..." : emails.toString()}
-					description="total"
-					icon={
-						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={1.5}
-								d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+								d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
 							/>
 						</svg>
 					}
 				/>
 			</div>
 
-			{/* Subscription CTA (if not active) */}
-			{subscriptionStatus !== "active" && (
+			{/* Upgrade Banner (for non-enterprise users) */}
+			{subscriptionTier !== "enterprise" && (
 				<motion.div
 					initial={{ opacity: 0, y: 10 }}
 					animate={{ opacity: 1, y: 0 }}
@@ -171,102 +261,101 @@ export function DashboardContent({
 					<div className="relative flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
 						<div>
 							<h3 className="text-lg font-semibold text-white">
-								Upgrade to StormClose Pro
+								{subscriptionTier === "free" && "Unlock AI-Powered Insurance Tools"}
+								{subscriptionTier === "trial" && "Your Trial is Active"}
+								{subscriptionTier === "pro" && "Upgrade to Pro+ for More Power"}
+								{subscriptionTier === "pro_plus" && "Go Enterprise for Full Access"}
 							</h3>
 							<p className="mt-1 text-sm text-slate-400">
-								Unlock unlimited reports, email generation, and priority support.
+								{subscriptionTier === "free" && "Get Objection AI, Supplement Generator, and Negotiation Coach."}
+								{subscriptionTier === "trial" && "Explore all Pro features before your trial ends."}
+								{subscriptionTier === "pro" && "Add Supplement Generation and AI Negotiation coaching."}
+								{subscriptionTier === "pro_plus" && "Carrier Intelligence, Lead Scoring, and SMS AI."}
 							</p>
 						</div>
-						<Link href="/subscribe">
+						<Link href="/settings/billing">
 							<Button variant="primary" glow>
-								Upgrade Now
+								{subscriptionTier === "trial" ? "Choose a Plan" : "Upgrade Now"}
 							</Button>
 						</Link>
 					</div>
 				</motion.div>
 			)}
 
-			{/* Sales Pipeline */}
-			<motion.div
-				initial={{ opacity: 0, y: 10 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ delay: 0.1 }}
-			>
-				<Card className="p-6">
-					<Pipeline />
-				</Card>
-			</motion.div>
-
 			{/* Quick Actions */}
 			<div>
-				<h2 className="mb-4 text-lg font-semibold text-white">Quick Actions</h2>
-				<div className="grid gap-4 md:grid-cols-2">
-					{quickActions.map((action, index) => (
-						<motion.div
-							key={action.href}
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ delay: index * 0.1 }}
-						>
-							<Link href={action.href}>
-								<Card hover className="h-full">
-									<div className="mb-4 inline-flex rounded-lg bg-[#6D5CFF]/10 p-3 text-[#A78BFA]">
-										{action.icon}
-									</div>
-									<h3 className="text-lg font-semibold text-white">
-										{action.title}
-									</h3>
-									<p className="mt-2 text-sm text-slate-400">
-										{action.description}
-									</p>
-									<p className="mt-4 text-sm font-medium text-[#A78BFA]">
-										Open →
-									</p>
-								</Card>
-							</Link>
-						</motion.div>
-					))}
+				<h2 className="mb-4 text-lg font-semibold text-white">AI Tools</h2>
+				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+					{quickActions.map((action, index) => {
+						const hasAccess = hasFeature(subscriptionTier, action.feature);
+						return (
+							<motion.div
+								key={action.href}
+								initial={{ opacity: 0, y: 10 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ delay: index * 0.05 }}
+							>
+								{hasAccess ? (
+									<Link href={action.href}>
+										<Card className="group h-full p-5 transition-all hover:border-[#6D5CFF]/50 hover:bg-[#6D5CFF]/5">
+											<div className="flex items-start gap-4">
+												<div className="rounded-lg bg-[#6D5CFF]/10 p-2.5 text-[#A78BFA] transition-colors group-hover:bg-[#6D5CFF]/20">
+													{action.icon}
+												</div>
+												<div className="flex-1">
+													<div className="flex items-center gap-2">
+														<h3 className="font-semibold text-white">{action.title}</h3>
+													</div>
+													<p className="mt-1 text-sm text-slate-400">
+														{action.description}
+													</p>
+												</div>
+											</div>
+										</Card>
+									</Link>
+								) : (
+									<Card className="h-full p-5 opacity-60">
+										<div className="flex items-start gap-4">
+											<div className="rounded-lg bg-slate-700/50 p-2.5 text-slate-500">
+												{action.icon}
+											</div>
+											<div className="flex-1">
+												<div className="flex items-center gap-2">
+													<h3 className="font-semibold text-slate-400">{action.title}</h3>
+													<span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${getTierBadgeStyle(action.tier)}`}>
+														{action.tier}
+													</span>
+												</div>
+												<p className="mt-1 text-sm text-slate-500">
+													{action.description}
+												</p>
+											</div>
+										</div>
+									</Card>
+								)}
+							</motion.div>
+						);
+					})}
 				</div>
 			</div>
 
 			{/* Recent Activity */}
-			<Card>
-				<div className="mb-4 flex items-center justify-between">
-					<h2 className="text-lg font-semibold text-white">Recent Activity</h2>
-					<button className="text-sm text-[#A78BFA] hover:text-[#6D5CFF]">
-						View all
-					</button>
-				</div>
+			<Card className="p-6">
+				<h2 className="mb-4 text-lg font-semibold text-white">Recent Activity</h2>
 				<div className="space-y-4">
 					{[
-						{
-							title: "Storm detected",
-							description: "Hail storm in Dallas County, TX - 1.5\" hail",
-							time: "2 hours ago",
-						},
-						{
-							title: "Route completed",
-							description: "North Dallas AM Route - 24 doors knocked",
-							time: "Yesterday",
-						},
-						{
-							title: "Lead converted",
-							description: "Johnson Property - Inspection scheduled",
-							time: "2 days ago",
-						},
-					].map((activity, index) => (
-						<div
-							key={index}
-							className="flex items-center gap-4 rounded-lg border border-[#1F2937] bg-[#0B0F1A] p-4"
-						>
-							<div className="h-2 w-2 rounded-full bg-[#6D5CFF]" />
+						{ action: "Supplement approved", detail: "State Farm - $4,250 recovered", time: "2 hours ago", type: "success" },
+						{ action: "Hot lead identified", detail: "John Martinez - 92 score", time: "3 hours ago", type: "info" },
+						{ action: "Negotiation won", detail: "O&P approved by Allstate", time: "Yesterday", type: "success" },
+						{ action: "SMS response sent", detail: "Maria Garcia - Appointment booked", time: "Yesterday", type: "info" },
+					].map((item, i) => (
+						<div key={i} className="flex items-center gap-4 rounded-lg bg-slate-800/50 p-4">
+							<div className={`h-2 w-2 rounded-full ${item.type === "success" ? "bg-emerald-400" : "bg-[#6D5CFF]"}`} />
 							<div className="flex-1">
-								<p className="text-sm font-medium text-white">
-									{activity.title}
-								</p>
-								<p className="text-sm text-slate-500">{activity.description}</p>
+								<p className="text-sm font-medium text-white">{item.action}</p>
+								<p className="text-xs text-slate-400">{item.detail}</p>
 							</div>
-							<span className="text-xs text-slate-500">{activity.time}</span>
+							<span className="text-xs text-slate-500">{item.time}</span>
 						</div>
 					))}
 				</div>

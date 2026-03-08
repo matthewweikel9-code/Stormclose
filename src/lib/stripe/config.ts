@@ -14,11 +14,12 @@ export const stripeConfig = {
 	// Tier-specific price IDs
 	proPriceId: process.env.STRIPE_PRICE_ID_PRO ?? process.env.STRIPE_PRICE_ID_MONTHLY ?? "",
 	proPlusPriceId: process.env.STRIPE_PRICE_ID_PRO_PLUS ?? "",
+	enterprisePriceId: process.env.STRIPE_PRICE_ID_ENTERPRISE ?? "",
 	appUrl,
 	stripeAppUrl
 };
 
-export type SubscriptionPriceTier = "pro" | "pro_plus";
+export type SubscriptionPriceTier = "pro" | "pro_plus" | "enterprise";
 
 export function getPriceIdForTier(tier: SubscriptionPriceTier): string {
 	switch (tier) {
@@ -26,6 +27,8 @@ export function getPriceIdForTier(tier: SubscriptionPriceTier): string {
 			return stripeConfig.proPriceId;
 		case "pro_plus":
 			return stripeConfig.proPlusPriceId;
+		case "enterprise":
+			return stripeConfig.enterprisePriceId;
 		default:
 			return stripeConfig.proPriceId;
 	}

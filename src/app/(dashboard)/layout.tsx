@@ -33,7 +33,6 @@ export default async function DashboardLayout({
 	const subscriptionStatus = accountData?.subscription_status ?? "inactive";
 	const tier = (accountData?.subscription_tier as SubscriptionTier) ?? "free";
 	const effectiveTier = getEffectiveTier(tier, accountData?.trial_end ?? null);
-	const reportsThisMonth = accountData?.reports_this_month ?? 0;
 	const trialEnd = accountData?.trial_end ?? null;
 
 	return (
@@ -41,7 +40,6 @@ export default async function DashboardLayout({
 			user={user} 
 			subscriptionStatus={subscriptionStatus}
 			tier={effectiveTier}
-			reportsThisMonth={reportsThisMonth}
 			trialEnd={trialEnd}
 		>
 			{children}

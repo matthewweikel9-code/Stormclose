@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 
-export function CheckoutButton() {
+interface CheckoutButtonProps {
+  tier?: "pro" | "pro_plus" | "enterprise";
+}
+
+export function CheckoutButton({ tier = "pro" }: CheckoutButtonProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,7 +16,9 @@ export function CheckoutButton() {
 
     try {
       const response = await fetch("/api/stripe/checkout", {
-        method: "POST"
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier })
       });
 
       const data = (await response.json()) as { url?: string; error?: string };
@@ -31,7 +37,7 @@ export function CheckoutButton() {
   return (
     <div>
       <button type="button" onClick={onCheckout} disabled={loading} className="button-primary w-full">
-        {loading ? "Redirecting..." : "Start monthly subscription"}
+        {loading ? "Redirecting..." : "Start subscription"}
       </button>
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
     </div>

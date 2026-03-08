@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { 
-	TIER_CONFIG, 
 	TIER_DISPLAY_NAMES, 
 	TIER_PRICES, 
 	getDaysRemaining, 
@@ -16,7 +15,6 @@ interface BillingContentProps {
 		tier: SubscriptionTier;
 		status: string;
 		trialEnd?: string | null;
-		reportsThisMonth: number;
 		hasStripeCustomer: boolean;
 		hasSubscription: boolean;
 	};
@@ -24,43 +22,44 @@ interface BillingContentProps {
 
 const FEATURES_BY_TIER: Record<SubscriptionTier, string[]> = {
 	free: [
-		"2 reports per month",
-		"Basic report generation",
+		"Objection Handler AI",
+		"Basic responses",
 		"Community support"
 	],
 	trial: [
 		"7-day free trial",
-		"Unlimited reports",
-		"CSV upload from CRM",
-		"Automated insurance emails",
+		"All Pro+ features",
 		"Email support"
 	],
 	pro: [
-		"Unlimited reports",
-		"CSV upload from CRM",
-		"Automated insurance emails",
-		"Email support",
-		"Priority templates"
+		"Objection Handler AI",
+		"Carrier Intelligence Database",
+		"Lead Scoring AI",
+		"Email support"
 	],
 	pro_plus: [
 		"Everything in Pro",
-		"AI photo analysis",
-		"Objection handling AI",
-		"Priority support",
-		"Custom templates"
+		"AI Negotiation Coach",
+		"SMS AI Responder",
+		"Priority support"
+	],
+	enterprise: [
+		"Everything in Pro+",
+		"Supplement Generator AI",
+		"Unlimited supplements",
+		"Custom integrations",
+		"Dedicated support"
 	]
 };
 
 export function BillingContent({ user, subscriptionData }: BillingContentProps) {
 	const [isLoading, setIsLoading] = useState<string | null>(null);
-	const { tier, status, trialEnd, reportsThisMonth, hasSubscription } = subscriptionData;
+	const { tier, status, trialEnd, hasSubscription } = subscriptionData;
 	
 	const daysRemaining = trialEnd ? getDaysRemaining(trialEnd) : 0;
 	const isOnTrial = tier === "trial" || (daysRemaining > 0 && status !== "active");
-	const tierConfig = TIER_CONFIG[tier];
-	const reportsLimit = tierConfig.reportsPerMonth;
 	
-	const handleUpgrade = async (targetTier: "pro" | "pro_plus") => {
+	const handleUpgrade = async (targetTier: "pro" | "pro_plus" | "enterprise") => {
 		setIsLoading(targetTier);
 		try {
 			const res = await fetch("/api/stripe/checkout", {
@@ -151,21 +150,10 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 				{/* Usage */}
 				<div className="mt-6 grid gap-4 sm:grid-cols-2">
 					<div className="rounded-lg bg-[#0B0F1A] p-4">
-						<p className="text-sm text-slate-400">Reports This Month</p>
-						<p className="mt-1 text-2xl font-bold text-white">
-							{reportsThisMonth}
-							{reportsLimit !== "unlimited" && (
-								<span className="text-lg text-slate-500"> / {reportsLimit}</span>
-							)}
+						<p className="text-sm text-slate-400">Plan Status</p>
+						<p className="mt-1 text-lg font-semibold text-white">
+							{status === "active" ? "Active" : isOnTrial ? "Trial" : "Inactive"}
 						</p>
-						{reportsLimit !== "unlimited" && (
-							<div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-700">
-								<div 
-									className="h-full rounded-full bg-[#6D5CFF]"
-									style={{ width: `${Math.min(100, (reportsThisMonth / reportsLimit) * 100)}%` }}
-								/>
-							</div>
-						)}
 					</div>
 					<div className="rounded-lg bg-[#0B0F1A] p-4">
 						<p className="text-sm text-slate-400">Billing Period</p>
@@ -197,14 +185,14 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 			</div>
 
 			{/* Upgrade Options */}
-			{tier !== "pro_plus" && (
+			{tier !== "enterprise" && (
 				<div>
 					<h2 className="text-lg font-semibold text-white">
 						{tier === "free" || tier === "trial" ? "Choose Your Plan" : "Upgrade Your Plan"}
 					</h2>
-					<div className="mt-4 grid gap-6 sm:grid-cols-2">
+					<div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
 						{/* Pro Plan */}
-						{tier !== "pro" && (
+						{tier !== "pro" && tier !== "pro_plus" && (
 							<div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
 								<div className="flex items-center justify-between">
 									<div>
@@ -214,9 +202,6 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 											/month
 										</p>
 									</div>
-									<span className="rounded-full bg-[#6D5CFF]/20 px-3 py-1 text-xs font-semibold text-[#A78BFA]">
-										Popular
-									</span>
 								</div>
 								<ul className="mt-4 space-y-2">
 									{FEATURES_BY_TIER.pro.map((feature) => (
@@ -239,12 +224,47 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 						)}
 
 						{/* Pro+ Plan */}
+						{tier !== "pro_plus" && (
+							<div className="rounded-xl border border-[#6D5CFF]/30 bg-gradient-to-b from-[#6D5CFF]/5 to-transparent p-6">
+								<div className="flex items-center justify-between">
+									<div>
+										<h3 className="text-lg font-semibold text-white">Pro+</h3>
+										<p className="text-slate-400">
+											<span className="text-2xl font-bold text-white">${TIER_PRICES.pro_plus}</span>
+											/month
+										</p>
+									</div>
+									<span className="rounded-full bg-[#6D5CFF]/20 px-3 py-1 text-xs font-semibold text-[#A78BFA]">
+										Popular
+									</span>
+								</div>
+								<ul className="mt-4 space-y-2">
+									{FEATURES_BY_TIER.pro_plus.map((feature) => (
+										<li key={feature} className="flex items-center gap-2 text-sm text-slate-300">
+											<svg className="h-4 w-4 text-[#6D5CFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+											</svg>
+											{feature}
+										</li>
+									))}
+								</ul>
+								<button
+									onClick={() => handleUpgrade("pro_plus")}
+									disabled={isLoading === "pro_plus"}
+									className="mt-6 w-full rounded-lg bg-[#6D5CFF] py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#5B4AE8] disabled:opacity-50"
+								>
+									{isLoading === "pro_plus" ? "Loading..." : "Upgrade to Pro+"}
+								</button>
+							</div>
+						)}
+
+						{/* Enterprise Plan */}
 						<div className="rounded-xl border border-amber-500/30 bg-gradient-to-b from-amber-500/5 to-transparent p-6">
 							<div className="flex items-center justify-between">
 								<div>
-									<h3 className="text-lg font-semibold text-white">Pro+</h3>
+									<h3 className="text-lg font-semibold text-white">Enterprise</h3>
 									<p className="text-slate-400">
-										<span className="text-2xl font-bold text-white">${TIER_PRICES.pro_plus}</span>
+										<span className="text-2xl font-bold text-white">${TIER_PRICES.enterprise}</span>
 										/month
 									</p>
 								</div>
@@ -253,7 +273,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 								</span>
 							</div>
 							<ul className="mt-4 space-y-2">
-								{FEATURES_BY_TIER.pro_plus.map((feature) => (
+								{FEATURES_BY_TIER.enterprise.map((feature) => (
 									<li key={feature} className="flex items-center gap-2 text-sm text-slate-300">
 										<svg className="h-4 w-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -263,11 +283,11 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 								))}
 							</ul>
 							<button
-								onClick={() => handleUpgrade("pro_plus")}
-								disabled={isLoading === "pro_plus"}
+								onClick={() => handleUpgrade("enterprise")}
+								disabled={isLoading === "enterprise"}
 								className="mt-6 w-full rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
 							>
-								{isLoading === "pro_plus" ? "Loading..." : tier === "pro" ? "Upgrade to Pro+" : "Get Pro+"}
+								{isLoading === "enterprise" ? "Loading..." : "Get Enterprise"}
 							</button>
 						</div>
 					</div>

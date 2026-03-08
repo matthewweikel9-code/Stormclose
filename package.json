@@ -11,11 +11,9 @@
 	"dependencies": {
 		"@supabase/ssr": "^0.5.2",
 		"@supabase/supabase-js": "^2.49.8",
-		"@types/mapbox-gl": "^3.4.1",
 		"framer-motion": "^12.35.0",
 		"html2canvas": "^1.4.1",
 		"jspdf": "^4.2.0",
-		"mapbox-gl": "^3.19.1",
 		"next": "14.2.25",
 		"openai": "^4.104.0",
 		"react": "18.3.1",

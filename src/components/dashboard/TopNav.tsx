@@ -9,11 +9,10 @@ interface TopNavProps {
 	} | null;
 	subscriptionStatus: string;
 	tier?: SubscriptionTier;
-	reportsThisMonth?: number;
 	trialEnd?: string | null;
 }
 
-export function TopNav({ user, subscriptionStatus, tier = "free", reportsThisMonth = 0, trialEnd }: TopNavProps) {
+export function TopNav({ user, subscriptionStatus, tier = "free", trialEnd }: TopNavProps) {
 	const displayTier = TIER_DISPLAY_NAMES[tier] || "Free";
 	const daysUntilTrialEnd = trialEnd ? getDaysRemaining(trialEnd) : null;
 	const isOnTrial = daysUntilTrialEnd !== null && daysUntilTrialEnd > 0;

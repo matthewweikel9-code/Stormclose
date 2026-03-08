@@ -1,43 +1,45 @@
 // Subscription tier types and configuration
 
-export type SubscriptionTier = "free" | "pro" | "pro_plus" | "trial";
+export type SubscriptionTier = "free" | "pro" | "pro_plus" | "enterprise" | "trial";
 
 export type FeatureKey =
-	| "reports"
-	| "csv_upload"
-	| "email_generation"
 	| "objection_handler"
-	| "photo_analysis"
-	| "priority_templates";
+	| "supplement_generator"
+	| "negotiation_coach"
+	| "carrier_intelligence"
+	| "lead_scoring"
+	| "sms_responder";
 
 export interface TierLimits {
-	reportsPerMonth: number | "unlimited";
 	features: FeatureKey[];
 }
 
 export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
 	free: {
-		reportsPerMonth: 2,
-		features: ["reports"]
-	},
-	pro: {
-		reportsPerMonth: "unlimited",
-		features: ["reports", "csv_upload", "email_generation"]
-	},
-	pro_plus: {
-		reportsPerMonth: "unlimited",
-		features: [
-			"reports",
-			"csv_upload",
-			"email_generation",
-			"objection_handler",
-			"photo_analysis",
-			"priority_templates"
-		]
+		features: []
 	},
 	trial: {
-		reportsPerMonth: "unlimited",
-		features: ["reports", "csv_upload", "email_generation"]
+		features: ["objection_handler"]
+	},
+	pro: {
+		features: ["objection_handler"]
+	},
+	pro_plus: {
+		features: [
+			"objection_handler",
+			"supplement_generator",
+			"negotiation_coach"
+		]
+	},
+	enterprise: {
+		features: [
+			"objection_handler",
+			"supplement_generator",
+			"negotiation_coach",
+			"carrier_intelligence",
+			"lead_scoring",
+			"sms_responder"
+		]
 	}
 };
 
@@ -45,40 +47,27 @@ export const TIER_DISPLAY_NAMES: Record<SubscriptionTier, string> = {
 	free: "Free",
 	pro: "Pro",
 	pro_plus: "Pro+",
+	enterprise: "Enterprise",
 	trial: "Trial"
 };
 
 export const TIER_PRICES: Record<Exclude<SubscriptionTier, "free" | "trial">, number> = {
-	pro: 49,
-	pro_plus: 99
+	pro: 99,
+	pro_plus: 249,
+	enterprise: 499
+};
+
+export const FEATURE_DISPLAY_NAMES: Record<FeatureKey, string> = {
+	objection_handler: "Objection Response AI",
+	supplement_generator: "Automated Supplement Generation",
+	negotiation_coach: "AI Insurance Negotiation Coach",
+	carrier_intelligence: "Insurance Carrier Intelligence",
+	lead_scoring: "Predictive Lead Scoring",
+	sms_responder: "SMS/WhatsApp AI Responder"
 };
 
 export function hasFeature(tier: SubscriptionTier, feature: FeatureKey): boolean {
 	return TIER_CONFIG[tier]?.features.includes(feature) ?? false;
-}
-
-export function getReportLimit(tier: SubscriptionTier): number | "unlimited" {
-	return TIER_CONFIG[tier]?.reportsPerMonth ?? 2;
-}
-
-export function canGenerateReport(
-	tier: SubscriptionTier,
-	reportsThisMonth: number
-): { allowed: boolean; reason?: string } {
-	const limit = getReportLimit(tier);
-
-	if (limit === "unlimited") {
-		return { allowed: true };
-	}
-
-	if (reportsThisMonth >= limit) {
-		return {
-			allowed: false,
-			reason: `You've reached your limit of ${limit} reports this month. Upgrade to Pro for unlimited reports.`
-		};
-	}
-
-	return { allowed: true };
 }
 
 export function isTrialExpired(trialEnd: string | Date | null): boolean {

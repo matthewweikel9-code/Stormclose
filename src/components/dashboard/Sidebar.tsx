@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/landing/Logo";
-import { hasFeature, TIER_DISPLAY_NAMES, type SubscriptionTier } from "@/lib/subscriptions/tiers";
+import { hasFeature, TIER_DISPLAY_NAMES, type SubscriptionTier, type FeatureKey } from "@/lib/subscriptions/tiers";
 
 interface NavItem {
 	label: string;
 	href: string;
 	icon: React.ReactNode;
-	feature?: "reports" | "csv_upload" | "email_generation" | "objection_handler" | "photo_analysis";
+	feature?: FeatureKey;
 	badge?: string;
 }
 
@@ -29,23 +29,10 @@ const navItems: NavItem[] = [
 		),
 	},
 	{
-		label: "Storm Command",
-		href: "/dashboard/storms",
-		icon: (
-			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M13 10V3L4 14h7v7l9-11h-7z"
-				/>
-			</svg>
-		),
-	},
-	{
 		label: "Objection Responses",
 		href: "/dashboard/objection",
 		feature: "objection_handler",
+		badge: "Pro",
 		icon: (
 			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path
@@ -53,6 +40,86 @@ const navItems: NavItem[] = [
 					strokeLinejoin="round"
 					strokeWidth={1.5}
 					d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+				/>
+			</svg>
+		),
+	},
+	{
+		label: "Supplement Generator",
+		href: "/dashboard/supplements",
+		feature: "supplement_generator",
+		badge: "Pro+",
+		icon: (
+			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+				/>
+			</svg>
+		),
+	},
+	{
+		label: "Negotiation Coach",
+		href: "/dashboard/negotiation",
+		feature: "negotiation_coach",
+		badge: "Pro+",
+		icon: (
+			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
+				/>
+			</svg>
+		),
+	},
+	{
+		label: "Carrier Intelligence",
+		href: "/dashboard/carriers",
+		feature: "carrier_intelligence",
+		badge: "Enterprise",
+		icon: (
+			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+				/>
+			</svg>
+		),
+	},
+	{
+		label: "Lead Scoring",
+		href: "/dashboard/leads",
+		feature: "lead_scoring",
+		badge: "Enterprise",
+		icon: (
+			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+				/>
+			</svg>
+		),
+	},
+	{
+		label: "SMS AI Responder",
+		href: "/dashboard/sms",
+		feature: "sms_responder",
+		badge: "Enterprise",
+		icon: (
+			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					strokeWidth={1.5}
+					d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
 				/>
 			</svg>
 		),
@@ -85,12 +152,37 @@ const settingsItems = [
 export interface SidebarProps {
 	subscriptionTier?: SubscriptionTier;
 	daysUntilTrialEnd?: number | null;
-	reportsRemaining?: number | null;
 }
 
-export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd, reportsRemaining }: SidebarProps) {
+export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: SidebarProps) {
 	const pathname = usePathname();
 	const displayTier = TIER_DISPLAY_NAMES[subscriptionTier] || "Free";
+
+	const getTierBadgeStyle = () => {
+		switch (subscriptionTier) {
+			case "enterprise":
+				return "bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400";
+			case "pro_plus":
+				return "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400";
+			case "pro":
+				return "bg-[#6D5CFF]/20 text-[#A78BFA]";
+			default:
+				return "bg-slate-700/50 text-slate-400";
+		}
+	};
+
+	const getBadgeStyle = (badge?: string) => {
+		switch (badge) {
+			case "Enterprise":
+				return "bg-emerald-500/20 text-emerald-400";
+			case "Pro+":
+				return "bg-amber-500/20 text-amber-400";
+			case "Pro":
+				return "bg-[#6D5CFF]/20 text-[#A78BFA]";
+			default:
+				return "bg-slate-700/50 text-slate-400";
+		}
+	};
 
 	return (
 		<aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-[#1F2937] bg-[#0B0F1A]">
@@ -105,13 +197,7 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd, reportsR
 			<div className="border-b border-[#1F2937] px-4 py-3">
 				<div className="flex items-center justify-between">
 					<span className="text-xs font-medium text-slate-400">Plan</span>
-					<span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-						subscriptionTier === "pro_plus" 
-							? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400"
-							: subscriptionTier === "pro"
-							? "bg-[#6D5CFF]/20 text-[#A78BFA]"
-							: "bg-slate-700/50 text-slate-400"
-					}`}>
+					<span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${getTierBadgeStyle()}`}>
 						{displayTier}
 					</span>
 				</div>
@@ -120,24 +206,18 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd, reportsR
 						Trial ends in {daysUntilTrialEnd} day{daysUntilTrialEnd !== 1 ? "s" : ""}
 					</p>
 				)}
-				{subscriptionTier === "free" && reportsRemaining !== null && reportsRemaining !== undefined && (
-					<p className="mt-1 text-xs text-slate-500">
-						{reportsRemaining} report{reportsRemaining !== 1 ? "s" : ""} remaining this month
-					</p>
-				)}
 			</div>
 
 			{/* Navigation */}
 			<nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
 				<p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-					Main
+					Features
 				</p>
 				{navItems.map((item) => {
 					const isActive = pathname === item.href;
 					const hasAccess = !item.feature || hasFeature(subscriptionTier, item.feature);
 					
 					if (!hasAccess) {
-						// Disabled state for features user doesn't have access to
 						return (
 							<div
 								key={item.href}
@@ -148,11 +228,7 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd, reportsR
 								</span>
 								<span className="flex-1">{item.label}</span>
 								{item.badge && (
-									<span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-										item.badge === "Pro+" 
-											? "bg-amber-500/20 text-amber-500"
-											: "bg-[#6D5CFF]/20 text-[#6D5CFF]"
-									}`}>
+									<span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${getBadgeStyle(item.badge)}`}>
 										{item.badge}
 									</span>
 								)}
@@ -175,9 +251,9 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd, reportsR
 							>
 								{item.icon}
 							</span>
-							{item.label}
+							<span className="flex-1">{item.label}</span>
 							{isActive && (
-								<span className="ml-auto h-2 w-2 rounded-full bg-[#6D5CFF]" />
+								<span className="h-2 w-2 rounded-full bg-[#6D5CFF]" />
 							)}
 						</Link>
 					);
@@ -211,15 +287,19 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd, reportsR
 
 			{/* Bottom section */}
 			<div className="border-t border-[#1F2937] p-4">
-				{subscriptionTier !== "pro_plus" ? (
+				{subscriptionTier !== "enterprise" ? (
 					<div className="rounded-lg bg-gradient-to-r from-[#6D5CFF]/10 to-[#A78BFA]/10 p-4">
 						<p className="text-sm font-medium text-white">
-							{subscriptionTier === "free" ? "Upgrade to Pro" : "Upgrade to Pro+"}
+							{subscriptionTier === "free" && "Upgrade to Pro"}
+							{subscriptionTier === "trial" && "Upgrade to Pro"}
+							{subscriptionTier === "pro" && "Upgrade to Pro+"}
+							{subscriptionTier === "pro_plus" && "Upgrade to Enterprise"}
 						</p>
 						<p className="mt-1 text-xs text-slate-400">
-							{subscriptionTier === "free" 
-								? "Unlock unlimited reports, CSV upload & automated emails."
-								: "Get AI photo analysis & objection handling."}
+							{subscriptionTier === "free" && "Unlock Objection AI responses."}
+							{subscriptionTier === "trial" && "Keep your access after trial ends."}
+							{subscriptionTier === "pro" && "Get Supplement AI & Negotiation Coach."}
+							{subscriptionTier === "pro_plus" && "Full access to Carrier Intel, Lead Scoring & SMS AI."}
 						</p>
 						<Link
 							href="/settings/billing"
@@ -229,16 +309,16 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd, reportsR
 						</Link>
 					</div>
 				) : (
-					<div className="rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-4">
-						<p className="text-sm font-medium text-white">Pro+ Member</p>
+					<div className="rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-4">
+						<p className="text-sm font-medium text-white">Enterprise Member</p>
 						<p className="mt-1 text-xs text-slate-400">
 							You have access to all features.
 						</p>
 						<Link
 							href="/contact"
-							className="mt-3 inline-flex text-xs font-medium text-amber-400 hover:text-amber-300"
+							className="mt-3 inline-flex text-xs font-medium text-emerald-400 hover:text-emerald-300"
 						>
-							Get Support →
+							Priority Support →
 						</Link>
 					</div>
 				)}
