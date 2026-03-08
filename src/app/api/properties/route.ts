@@ -3,10 +3,54 @@ import { createClient } from "@/lib/supabase/server";
 import { checkFeatureAccess } from "@/lib/subscriptions";
 
 const CORELOGIC_API_KEY = process.env.CORELOGIC_API_KEY;
-const CORELOGIC_BASE_URL = "https://api.corelogic.com";
+const CORELOGIC_API_SECRET = process.env.CORELOGIC_API_SECRET;
+const CORELOGIC_BASE_URL = "https://api-prod.corelogic.com";
+
+// Token cache
+let accessToken: string | null = null;
+let tokenExpiry: number = 0;
+
+// Get OAuth2 access token using Basic Auth
+async function getAccessToken(): Promise<string | null> {
+	// Return cached token if still valid (with 60s buffer)
+	if (accessToken && Date.now() < tokenExpiry - 60000) {
+		return accessToken;
+	}
+
+	try {
+		const credentials = Buffer.from(`${CORELOGIC_API_KEY}:${CORELOGIC_API_SECRET}`).toString("base64");
+		
+		const response = await fetch(`${CORELOGIC_BASE_URL}/oauth/token?grant_type=client_credentials`, {
+			method: "POST",
+			headers: {
+				"Authorization": `Basic ${credentials}`,
+				"Content-Length": "0"
+			}
+		});
+
+		if (!response.ok) {
+			console.error("CoreLogic OAuth error:", await response.text());
+			return null;
+		}
+
+		const data = await response.json();
+		accessToken = data.access_token;
+		tokenExpiry = Date.now() + (parseInt(data.expires_in) * 1000);
+		console.log("CoreLogic token obtained, expires in:", data.expires_in, "seconds");
+		return accessToken;
+	} catch (error) {
+		console.error("CoreLogic OAuth error:", error);
+		return null;
+	}
+}
 
 // Helper to make CoreLogic API calls
-async function corelogicRequest(endpoint: string, params?: Record<string, string>) {
+async function corelogicRequest(endpoint: string, params?: Record<string, string>, contentType?: string) {
+	const token = await getAccessToken();
+	if (!token) {
+		throw new Error("Failed to authenticate with CoreLogic");
+	}
+
 	const url = new URL(`${CORELOGIC_BASE_URL}${endpoint}`);
 	if (params) {
 		Object.entries(params).forEach(([key, value]) => {
@@ -16,149 +60,169 @@ async function corelogicRequest(endpoint: string, params?: Record<string, string
 
 	const response = await fetch(url.toString(), {
 		headers: {
-			"Authorization": `Bearer ${CORELOGIC_API_KEY}`,
-			"Content-Type": "application/json",
+			"Authorization": `Bearer ${token}`,
+			"Content-Type": contentType || "application/json",
 			"Accept": "application/json"
 		}
 	});
 
 	if (!response.ok) {
 		const error = await response.text();
-		console.error("CoreLogic API error:", error);
+		console.error("CoreLogic API error:", response.status, error);
 		throw new Error(`CoreLogic API error: ${response.status}`);
 	}
 
 	return response.json();
 }
 
-// Search properties by address
-async function searchPropertyByAddress(address: string): Promise<any> {
+// Search properties by address using Property API
+async function searchPropertyByAddress(address: string, zip?: string): Promise<any> {
 	try {
-		const data = await corelogicRequest("/property/v2/search", {
-			address: address
-		});
-		return data;
+		const params: Record<string, string> = { address };
+		if (zip) params.zip5 = zip;
+		
+		const data = await corelogicRequest("/property", params, "application/vnd.corelogic.v1+json");
+		return data.data || [];
 	} catch (error) {
 		console.error("Property search error:", error);
-		return null;
-	}
-}
-
-// Get property details by ID
-async function getPropertyDetails(propertyId: string): Promise<any> {
-	try {
-		const data = await corelogicRequest(`/property/v2/${propertyId}`);
-		return data;
-	} catch (error) {
-		console.error("Property details error:", error);
-		return null;
-	}
-}
-
-// Get property AVM (Automated Valuation)
-async function getPropertyAVM(propertyId: string): Promise<any> {
-	try {
-		const data = await corelogicRequest(`/property/v2/${propertyId}/avm`);
-		return data;
-	} catch (error) {
-		console.error("Property AVM error:", error);
-		return null;
-	}
-}
-
-// Spatial search - get properties within a polygon or radius
-async function spatialSearch(params: {
-	lat: number;
-	lng: number;
-	radius?: number; // in miles
-	polygon?: number[][]; // [[lng, lat], ...]
-}): Promise<any[]> {
-	try {
-		let endpoint = "/spatial/v1/properties";
-		const queryParams: Record<string, string> = {};
-
-		if (params.polygon) {
-			// Polygon search
-			queryParams.polygon = JSON.stringify(params.polygon);
-		} else if (params.radius) {
-			// Radius search
-			queryParams.lat = params.lat.toString();
-			queryParams.lng = params.lng.toString();
-			queryParams.radius = params.radius.toString();
-		} else {
-			// Default 1 mile radius
-			queryParams.lat = params.lat.toString();
-			queryParams.lng = params.lng.toString();
-			queryParams.radius = "1";
-		}
-
-		const data = await corelogicRequest(endpoint, queryParams);
-		return data.properties || [];
-	} catch (error) {
-		console.error("Spatial search error:", error);
 		return [];
 	}
 }
 
-// Process property data into our format
-function formatProperty(prop: any) {
+// Get property building details
+async function getPropertyBuilding(propertyId: string): Promise<any> {
+	try {
+		const data = await corelogicRequest(`/property/${encodeURIComponent(propertyId)}/building`, undefined, "application/vnd.corelogic.v1+json");
+		return data;
+	} catch (error) {
+		console.error("Property building error:", error);
+		return null;
+	}
+}
+
+// Get property ownership details
+async function getPropertyOwnership(propertyId: string): Promise<any> {
+	try {
+		const data = await corelogicRequest(`/property/${encodeURIComponent(propertyId)}/ownership`, undefined, "application/vnd.corelogic.v1+json");
+		return data;
+	} catch (error) {
+		console.error("Property ownership error:", error);
+		return null;
+	}
+}
+
+// Get property tax assessment
+async function getPropertyTaxAssessment(propertyId: string): Promise<any> {
+	try {
+		const data = await corelogicRequest(`/property/${encodeURIComponent(propertyId)}/tax-assessment`, undefined, "application/vnd.corelogic.v1+json");
+		return data;
+	} catch (error) {
+		console.error("Property tax assessment error:", error);
+		return null;
+	}
+}
+
+// Spatial search - get parcels within a radius using Spatial Tile API
+async function spatialSearch(params: {
+	lat: number;
+	lon: number;
+	within?: number; // in meters
+	pageNumber?: number;
+	pageSize?: number;
+}): Promise<any> {
+	try {
+		const queryParams: Record<string, string> = {
+			lat: params.lat.toString(),
+			lon: params.lon.toString(),
+			within: (params.within || 1000).toString(), // Default 1000 meters (~0.6 miles)
+			pageNumber: (params.pageNumber || 1).toString(),
+			pageSize: (params.pageSize || 50).toString()
+		};
+
+		const data = await corelogicRequest("/spatial-tile/parcels", queryParams);
+		return data;
+	} catch (error) {
+		console.error("Spatial search error:", error);
+		return { parcels: [], pageInfo: { length: 0 } };
+	}
+}
+
+// Process parcel data from Spatial Tile API into our format
+function formatParcel(parcel: any) {
 	return {
-		id: prop.propertyId || prop.id,
+		id: parcel.parcelId?.toString() || parcel.apn,
 		address: {
-			full: prop.address?.full || prop.streetAddress,
-			street: prop.address?.street || prop.streetAddress,
-			city: prop.address?.city,
-			state: prop.address?.state,
-			zip: prop.address?.zip
+			full: `${parcel.stdAddr || parcel.addr || ""}, ${parcel.stdCity || parcel.city || ""}, ${parcel.stdState || parcel.state || ""} ${parcel.stdZip || parcel.zip || ""}`.trim(),
+			street: parcel.stdAddr || parcel.addr || "",
+			city: parcel.stdCity || parcel.city || "",
+			state: parcel.stdState || parcel.state || "",
+			zip: parcel.stdZip || parcel.zip || ""
 		},
 		owner: {
-			name: prop.owner?.name || prop.ownerName,
-			mailingAddress: prop.owner?.mailingAddress
+			name: parcel.owner || "Unknown",
+			mailingAddress: null
 		},
 		property: {
-			type: prop.propertyType || prop.landUse,
-			yearBuilt: prop.yearBuilt,
-			squareFeet: prop.squareFeet || prop.livingArea,
-			lotSize: prop.lotSize,
-			bedrooms: prop.bedrooms,
-			bathrooms: prop.bathrooms,
-			stories: prop.stories,
-			roofType: prop.roof?.type || prop.roofType,
-			roofYear: prop.roof?.year || null // Estimated roof age
-		},
-		value: {
-			estimated: prop.avm?.value || prop.estimatedValue,
-			assessed: prop.assessedValue,
-			taxAmount: prop.taxAmount,
-			lastSalePrice: prop.lastSale?.price,
-			lastSaleDate: prop.lastSale?.date
+			apn: parcel.apn || "",
+			fips: `${parcel.stateCode || ""}${parcel.countyCode || ""}`,
+			type: parcel.typeCode || "",
+			geometry: parcel.geometry || null
 		},
 		location: {
-			lat: prop.location?.lat || prop.latitude,
-			lng: prop.location?.lng || prop.longitude
+			// Extract centroid from geometry if available
+			lat: null as number | null,
+			lng: null as number | null
 		}
 	};
 }
 
+// Parse polygon geometry to get centroid
+function getCentroidFromPolygon(geometryStr: string): { lat: number; lng: number } | null {
+	try {
+		// Parse POLYGON((...)) format
+		const match = geometryStr.match(/POLYGON\(\(([^)]+)\)\)/i);
+		if (!match) return null;
+		
+		const coordPairs = match[1].split(",").map(pair => {
+			const [lng, lat] = pair.trim().split(/\s+/).map(Number);
+			return { lat, lng };
+		});
+		
+		if (coordPairs.length === 0) return null;
+		
+		// Calculate centroid
+		const sumLat = coordPairs.reduce((sum, p) => sum + p.lat, 0);
+		const sumLng = coordPairs.reduce((sum, p) => sum + p.lng, 0);
+		
+		return {
+			lat: sumLat / coordPairs.length,
+			lng: sumLng / coordPairs.length
+		};
+	} catch {
+		return null;
+	}
+}
+
 // Estimate roof age from year built
-function estimateRoofAge(yearBuilt: number | undefined): number | null {
+function estimateRoofAge(yearBuilt: number | undefined | null): number | null {
 	if (!yearBuilt) return null;
 	const currentYear = new Date().getFullYear();
 	const propertyAge = currentYear - yearBuilt;
 	
-	// Assume roof replaced every 20 years on average
-	if (propertyAge <= 20) return propertyAge;
-	return propertyAge % 20; // Rough estimate
+	// Assume roof replaced every 20-25 years on average
+	if (propertyAge <= 25) return propertyAge;
+	return propertyAge % 22; // Rough estimate
 }
 
-// Calculate estimated claim value
-function estimateClaimValue(property: any): { low: number; high: number; average: number } {
-	const sqFt = property.property?.squareFeet || 2000;
-	const stories = property.property?.stories || 1;
+// Calculate estimated claim value based on property type
+function estimateClaimValue(parcel: any, buildingData?: any): { low: number; high: number; average: number } {
+	// Get living area from building data if available
+	const sqFt = buildingData?.livingArea || buildingData?.totalBuildingArea || 2000;
+	const stories = buildingData?.stories || 1;
 	
 	// Rough roofing estimate: $4-8 per sq ft of roof area
 	// Roof area ≈ sqFt / stories * 1.15 (for pitch)
-	const roofArea = (sqFt / stories) * 1.15;
+	const roofArea = (sqFt / (stories || 1)) * 1.15;
 	
 	return {
 		low: Math.round(roofArea * 4),
@@ -189,23 +253,37 @@ export async function GET(request: NextRequest) {
 
 		const searchParams = request.nextUrl.searchParams;
 		const address = searchParams.get("address");
+		const zip = searchParams.get("zip");
 		const propertyId = searchParams.get("propertyId");
 
 		if (address) {
-			// Search by address
-			const results = await searchPropertyByAddress(address);
+			// Search by address using Property API
+			const results = await searchPropertyByAddress(address, zip || undefined);
+			
 			if (!results || results.length === 0) {
 				return NextResponse.json({ properties: [], count: 0 });
 			}
 
-			const properties = results.map((p: any) => {
-				const formatted = formatProperty(p);
-				return {
-					...formatted,
-					estimatedRoofAge: estimateRoofAge(formatted.property.yearBuilt),
-					estimatedClaim: estimateClaimValue(formatted)
-				};
-			});
+			// Format results
+			const properties = results.map((p: any) => ({
+				id: p.corelogicPropertyId || p.compositePropertyId,
+				address: {
+					full: `${p.streetAddress}, ${p.city}, ${p.state} ${p.zipcode}`,
+					street: p.streetAddress,
+					city: p.city,
+					state: p.state,
+					zip: p.zipcode
+				},
+				location: {
+					lat: p.latitude,
+					lng: p.longitude
+				},
+				property: {
+					apn: p.apn,
+					fips: p.fipsCode
+				},
+				links: p.links || []
+			}));
 
 			return NextResponse.json({
 				properties,
@@ -215,21 +293,20 @@ export async function GET(request: NextRequest) {
 
 		if (propertyId) {
 			// Get single property details
-			const [details, avm] = await Promise.all([
-				getPropertyDetails(propertyId),
-				getPropertyAVM(propertyId)
+			const [building, ownership, taxAssessment] = await Promise.all([
+				getPropertyBuilding(propertyId),
+				getPropertyOwnership(propertyId),
+				getPropertyTaxAssessment(propertyId)
 			]);
 
-			if (!details) {
-				return NextResponse.json({ error: "Property not found" }, { status: 404 });
-			}
-
-			const property = formatProperty({ ...details, avm });
 			return NextResponse.json({
 				property: {
-					...property,
-					estimatedRoofAge: estimateRoofAge(property.property.yearBuilt),
-					estimatedClaim: estimateClaimValue(property)
+					id: propertyId,
+					building,
+					ownership,
+					taxAssessment,
+					estimatedRoofAge: estimateRoofAge(building?.yearBuilt),
+					estimatedClaim: estimateClaimValue({}, building)
 				}
 			});
 		}
@@ -248,7 +325,7 @@ export async function GET(request: NextRequest) {
 	}
 }
 
-// POST endpoint for spatial/bulk property search
+// POST endpoint for spatial/radius property search
 export async function POST(request: NextRequest) {
 	try {
 		const supabase = await createClient();
@@ -268,7 +345,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { lat, lng, radius, polygon } = body;
+		const { lat, lng, radius, pageNumber, pageSize } = body;
 
 		if (!lat || !lng) {
 			return NextResponse.json(
@@ -277,51 +354,76 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		// Spatial search for properties
-		const properties = await spatialSearch({
+		// Convert radius from miles to meters (1 mile = 1609.34 meters)
+		const radiusMeters = (radius || 0.5) * 1609.34;
+
+		// Spatial search for parcels using Spatial Tile API
+		const spatialData = await spatialSearch({
 			lat,
-			lng,
-			radius: radius || 1,
-			polygon
+			lon: lng,
+			within: radiusMeters,
+			pageNumber: pageNumber || 1,
+			pageSize: pageSize || 50
 		});
 
-		// Format and enrich properties
-		const formattedProperties = properties.map((p: any) => {
-			const formatted = formatProperty(p);
+		const parcels = spatialData.parcels || [];
+		const pageInfo = spatialData.pageInfo || {};
+
+		// Format parcels and calculate centroids
+		const formattedProperties = parcels.map((parcel: any) => {
+			const formatted = formatParcel(parcel);
+			
+			// Get centroid from geometry
+			if (parcel.geometry) {
+				const centroid = getCentroidFromPolygon(parcel.geometry);
+				if (centroid) {
+					formatted.location.lat = centroid.lat;
+					formatted.location.lng = centroid.lng;
+				}
+			}
+			
+			// Add estimated claim value
+			const estimatedClaim = estimateClaimValue(parcel);
+			
 			return {
 				...formatted,
-				estimatedRoofAge: estimateRoofAge(formatted.property.yearBuilt),
-				estimatedClaim: estimateClaimValue(formatted)
+				estimatedRoofAge: null, // Would need building data for this
+				estimatedClaim
 			};
 		});
 
-		// Calculate zone statistics
-		const totalValue = formattedProperties.reduce(
-			(sum, p) => sum + (p.value?.estimated || 0), 0
+		// Filter out properties without valid addresses (common areas, roads, etc.)
+		const validProperties = formattedProperties.filter((p: any) => 
+			p.address.street && 
+			!p.address.street.startsWith("NA ") &&
+			p.owner.name &&
+			p.owner.name !== ""
 		);
-		const avgRoofAge = formattedProperties.reduce(
-			(sum, p) => sum + (p.estimatedRoofAge || 15), 0
-		) / (formattedProperties.length || 1);
-		const totalClaimValue = formattedProperties.reduce(
-			(sum, p) => sum + (p.estimatedClaim?.average || 0), 0
+
+		// Calculate zone statistics
+		const totalClaimValue = validProperties.reduce(
+			(sum: number, p: any) => sum + (p.estimatedClaim?.average || 0), 0
 		);
 
 		return NextResponse.json({
-			properties: formattedProperties,
-			count: formattedProperties.length,
+			properties: validProperties,
+			count: validProperties.length,
+			totalParcels: pageInfo.length || parcels.length,
 			zone: {
 				center: { lat, lng },
-				radius: radius || 1
+				radius: radius || 0.5
+			},
+			pagination: {
+				page: pageInfo.page || 1,
+				pageSize: pageInfo.pageSize || 50,
+				totalRecords: pageInfo.length || 0
 			},
 			statistics: {
-				totalProperties: formattedProperties.length,
-				totalPropertyValue: totalValue,
-				avgPropertyValue: Math.round(totalValue / (formattedProperties.length || 1)),
-				avgRoofAge: Math.round(avgRoofAge),
+				totalProperties: validProperties.length,
 				totalEstimatedClaimValue: totalClaimValue,
-				avgClaimValue: Math.round(totalClaimValue / (formattedProperties.length || 1)),
+				avgClaimValue: Math.round(totalClaimValue / (validProperties.length || 1)),
 				opportunity: {
-					conservative: Math.round(totalClaimValue * 0.1), // 10% close rate
+					conservative: Math.round(totalClaimValue * 0.10), // 10% close rate
 					moderate: Math.round(totalClaimValue * 0.15),    // 15% close rate
 					optimistic: Math.round(totalClaimValue * 0.25)   // 25% close rate
 				}
