@@ -100,7 +100,7 @@ export default function LeadsPage() {
         },
         body: JSON.stringify({
           address: searchQuery.trim(),
-          radius: 5000, // 5km radius
+          radius: 3, // 3 miles radius
           pageSize: 50,
         }),
       });
