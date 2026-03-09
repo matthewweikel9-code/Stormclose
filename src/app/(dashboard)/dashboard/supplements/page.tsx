@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PageHeader, Card } from "@/components/dashboard";
 import { Button } from "@/components/dashboard/Button";
@@ -46,6 +46,23 @@ export default function SupplementGeneratorPage() {
 	const [result, setResult] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	
+	// Imported roof measurement data
+	const [importedRoofData, setImportedRoofData] = useState<{
+		address: string;
+		roofSquares: number;
+		roofArea: number;
+		pitch: string;
+		facetCount: number;
+		estimateLow: number;
+		estimateHigh: number;
+		materials: {
+			shingleBundles: number;
+			underlaymentRolls: number;
+			ridgeCapBundles: number;
+			dripEdgeFeet: number;
+		};
+	} | null>(null);
+	
 	// OCR Upload state
 	const [isOcrProcessing, setIsOcrProcessing] = useState(false);
 	const [ocrResult, setOcrResult] = useState<{
@@ -54,6 +71,55 @@ export default function SupplementGeneratorPage() {
 		claimInfo: { claimNumber: string; insured: string; dateOfLoss: string; carrier: string; adjuster: string };
 	} | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	// Load imported roof measurement data from sessionStorage
+	useEffect(() => {
+		const storedData = sessionStorage.getItem('roofMeasurementData');
+		if (storedData) {
+			try {
+				const data = JSON.parse(storedData);
+				setImportedRoofData(data);
+				
+				// Pre-fill roof type if we have data
+				if (data.roofSquares) {
+					setRoofType("Asphalt Shingle"); // Default based on measurements
+				}
+				
+				// Create a pre-filled estimate based on roof measurements
+				const avgCost = (data.estimateLow + data.estimateHigh) / 2;
+				const laborCost = avgCost * 0.6;
+				const materialCost = avgCost * 0.4;
+				
+				const prefilledEstimate = `ROOF REPLACEMENT ESTIMATE - ${data.address}
+
+MEASUREMENTS:
+- Total Roof Area: ${data.roofArea?.toLocaleString()} sq ft
+- Roofing Squares: ${data.roofSquares}
+- Pitch: ${data.pitch}
+- Number of Facets: ${data.facetCount}
+
+MATERIALS:
+- Shingle Bundles: ${data.materials?.shingleBundles}
+- Underlayment Rolls: ${data.materials?.underlaymentRolls}
+- Ridge Cap Bundles: ${data.materials?.ridgeCapBundles}
+- Drip Edge: ${data.materials?.dripEdgeFeet} linear ft
+
+ESTIMATED COSTS:
+- Labor: $${laborCost?.toLocaleString()}
+- Materials: $${materialCost?.toLocaleString()}
+- Total Estimate: $${avgCost?.toLocaleString()}
+
+(Imported from Roof Measurement AI)`;
+
+				setAdjusterEstimate(prefilledEstimate);
+				
+				// Clear the sessionStorage after loading
+				sessionStorage.removeItem('roofMeasurementData');
+			} catch (err) {
+				console.error('Failed to parse roof measurement data:', err);
+			}
+		}
+	}, []);
 
 	const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -221,6 +287,21 @@ export default function SupplementGeneratorPage() {
 										Claim: {ocrResult.claimInfo.claimNumber} • {ocrResult.claimInfo.carrier}
 									</p>
 								)}
+							</div>
+						)}
+
+						{/* Imported Roof Data Banner */}
+						{importedRoofData && (
+							<div className="rounded-lg bg-[#6D5CFF]/10 border border-[#6D5CFF]/30 p-4">
+								<div className="flex items-center gap-2 mb-2">
+									<svg className="h-5 w-5 text-[#A78BFA]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+									</svg>
+									<span className="font-medium text-[#A78BFA]">Imported from Roof Measurement AI</span>
+								</div>
+								<p className="text-sm text-slate-400">
+									{importedRoofData.address} • {importedRoofData.roofSquares} squares • {importedRoofData.pitch} pitch
+								</p>
 							</div>
 						)}
 
