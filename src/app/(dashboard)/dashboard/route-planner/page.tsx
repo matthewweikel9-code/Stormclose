@@ -8,20 +8,15 @@ import { useRouter } from "next/navigation";
 
 interface Property {
 	id: string;
-	address: {
-		full: string;
-		street: string;
-		city: string;
-		state: string;
-		zip: string;
-	};
-	owner?: { name: string };
-	estimatedClaim: {
-		low: number;
-		high: number;
-		average: number;
-	};
-	location: {
+	address: string;
+	city: string;
+	state: string;
+	zip: string;
+	owner: string;
+	estimatedProfit: number;
+	estimatedValue: number;
+	leadScore: number;
+	coordinates: {
 		lat: number | null;
 		lng: number | null;
 	};
@@ -48,18 +43,30 @@ export default function RoutePlannerPage() {
 	const [startingPoint, setStartingPoint] = useState("");
 	const [error, setError] = useState<string | null>(null);
 
-	// Load properties from sessionStorage on mount
+	// Load properties from localStorage on mount (from Lead Generator)
 	useEffect(() => {
-		const stored = sessionStorage.getItem("routeProperties");
+		const stored = localStorage.getItem("routeList");
 		if (stored) {
 			try {
 				const parsed = JSON.parse(stored);
-				setProperties(parsed.map((p: Property) => ({ ...p, status: "pending" })));
+				setProperties(parsed.map((p: Property) => ({ ...p, status: p.status || "pending" })));
 			} catch {
 				console.error("Failed to parse stored properties");
 			}
 		}
 	}, []);
+
+	// Save properties back to localStorage when changed
+	useEffect(() => {
+		if (properties.length > 0) {
+			localStorage.setItem("routeList", JSON.stringify(properties));
+		}
+	}, [properties]);
+
+	// Get full address string
+	const getFullAddress = (p: Property) => {
+		return `${p.address}, ${p.city}, ${p.state} ${p.zip}`;
+	};
 
 	// Format currency
 	const formatCurrency = (value: number) => {
@@ -72,8 +79,8 @@ export default function RoutePlannerPage() {
 	};
 
 	// Calculate totals
-	const totalClaimValue = properties.reduce(
-		(sum, p) => sum + (p.estimatedClaim?.average || 0), 0
+	const totalProfit = properties.reduce(
+		(sum, p) => sum + (p.estimatedProfit || 0), 0
 	);
 
 	// Remove property from route
@@ -114,8 +121,8 @@ export default function RoutePlannerPage() {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					startingPoint: startingPoint || properties[0].address.full,
-					waypoints: properties.map(p => p.address.full),
+					startingPoint: startingPoint || getFullAddress(properties[0]),
+					waypoints: properties.map(p => getFullAddress(p)),
 					optimizeWaypoints: true
 				})
 			});
@@ -146,9 +153,9 @@ export default function RoutePlannerPage() {
 		if (properties.length === 0) return;
 
 		// Build Google Maps URL with waypoints
-		const origin = startingPoint || properties[0].address.full;
-		const destination = properties[properties.length - 1].address.full;
-		const waypoints = properties.slice(0, -1).map(p => encodeURIComponent(p.address.full)).join("|");
+		const origin = startingPoint || getFullAddress(properties[0]);
+		const destination = getFullAddress(properties[properties.length - 1]);
+		const waypoints = properties.slice(0, -1).map(p => encodeURIComponent(getFullAddress(p))).join("|");
 
 		const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypoints ? `&waypoints=${waypoints}` : ""}&travelmode=driving`;
 
@@ -193,8 +200,8 @@ export default function RoutePlannerPage() {
 						<p className="text-sm text-slate-400">Stops</p>
 					</div>
 					<div className="text-center">
-						<p className="text-3xl font-bold text-emerald-400">{formatCurrency(totalClaimValue)}</p>
-						<p className="text-sm text-slate-400">Total Est. Claims</p>
+						<p className="text-3xl font-bold text-emerald-400">{formatCurrency(totalProfit)}</p>
+						<p className="text-sm text-slate-400">Total Est. Profit</p>
 					</div>
 					<div className="text-center">
 						<p className="text-3xl font-bold text-[#A78BFA]">
@@ -284,7 +291,7 @@ export default function RoutePlannerPage() {
 							loading="lazy"
 							allowFullScreen
 							referrerPolicy="no-referrer-when-downgrade"
-							src={`https://www.google.com/maps/embed/v1/directions?key=AIzaSyB4EuYOLXgQ0sd9AYlx0bJ709VcNLi9HyI&origin=${encodeURIComponent(startingPoint || properties[0].address.full)}&destination=${encodeURIComponent(properties[properties.length - 1].address.full)}${properties.length > 2 ? `&waypoints=${properties.slice(1, -1).map(p => encodeURIComponent(p.address.full)).join("|")}` : ""}&mode=driving`}
+							src={`https://www.google.com/maps/embed/v1/directions?key=AIzaSyB4EuYOLXgQ0sd9AYlx0bJ709VcNLi9HyI&origin=${encodeURIComponent(startingPoint || getFullAddress(properties[0]))}&destination=${encodeURIComponent(getFullAddress(properties[properties.length - 1]))}${properties.length > 2 ? `&waypoints=${properties.slice(1, -1).map(p => encodeURIComponent(getFullAddress(p))).join("|")}` : ""}&mode=driving`}
 						/>
 					</div>
 				</Card>
@@ -313,16 +320,16 @@ export default function RoutePlannerPage() {
 									
 									{/* Property Info */}
 									<div className="flex-1 min-w-0">
-										<h4 className="text-white font-semibold truncate">{property.address.street}</h4>
+										<h4 className="text-white font-semibold truncate">{property.address}</h4>
 										<p className="text-slate-400 text-sm">
-											{property.address.city}, {property.address.state} {property.address.zip}
+											{property.city}, {property.state} {property.zip}
 										</p>
 										<div className="flex items-center gap-3 mt-1">
 											<span className="text-slate-500 text-sm">
-												Owner: {property.owner?.name || "N/A"}
+												Owner: {property.owner || "N/A"}
 											</span>
 											<span className="text-emerald-400 text-sm font-medium">
-												{formatCurrency(property.estimatedClaim?.average || 0)}
+												Est. Profit: {formatCurrency(property.estimatedProfit || 0)}
 											</span>
 										</div>
 									</div>

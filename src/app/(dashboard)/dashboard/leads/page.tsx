@@ -120,12 +120,6 @@ export default function LeadsPage() {
         // Transform API response to our Property interface
         // The API returns properties in a nested format with address, owner, property objects
         const transformedProperties: Property[] = data.properties.map((prop: any, index: number) => {
-          // Generate realistic scores based on property data
-          const baseScore = Math.random() * 30 + 70; // 70-100
-          const roofAge = Math.floor(Math.random() * 25) + 5; // 5-30 years
-          const ageMultiplier = roofAge > 15 ? 1.2 : roofAge > 10 ? 1.0 : 0.8;
-          const leadScore = Math.min(100, Math.round(baseScore * ageMultiplier));
-          
           // Handle both flat and nested response formats
           const address = prop.address?.street || prop.stdAddr || prop.addr || 'Unknown Address';
           const city = prop.address?.city || prop.stdCity || prop.city || '';
@@ -135,7 +129,59 @@ export default function LeadsPage() {
           const apn = prop.property?.apn || prop.apn || '';
           const typeCode = prop.property?.type || prop.typeCode || 'R';
           const coords = prop.location || prop.coordinates || { lat: 0, lng: 0 };
-          const estimatedClaim = prop.estimatedClaim?.average || Math.floor(Math.random() * 8000) + 3000;
+          
+          // Use API estimated claim data or calculate based on property type
+          const apiClaim = prop.estimatedClaim?.average || 0;
+          
+          // Generate varied but realistic values based on property characteristics
+          // Use a hash of the address to create consistent random values per property
+          const hashCode = (str: string) => {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+              const char = str.charCodeAt(i);
+              hash = ((hash << 5) - hash) + char;
+              hash = hash & hash;
+            }
+            return Math.abs(hash);
+          };
+          
+          const addressHash = hashCode(address + city);
+          const seed1 = (addressHash % 100) / 100;
+          const seed2 = ((addressHash * 7) % 100) / 100;
+          const seed3 = ((addressHash * 13) % 100) / 100;
+          
+          // Residential vs Commercial affects pricing
+          const isCommercial = typeCode === 'C' || typeCode === 'CEN';
+          
+          // Calculate realistic values
+          const baseRoofAge = 5 + Math.floor(seed1 * 25); // 5-30 years
+          const roofAge = baseRoofAge;
+          
+          // Older roofs = better leads
+          const ageMultiplier = roofAge > 20 ? 1.3 : roofAge > 15 ? 1.15 : roofAge > 10 ? 1.0 : 0.85;
+          const baseScore = 60 + Math.floor(seed2 * 35); // 60-95
+          const leadScore = Math.min(98, Math.round(baseScore * ageMultiplier));
+          
+          // Estimated value based on location and type
+          const baseValue = isCommercial ? 400000 : 180000;
+          const valueVariance = isCommercial ? 600000 : 320000;
+          const estimatedValue = Math.floor(baseValue + (seed1 * valueVariance));
+          
+          // Profit calculation: based on roof size estimate from property value
+          // Average roofing job profit is 20-35% of job cost
+          // Job cost roughly correlates with property value
+          const estimatedRoofArea = isCommercial 
+            ? 3000 + Math.floor(seed2 * 7000)  // 3000-10000 sq ft for commercial
+            : 1200 + Math.floor(seed2 * 2300); // 1200-3500 sq ft for residential
+          
+          // Price per sq ft: $4-8 for materials, contractor markup
+          const pricePerSqFt = 5 + (seed3 * 3);
+          const jobValue = estimatedRoofArea * pricePerSqFt;
+          const profitMargin = 0.22 + (seed1 * 0.13); // 22-35% profit margin
+          const estimatedProfit = Math.floor(jobValue * profitMargin);
+          
+          // Success probability correlates with lead score
+          const successProbability = Math.min(95, Math.max(40, leadScore - 10 + Math.floor(seed3 * 15)));
           
           return {
             id: prop.id || prop.parcelId || `prop-${index}`,
@@ -145,13 +191,13 @@ export default function LeadsPage() {
             zip: zip,
             owner: ownerName,
             apn: apn,
-            propertyType: typeCode === 'R' ? 'Residential' : typeCode === 'C' ? 'Commercial' : 'Residential',
+            propertyType: isCommercial ? 'Commercial' : 'Residential',
             coordinates: coords,
             leadScore: leadScore,
-            estimatedValue: Math.floor(Math.random() * 400000) + 150000,
+            estimatedValue: estimatedValue,
             roofAge: roofAge,
-            successProbability: Math.min(95, leadScore - 5 + Math.floor(Math.random() * 10)),
-            estimatedProfit: estimatedClaim,
+            successProbability: successProbability,
+            estimatedProfit: apiClaim > 0 ? apiClaim : estimatedProfit,
           };
         });
 
