@@ -393,7 +393,11 @@ export async function POST(request: NextRequest) {
 		console.log("[Properties API] Searching at coordinates:", lat, lng);
 
 		// Convert radius from miles to meters (1 mile = 1609.34 meters)
-		const radiusMeters = (radius || 0.5) * 1609.34;
+		// CoreLogic API has a max radius of 1609.344 meters (1 mile), so cap it
+		const requestedRadiusMeters = (radius || 1) * 1609.34;
+		const radiusMeters = Math.min(requestedRadiusMeters, 1600); // Cap at ~1 mile
+
+		console.log("[Properties API] Using radius:", radiusMeters, "meters");
 
 		// Spatial search for parcels using Spatial Tile API
 		const spatialData = await spatialSearch({
