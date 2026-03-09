@@ -337,6 +337,7 @@ export async function POST(request: NextRequest) {
 
 		// Check feature access
 		const access = await checkFeatureAccess(user.id, "lead_generator");
+		console.log("[Properties API] User:", user.id, "Access:", JSON.stringify(access));
 		if (!access.allowed) {
 			return NextResponse.json({
 				error: "Feature not available",
@@ -345,18 +346,21 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
+		console.log("[Properties API] Request body:", JSON.stringify(body));
 		let { lat, lng, radius, pageNumber, pageSize, address, zipCode } = body;
 
 		// If address or zipCode provided, geocode it first
 		if ((address || zipCode) && (!lat || !lng)) {
 			const searchQuery = address || zipCode;
 			const GOOGLE_API_KEY = process.env.GOOGLE_SOLAR_API_KEY || "AIzaSyB4EuYOLXgQ0sd9AYlx0bJ709VcNLi9HyI";
+			console.log("[Properties API] Geocoding:", searchQuery);
 			
 			try {
 				const geocodeResponse = await fetch(
 					`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchQuery)}&key=${GOOGLE_API_KEY}`
 				);
 				const geocodeData = await geocodeResponse.json();
+				console.log("[Properties API] Geocode result:", geocodeData.status);
 				
 				if (geocodeData.status === "OK" && geocodeData.results?.length > 0) {
 					const location = geocodeData.results[0].geometry.location;
@@ -386,6 +390,8 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
+		console.log("[Properties API] Searching at coordinates:", lat, lng);
+
 		// Convert radius from miles to meters (1 mile = 1609.34 meters)
 		const radiusMeters = (radius || 0.5) * 1609.34;
 
@@ -397,6 +403,8 @@ export async function POST(request: NextRequest) {
 			pageNumber: pageNumber || 1,
 			pageSize: pageSize || 50
 		});
+
+		console.log("[Properties API] Spatial search returned:", spatialData?.parcels?.length || 0, "parcels");
 
 		const parcels = spatialData.parcels || [];
 		const pageInfo = spatialData.pageInfo || {};
