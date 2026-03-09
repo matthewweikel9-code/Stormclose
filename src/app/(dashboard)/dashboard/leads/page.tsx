@@ -130,9 +130,6 @@ export default function LeadsPage() {
           const typeCode = prop.property?.type || prop.typeCode || 'R';
           const coords = prop.location || prop.coordinates || { lat: 0, lng: 0 };
           
-          // Use API estimated claim data or calculate based on property type
-          const apiClaim = prop.estimatedClaim?.average || 0;
-          
           // Generate varied but realistic values based on property characteristics
           // Use a hash of the address to create consistent random values per property
           const hashCode = (str: string) => {
@@ -197,7 +194,7 @@ export default function LeadsPage() {
             estimatedValue: estimatedValue,
             roofAge: roofAge,
             successProbability: successProbability,
-            estimatedProfit: apiClaim > 0 ? apiClaim : estimatedProfit,
+            estimatedProfit: estimatedProfit, // Always use our varied calculation
           };
         });
 
