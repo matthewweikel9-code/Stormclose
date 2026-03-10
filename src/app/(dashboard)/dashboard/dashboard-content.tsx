@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { 
@@ -21,7 +21,9 @@ import {
   Sparkles,
   Cloud,
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  Crosshair,
+  Loader2
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -72,6 +74,7 @@ interface Lead {
   phone?: string;
   last_contact?: string;
   updated_at?: string;
+  distance_miles?: number;
 }
 
 interface HailAlert {
@@ -97,8 +100,12 @@ export function DashboardContent({
 }: DashboardContentProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [hotLeads, setHotLeads] = useState<Lead[]>([]);
+  const [nearbyLeads, setNearbyLeads] = useState<Lead[]>([]);
   const [hailAlerts, setHailAlerts] = useState<HailAlert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{lat: number; lng: number} | null>(null);
 
   // Get user's first name from email or metadata
   const userName = user.user_metadata?.full_name?.split(' ')[0] || 
@@ -108,6 +115,60 @@ export function DashboardContent({
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  // Fetch nearby leads based on user location
+  const fetchNearbyLeads = useCallback(async (lat: number, lng: number, radius: number = 10) => {
+    try {
+      const res = await fetch(`/api/leads/nearby?lat=${lat}&lng=${lng}&radius=${radius}&limit=10`);
+      if (res.ok) {
+        const data = await res.json();
+        setNearbyLeads(data.leads || []);
+      }
+    } catch (error) {
+      console.error('Error fetching nearby leads:', error);
+    }
+  }, []);
+
+  // Get user's location
+  const handleGetLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setLocationLoading(true);
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        setLocationLoading(false);
+        fetchNearbyLeads(latitude, longitude);
+      },
+      (error) => {
+        let errorMessage = 'Failed to get location';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Location permission denied';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Location unavailable';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Location request timed out';
+            break;
+        }
+        setLocationError(errorMessage);
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      }
+    );
+  }, [fetchNearbyLeads]);
 
   const fetchDashboardData = async () => {
     try {
@@ -284,7 +345,37 @@ export function DashboardContent({
       </div>
 
       {/* Quick Action Cards - High Impact Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Leads Near Me Card */}
+        <button
+          onClick={handleGetLocation}
+          disabled={locationLoading}
+          className="group bg-gradient-to-br from-green-900/50 to-emerald-900/50 rounded-xl border border-green-500/30 p-5 hover:border-green-500/50 transition-all hover:shadow-lg hover:shadow-green-500/10 text-left disabled:opacity-50"
+        >
+          <div className="flex items-start justify-between">
+            <div className="bg-green-500/20 rounded-lg p-2.5">
+              {locationLoading ? (
+                <Loader2 className="w-6 h-6 text-green-400 animate-spin" />
+              ) : (
+                <Crosshair className="w-6 h-6 text-green-400" />
+              )}
+            </div>
+            <ChevronRight className="w-5 h-5 text-green-400 group-hover:translate-x-1 transition-transform" />
+          </div>
+          <h3 className="text-lg font-semibold text-white mt-4">Leads Near Me</h3>
+          <p className="text-green-300/70 text-sm mt-1">
+            {locationError || (nearbyLeads.length > 0 
+              ? `${nearbyLeads.length} leads within 10 mi` 
+              : 'Find leads near your location')}
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded-full flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {userLocation ? 'Location set' : 'Click to locate'}
+            </span>
+          </div>
+        </button>
+
         {/* Storm Intelligence Card */}
         <Link 
           href="/dashboard/territories"
@@ -484,6 +575,75 @@ export function DashboardContent({
           )}
         </div>
       </div>
+
+      {/* Nearby Leads Section - Shows when location is enabled */}
+      {nearbyLeads.length > 0 && (
+        <div className="bg-gray-800/50 rounded-xl border border-green-500/30 overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-gray-700/50 bg-green-900/20">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Crosshair className="w-5 h-5 text-green-400" />
+                <h2 className="font-semibold text-white text-lg">Leads Near You</h2>
+              </div>
+              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
+                Within 10 miles
+              </span>
+            </div>
+            <button
+              onClick={handleGetLocation}
+              className="text-green-400 hover:text-green-300 text-sm flex items-center gap-1 font-medium"
+            >
+              <Navigation className="w-4 h-4" /> Refresh Location
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+            {nearbyLeads.slice(0, 6).map((lead) => (
+              <div 
+                key={lead.id}
+                className="bg-gray-700/30 rounded-lg p-4 hover:bg-gray-700/50 transition-colors"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-white truncate">{lead.address}</h3>
+                    <p className="text-gray-400 text-sm">{lead.city}, {lead.state}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ml-2 ${
+                    (lead.lead_score || 0) >= 70 ? 'bg-red-500 text-white' :
+                    (lead.lead_score || 0) >= 40 ? 'bg-orange-500 text-white' :
+                    'bg-gray-500 text-white'
+                  }`}>
+                    {lead.lead_score || 0}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-green-400 text-sm font-medium flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {lead.distance_miles} mi away
+                  </span>
+                  <div className="flex gap-2">
+                    <Link
+                      href="/dashboard/leads"
+                      className="px-2 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded text-xs font-medium hover:from-yellow-600 hover:to-orange-600 transition-colors flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Prep
+                    </Link>
+                    <a 
+                      href={`https://maps.google.com?q=${encodeURIComponent(lead.address + ', ' + lead.city + ', ' + lead.state)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1 bg-blue-600/20 text-blue-400 rounded hover:bg-blue-600/30 transition-colors"
+                    >
+                      <Navigation className="w-4 h-4" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Bottom Row - KPIs + Pipeline */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

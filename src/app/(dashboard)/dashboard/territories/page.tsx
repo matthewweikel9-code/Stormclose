@@ -13,6 +13,8 @@ import {
   CloudIcon,
   EnvelopeIcon,
   DevicePhoneMobileIcon,
+  SparklesIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { CloudIcon as CloudSolidIcon } from '@heroicons/react/24/solid';
 
@@ -53,6 +55,7 @@ export default function TerritoriesPage() {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [alerts, setAlerts] = useState<StormAlert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generatingLeads, setGeneratingLeads] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTerritory, setNewTerritory] = useState({
     name: '',
@@ -170,6 +173,28 @@ export default function TerritoriesPage() {
       }
     } catch (error) {
       console.error('Error toggling alerts:', error);
+    }
+  };
+
+  const handleGenerateLeads = async (territoryId: string) => {
+    setGeneratingLeads(territoryId);
+    try {
+      const res = await fetch(`/api/territories/${territoryId}/leads`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // Show success feedback
+        alert(`Generated ${data.leadsGenerated} new leads!`);
+        fetchTerritories(); // Refresh to update lead counts
+      } else {
+        alert(data.message || 'No new leads generated');
+      }
+    } catch (error) {
+      console.error('Error generating leads:', error);
+      alert('Failed to generate leads');
+    } finally {
+      setGeneratingLeads(null);
     }
   };
 
@@ -388,6 +413,25 @@ export default function TerritoriesPage() {
                         )}
                       </div>
                     </div>
+
+                    {/* Generate Leads Button */}
+                    <button
+                      onClick={() => handleGenerateLeads(territory.id)}
+                      disabled={generatingLeads === territory.id}
+                      className="mt-4 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 px-4 py-2 rounded-lg font-medium transition-all text-sm"
+                    >
+                      {generatingLeads === territory.id ? (
+                        <>
+                          <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <SparklesIcon className="w-4 h-4" />
+                          Generate AI Leads
+                        </>
+                      )}
+                    </button>
                   </div>
                 ))}
               </div>
