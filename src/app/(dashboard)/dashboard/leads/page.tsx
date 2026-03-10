@@ -39,6 +39,15 @@ interface Property {
   roofAge: number;
   successProbability: number;
   estimatedProfit: number;
+  // Property details from API
+  yearBuilt?: number;
+  squareFeet?: number;
+  lotSize?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  roofType?: string;
+  lastSaleDate?: string;
+  lastSalePrice?: number;
 }
 
 interface PropertyDetail extends Property {
@@ -249,7 +258,16 @@ export default function LeadsPage() {
             estimatedValue: estimatedValue,
             roofAge: roofAge,
             successProbability: successProbability,
-            estimatedProfit: estimatedProfit, // Always use our varied calculation
+            estimatedProfit: estimatedProfit,
+            // Include actual property details from API
+            yearBuilt: prop.property?.yearBuilt || null,
+            squareFeet: prop.property?.sqft || null,
+            lotSize: prop.property?.lotSize ? `${prop.property.lotSize} acres` : null,
+            bedrooms: prop.property?.bedrooms || null,
+            bathrooms: prop.property?.bathrooms || null,
+            roofType: prop.property?.roofType || null,
+            lastSaleDate: prop.sale?.saleDate || null,
+            lastSalePrice: prop.sale?.salePrice || prop.valuation?.market || prop.valuation?.assessed || null,
           };
         });
 
@@ -275,20 +293,16 @@ export default function LeadsPage() {
   };
 
   const openPropertyDetail = (property: Property) => {
-    // Extend with mock contact details
+    // Use actual API data, only generate contact info as mock
     const detail: PropertyDetail = {
       ...property,
+      // Generate mock contact details (API doesn't provide these)
       ownerPhone: `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-      ownerEmail: property.owner
+      ownerEmail: property.owner && property.owner !== 'Unknown'
         ? `${property.owner.toLowerCase().replace(/\s+/g, '.').substring(0, 20)}@email.com`
-        : undefined,
-      yearBuilt: 2024 - property.roofAge - Math.floor(Math.random() * 10),
-      squareFeet: Math.floor(Math.random() * 2500) + 1200,
-      lotSize: `${(Math.random() * 0.5 + 0.1).toFixed(2)} acres`,
-      bedrooms: Math.floor(Math.random() * 3) + 2,
-      bathrooms: Math.floor(Math.random() * 2) + 1.5,
-      lastSaleDate: `${Math.floor(Math.random() * 10) + 2014}`,
-      lastSalePrice: Math.floor(property.estimatedValue * (0.7 + Math.random() * 0.2)),
+        : 'unknown@email.com',
+      // Use actual property data from API (already included in property object)
+      // These are passed through from the transformation
     };
     setSelectedProperty(detail);
     setShowModal(true);
