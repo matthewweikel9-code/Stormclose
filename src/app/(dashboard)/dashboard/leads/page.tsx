@@ -209,18 +209,28 @@ export default function LeadsPage() {
           const valueVariance = isCommercial ? 600000 : 320000;
           const estimatedValue = Math.floor(baseValue + (seed1 * valueVariance));
           
-          // Profit calculation: based on roof size estimate from property value
-          // Average roofing job profit is 20-35% of job cost
-          // Job cost roughly correlates with property value
-          const estimatedRoofArea = isCommercial 
-            ? 3000 + Math.floor(seed2 * 7000)  // 3000-10000 sq ft for commercial
-            : 1200 + Math.floor(seed2 * 2300); // 1200-3500 sq ft for residential
+          // Use API's estimated claim data if available, otherwise calculate
+          // API returns estimatedClaim with low, high, average based on actual sqft
+          const apiEstimate = prop.estimatedClaim;
           
-          // Price per sq ft: $4-8 for materials, contractor markup
-          const pricePerSqFt = 5 + (seed3 * 3);
-          const jobValue = estimatedRoofArea * pricePerSqFt;
-          const profitMargin = 0.22 + (seed1 * 0.13); // 22-35% profit margin
-          const estimatedProfit = Math.floor(jobValue * profitMargin);
+          let estimatedProfit: number;
+          if (apiEstimate && apiEstimate.average > 0) {
+            // Use API's calculation based on actual property sqft
+            // Apply profit margin (22-35%) to the roof job estimate
+            const profitMargin = 0.22 + (seed1 * 0.13);
+            estimatedProfit = Math.floor(apiEstimate.average * profitMargin);
+          } else {
+            // Fallback: estimate based on property characteristics
+            const estimatedRoofArea = isCommercial 
+              ? 3000 + Math.floor(seed2 * 7000)  // 3000-10000 sq ft for commercial
+              : 1200 + Math.floor(seed2 * 2300); // 1200-3500 sq ft for residential
+            
+            // Price per sq ft: $5-10 for materials + labor (2024 prices)
+            const pricePerSqFt = 5 + (seed3 * 5);
+            const jobValue = estimatedRoofArea * pricePerSqFt;
+            const profitMargin = 0.22 + (seed1 * 0.13); // 22-35% profit margin
+            estimatedProfit = Math.floor(jobValue * profitMargin);
+          }
           
           // Success probability correlates with lead score
           const successProbability = Math.min(95, Math.max(40, leadScore - 10 + Math.floor(seed3 * 15)));
