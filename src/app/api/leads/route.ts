@@ -29,10 +29,14 @@ export async function GET(request: NextRequest) {
 	const offset = parseInt(searchParams.get("offset") || "0", 10);
 
 	try {
+		// Show leads that are:
+		// 1. Owned by current user (user_id)
+		// 2. Assigned to current user (assigned_to)
+		// 3. AI-generated leads (source = ai_auto_generated) - visible to all salespeople
 		let query = supabase
 			.from("leads")
 			.select("*", { count: "exact" })
-			.or(`user_id.eq.${user.id},assigned_to.eq.${user.id}`)
+			.or(`user_id.eq.${user.id},assigned_to.eq.${user.id},source.eq.ai_auto_generated`)
 			.order("lead_score", { ascending: false })
 			.order("created_at", { ascending: false })
 			.range(offset, offset + limit - 1);
