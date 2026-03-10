@@ -216,16 +216,18 @@ export default function TerritoriesPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3">
-              <CloudSolidIcon className="w-8 h-8 text-blue-500" />
+              <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl">
+                <CloudSolidIcon className="w-8 h-8 text-white" />
+              </div>
               Storm Command Center
             </h1>
-            <p className="text-gray-400 mt-1">
-              Monitor severe weather and manage your sales territories
+            <p className="text-gray-400 mt-2 max-w-xl">
+              Monitor severe weather in real-time. Get instant alerts when storms hit your territory. Auto-generate leads.
             </p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition-colors"
+            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-5 py-2.5 rounded-lg font-medium transition-all shadow-lg shadow-blue-500/25"
           >
             <PlusIcon className="w-5 h-5" />
             Add Territory
@@ -234,35 +236,43 @@ export default function TerritoriesPage() {
 
         {/* Active Alerts Banner */}
         {userAlerts.length > 0 && (
-          <div className="mb-6 bg-red-900/30 border border-red-500/50 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="mb-6 bg-gradient-to-r from-red-900/40 to-orange-900/40 border border-red-500/50 rounded-xl p-5 shadow-lg shadow-red-500/10">
+            <div className="flex items-center gap-3 mb-4">
               <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-              <h2 className="text-lg font-semibold text-red-400">
+              <h2 className="text-xl font-bold text-red-400">
                 ⚠️ {userAlerts.length} Active Alert{userAlerts.length > 1 ? 's' : ''} in Your Territory
               </h2>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {userAlerts.slice(0, 3).map((alert) => (
                 <div
                   key={alert.id}
-                  className="flex items-center justify-between bg-red-900/20 rounded-lg p-3"
+                  className="flex items-center justify-between bg-red-900/30 rounded-lg p-4 border border-red-500/30"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${getAlertTypeColor(alert.alert_type)} text-white`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${getAlertTypeColor(alert.alert_type)} text-white`}
                     >
                       {formatAlertType(alert.alert_type)}
                     </span>
-                    <span className="text-sm">{alert.headline}</span>
+                    <span className="text-sm font-medium">{alert.headline}</span>
                     {alert.hail_size_inches && (
-                      <span className="text-xs bg-yellow-600/50 px-2 py-0.5 rounded">
-                        {alert.hail_size_inches}" hail
+                      <span className="text-xs bg-yellow-600/50 px-2.5 py-1 rounded-full font-medium">
+                        🧊 {alert.hail_size_inches}" hail
                       </span>
                     )}
                   </div>
-                  <span className="text-xs text-gray-400">
-                    {alert.matching_territories.join(', ')}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-400">
+                      {alert.matching_territories.join(', ')}
+                    </span>
+                    <a
+                      href="/dashboard/leads"
+                      className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg font-medium transition-colors"
+                    >
+                      View Leads →
+                    </a>
+                  </div>
                 </div>
               ))}
             </div>
@@ -278,18 +288,26 @@ export default function TerritoriesPage() {
             </h2>
 
             {territories.length === 0 ? (
-              <div className="bg-gray-800 rounded-xl p-8 text-center">
-                <MapPinIcon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-300 mb-2">No Territories Yet</h3>
-                <p className="text-gray-500 mb-4">
-                  Define your sales territories to receive real-time storm alerts
+              <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-10 text-center border border-gray-700">
+                <div className="w-20 h-20 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <MapPinIcon className="w-10 h-10 text-purple-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-3">No Territories Yet</h3>
+                <p className="text-gray-400 mb-6 max-w-md mx-auto">
+                  Define your sales territories to receive real-time storm alerts and auto-generated leads when severe weather strikes
                 </p>
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Create Your First Territory
-                </button>
+                <div className="space-y-4">
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-6 py-3 rounded-lg font-medium transition-all shadow-lg shadow-blue-500/25"
+                  >
+                    <PlusIcon className="w-5 h-5" />
+                    Create Your First Territory
+                  </button>
+                  <p className="text-gray-500 text-sm">
+                    Pro tip: Add zip codes for areas you want to canvass
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -381,16 +399,19 @@ export default function TerritoriesPage() {
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <CloudIcon className="w-5 h-5 text-orange-400" />
               Live Storm Feed
-              <span className="text-xs bg-green-600/20 text-green-400 px-2 py-0.5 rounded-full">
+              <span className="text-xs bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2.5 py-1 rounded-full font-bold animate-pulse">
                 LIVE
               </span>
             </h2>
 
-            <div className="bg-gray-800 rounded-xl border border-gray-700 divide-y divide-gray-700 max-h-[600px] overflow-y-auto">
+            <div className="bg-gray-800/80 rounded-xl border border-gray-700 divide-y divide-gray-700 max-h-[600px] overflow-y-auto backdrop-blur-sm">
               {allAlerts.length === 0 ? (
-                <div className="p-6 text-center">
-                  <CheckCircleIcon className="w-10 h-10 text-green-500 mx-auto mb-2" />
-                  <p className="text-gray-400">No active severe weather alerts</p>
+                <div className="p-8 text-center">
+                  <div className="w-16 h-16 bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircleIcon className="w-8 h-8 text-green-500" />
+                  </div>
+                  <h3 className="text-white font-medium mb-2">All Clear</h3>
+                  <p className="text-gray-400 text-sm">No active severe weather alerts</p>
                 </div>
               ) : (
                 allAlerts.map((alert) => (

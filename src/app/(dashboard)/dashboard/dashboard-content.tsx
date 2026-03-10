@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
+import Link from 'next/link';
 import { 
   AlertTriangle, 
   Users, 
@@ -16,7 +17,11 @@ import {
   Target,
   CloudRain,
   Plus,
-  Navigation
+  Navigation,
+  Sparkles,
+  Cloud,
+  ArrowRight,
+  ExternalLink
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -223,20 +228,25 @@ export function DashboardContent({
     <div className="space-y-6 pb-8">
       {/* Storm Alert Banner - Only shows if recent hail nearby */}
       {hailAlerts.length > 0 && (
-        <div className="bg-gradient-to-r from-red-600 to-orange-600 rounded-xl p-4 shadow-lg">
+        <div className="bg-gradient-to-r from-red-600 to-orange-600 rounded-xl p-4 shadow-lg border border-red-500/50">
           <div className="flex items-center gap-3">
-            <div className="bg-white/20 rounded-full p-2">
+            <div className="bg-white/20 rounded-full p-2 animate-pulse">
               <CloudRain className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-white">🚨 Storm Alert</h3>
+              <h3 className="font-semibold text-white flex items-center gap-2">
+                🚨 Storm Alert — New Opportunities Detected
+              </h3>
               <p className="text-white/90 text-sm">
                 {hailAlerts[0].size}" hail reported {hailAlerts[0].distance_miles.toFixed(1)} miles away in {hailAlerts[0].city}
               </p>
             </div>
-            <button className="bg-white text-red-600 px-4 py-2 rounded-lg font-medium hover:bg-white/90 transition-colors">
-              View Leads
-            </button>
+            <Link 
+              href="/dashboard/leads"
+              className="bg-white text-red-600 px-4 py-2 rounded-lg font-medium hover:bg-white/90 transition-colors flex items-center gap-2"
+            >
+              View Leads <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
       )}
@@ -248,64 +258,93 @@ export function DashboardContent({
             {getGreeting()}, {userName}!
           </h1>
           <p className="text-gray-400 mt-1">
-            {stats?.data?.kpis?.appointmentsSet || 0} appointments this week • {hotLeads.length} hot leads ready
+            {hotLeads.length > 0 ? (
+              <span className="text-green-400 font-medium">{hotLeads.length} hot leads</span>
+            ) : (
+              <span>No hot leads</span>
+            )} ready • {stats?.data?.kpis?.appointmentsSet || 0} appointments this week
           </p>
         </div>
         <div className="flex gap-3">
-          <button 
-            onClick={() => window.location.href = '/dashboard/leads'}
+          <Link 
+            href="/dashboard/territories"
+            className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-lg shadow-purple-500/25"
+          >
+            <Cloud className="w-4 h-4" />
+            Storm Command
+          </Link>
+          <Link 
+            href="/dashboard/leads"
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
           >
-            <Plus className="w-4 h-4" />
+            <Users className="w-4 h-4" />
             View Leads
-          </button>
-          <button 
-            onClick={() => window.location.href = '/dashboard/route-planner'}
-            className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          >
-            <Navigation className="w-4 h-4" />
-            Route Planner
-          </button>
+          </Link>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <KPICard
-          label="Total Leads"
-          value={stats?.data?.kpis?.leadsGenerated || 0}
-          subtext={`${hotLeads.length} hot`}
-          icon={<Users className="w-5 h-5" />}
-          color="blue"
-        />
-        <KPICard
-          label="Appointments"
-          value={stats?.data?.kpis?.appointmentsSet || 0}
-          subtext="this week"
-          icon={<Calendar className="w-5 h-5" />}
-          color="purple"
-        />
-        <KPICard
-          label="Deals Closed"
-          value={stats?.data?.kpis?.dealsClosed || 0}
-          subtext="this month"
-          icon={<Zap className="w-5 h-5" />}
-          color="green"
-        />
-        <KPICard
-          label="Pipeline"
-          value={formatCurrency(stats?.data?.kpis?.pipelineValue || 0)}
-          subtext={`${stats?.data?.kpis?.dealsClosed || 0} deals closed`}
-          icon={<DollarSign className="w-5 h-5" />}
-          color="yellow"
-        />
-        <KPICard
-          label="Close Rate"
-          value={`${stats?.data?.kpis?.closeRate || 0}%`}
-          subtext={`${stats?.data?.activitySummary?.appointmentsSet || 0} appts set`}
-          icon={<TrendingUp className="w-5 h-5" />}
-          color="emerald"
-        />
+      {/* Quick Action Cards - High Impact Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Storm Intelligence Card */}
+        <Link 
+          href="/dashboard/territories"
+          className="group bg-gradient-to-br from-purple-900/50 to-indigo-900/50 rounded-xl border border-purple-500/30 p-5 hover:border-purple-500/50 transition-all hover:shadow-lg hover:shadow-purple-500/10"
+        >
+          <div className="flex items-start justify-between">
+            <div className="bg-purple-500/20 rounded-lg p-2.5">
+              <CloudRain className="w-6 h-6 text-purple-400" />
+            </div>
+            <ChevronRight className="w-5 h-5 text-purple-400 group-hover:translate-x-1 transition-transform" />
+          </div>
+          <h3 className="text-lg font-semibold text-white mt-4">Storm Command</h3>
+          <p className="text-purple-300/70 text-sm mt-1">Monitor weather & manage territories</p>
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded-full">
+              {hailAlerts.length > 0 ? `${hailAlerts.length} active alerts` : 'No active alerts'}
+            </span>
+          </div>
+        </Link>
+
+        {/* Hot Leads Card */}
+        <Link 
+          href="/dashboard/leads"
+          className="group bg-gradient-to-br from-orange-900/50 to-red-900/50 rounded-xl border border-orange-500/30 p-5 hover:border-orange-500/50 transition-all hover:shadow-lg hover:shadow-orange-500/10"
+        >
+          <div className="flex items-start justify-between">
+            <div className="bg-orange-500/20 rounded-lg p-2.5">
+              <Target className="w-6 h-6 text-orange-400" />
+            </div>
+            <ChevronRight className="w-5 h-5 text-orange-400 group-hover:translate-x-1 transition-transform" />
+          </div>
+          <h3 className="text-lg font-semibold text-white mt-4">Hot Leads</h3>
+          <p className="text-orange-300/70 text-sm mt-1">AI-scored high-value opportunities</p>
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-1 rounded-full flex items-center gap-1">
+              <span className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
+              {hotLeads.length} ready to contact
+            </span>
+          </div>
+        </Link>
+
+        {/* AI Prep Card */}
+        <Link 
+          href="/dashboard/leads"
+          className="group bg-gradient-to-br from-yellow-900/50 to-amber-900/50 rounded-xl border border-yellow-500/30 p-5 hover:border-yellow-500/50 transition-all hover:shadow-lg hover:shadow-yellow-500/10"
+        >
+          <div className="flex items-start justify-between">
+            <div className="bg-yellow-500/20 rounded-lg p-2.5">
+              <Sparkles className="w-6 h-6 text-yellow-400" />
+            </div>
+            <ChevronRight className="w-5 h-5 text-yellow-400 group-hover:translate-x-1 transition-transform" />
+          </div>
+          <h3 className="text-lg font-semibold text-white mt-4">AI Sales Prep</h3>
+          <p className="text-yellow-300/70 text-sm mt-1">Get briefed before every knock</p>
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded-full">
+              Prep Me for any lead →
+            </span>
+          </div>
+        </Link>
       </div>
 
       {/* Main Content Grid */}
@@ -313,55 +352,75 @@ export function DashboardContent({
         {/* Hot Leads - Left Column */}
         <div className="lg:col-span-2 bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <h2 className="font-semibold text-white">Hot Leads</h2>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <h2 className="font-semibold text-white text-lg">Hot Leads</h2>
+              </div>
+              <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">
+                Ready to close
+              </span>
             </div>
-            <a href="/dashboard/leads" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
+            <Link href="/dashboard/leads" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1 font-medium">
               View All <ChevronRight className="w-4 h-4" />
-            </a>
+            </Link>
           </div>
           
           {hotLeads.length > 0 ? (
             <div className="divide-y divide-gray-700/50">
-              {hotLeads.map((lead) => (
+              {hotLeads.slice(0, 5).map((lead, index) => (
                 <div 
                   key={lead.id}
-                  className="p-4 hover:bg-gray-700/30 transition-colors cursor-pointer"
-                  onClick={() => window.location.href = `/dashboard/leads`}
+                  className="p-4 hover:bg-gray-700/30 transition-colors group"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium text-white">{lead.address || lead.name || 'Unknown'}</h3>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium text-white ${getScoreColor(lead.score_tier || getScoreTier(lead.lead_score))}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                          index === 0 ? 'bg-yellow-500 text-yellow-900' :
+                          index === 1 ? 'bg-gray-300 text-gray-700' :
+                          index === 2 ? 'bg-amber-600 text-amber-100' :
+                          'bg-gray-600 text-gray-300'
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <h3 className="font-medium text-white truncate">{lead.address || lead.name || 'Unknown'}</h3>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                          (lead.lead_score || lead.score || 0) >= 80 ? 'bg-red-500 text-white' :
+                          (lead.lead_score || lead.score || 0) >= 60 ? 'bg-orange-500 text-white' :
+                          'bg-yellow-500 text-yellow-900'
+                        }`}>
                           {lead.lead_score || lead.score || 0}
                         </span>
                       </div>
-                      <p className="text-gray-400 text-sm mt-0.5">{lead.address}</p>
-                      {lead.phone && (
-                        <p className="text-gray-500 text-sm mt-1">{lead.phone}</p>
-                      )}
+                      <p className="text-gray-400 text-sm truncate">{lead.city}, {lead.state}</p>
                     </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.location.href = `tel:${lead.phone}`;
-                        }}
-                        className="p-2 bg-green-600/20 text-green-400 rounded-lg hover:bg-green-600/30 transition-colors"
+                    <div className="flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Link
+                        href="/dashboard/leads"
+                        className="px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg text-xs font-medium hover:from-yellow-600 hover:to-orange-600 transition-colors flex items-center gap-1"
                       >
-                        <Phone className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(`https://maps.google.com?q=${encodeURIComponent(lead.address)}`, '_blank');
-                        }}
-                        className="p-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors"
+                        <Sparkles className="w-3 h-3" />
+                        Prep Me
+                      </Link>
+                      {lead.phone && (
+                        <a 
+                          href={`tel:${lead.phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1.5 bg-green-600/20 text-green-400 rounded-lg hover:bg-green-600/30 transition-colors"
+                        >
+                          <Phone className="w-4 h-4" />
+                        </a>
+                      )}
+                      <a 
+                        href={`https://maps.google.com?q=${encodeURIComponent(lead.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors"
                       >
                         <MapPin className="w-4 h-4" />
-                      </button>
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -369,9 +428,18 @@ export function DashboardContent({
             </div>
           ) : (
             <div className="p-8 text-center">
-              <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-400">No hot leads yet</p>
-              <p className="text-gray-500 text-sm mt-1">Import leads or sync storm data to get started</p>
+              <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Target className="w-8 h-8 text-gray-500" />
+              </div>
+              <h3 className="text-white font-medium mb-2">No hot leads yet</h3>
+              <p className="text-gray-400 text-sm mb-4">Set up Storm Command to auto-generate leads</p>
+              <Link 
+                href="/dashboard/territories"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Cloud className="w-4 h-4" />
+                Set Up Storm Command
+              </Link>
             </div>
           )}
         </div>
@@ -380,14 +448,11 @@ export function DashboardContent({
         <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
             <h2 className="font-semibold text-white">Recent Activity</h2>
-            <a href="/dashboard/leads" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
-              View All <ChevronRight className="w-4 h-4" />
-            </a>
           </div>
           
           {stats?.data?.recentActivities && stats.data.recentActivities.length > 0 ? (
             <div className="divide-y divide-gray-700/50">
-              {stats.data.recentActivities.slice(0, 8).map((activity) => (
+              {stats.data.recentActivities.slice(0, 6).map((activity) => (
                 <div key={activity.id} className="p-3 hover:bg-gray-700/30 transition-colors">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5">
@@ -396,12 +461,9 @@ export function DashboardContent({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white">
                         <span className="font-medium">{formatActivityType(activity.activity_type)}</span>
-                        {activity.leads?.address && (
-                          <span className="text-gray-400"> • {activity.leads.address}</span>
-                        )}
                       </p>
-                      {activity.description && (
-                        <p className="text-gray-500 text-xs truncate mt-0.5">{activity.description}</p>
+                      {activity.leads?.address && (
+                        <p className="text-gray-500 text-xs truncate mt-0.5">{activity.leads.address}</p>
                       )}
                     </div>
                     <span className="text-gray-500 text-xs whitespace-nowrap">
@@ -413,47 +475,88 @@ export function DashboardContent({
             </div>
           ) : (
             <div className="p-8 text-center">
-              <Clock className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-400">No activity yet</p>
-              <p className="text-gray-500 text-sm mt-1">Start knocking doors to see your activity here</p>
+              <div className="w-12 h-12 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Clock className="w-6 h-6 text-gray-500" />
+              </div>
+              <p className="text-gray-400 text-sm">No activity yet</p>
+              <p className="text-gray-500 text-xs mt-1">Start working leads to see activity</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Pipeline Overview */}
-      <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
-          <h2 className="font-semibold text-white">Pipeline Overview</h2>
-          <a href="/dashboard/leads" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
-            View Pipeline <ChevronRight className="w-4 h-4" />
-          </a>
+      {/* Bottom Row - KPIs + Pipeline */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* KPI Cards */}
+        <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-5">
+          <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-green-400" />
+            Performance
+          </h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-700/30 rounded-lg p-4">
+              <p className="text-gray-400 text-xs uppercase tracking-wide">Pipeline Value</p>
+              <p className="text-2xl font-bold text-white mt-1">{formatCurrency(stats?.data?.kpis?.pipelineValue || 0)}</p>
+              <p className="text-green-400 text-xs mt-1">{stats?.data?.kpis?.dealsClosed || 0} deals closed</p>
+            </div>
+            <div className="bg-gray-700/30 rounded-lg p-4">
+              <p className="text-gray-400 text-xs uppercase tracking-wide">Close Rate</p>
+              <p className="text-2xl font-bold text-white mt-1">{stats?.data?.kpis?.closeRate || 0}%</p>
+              <p className="text-blue-400 text-xs mt-1">{stats?.data?.kpis?.appointmentsSet || 0} appointments</p>
+            </div>
+            <div className="bg-gray-700/30 rounded-lg p-4">
+              <p className="text-gray-400 text-xs uppercase tracking-wide">Total Leads</p>
+              <p className="text-2xl font-bold text-white mt-1">{stats?.data?.kpis?.leadsGenerated || 0}</p>
+              <p className="text-orange-400 text-xs mt-1">{hotLeads.length} hot</p>
+            </div>
+            <div className="bg-gray-700/30 rounded-lg p-4">
+              <p className="text-gray-400 text-xs uppercase tracking-wide">Closed Value</p>
+              <p className="text-2xl font-bold text-white mt-1">{formatCurrency(stats?.data?.kpis?.closedValue || 0)}</p>
+              <p className="text-purple-400 text-xs mt-1">This month</p>
+            </div>
+          </div>
         </div>
-        <div className="p-4">
-          <div className="grid grid-cols-5 gap-2">
-            <PipelineStage 
+
+        {/* Pipeline Overview */}
+        <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-white flex items-center gap-2">
+              <Target className="w-5 h-5 text-blue-400" />
+              Pipeline
+            </h2>
+            <Link href="/dashboard/leads" className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1">
+              Manage <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="space-y-3">
+            <PipelineBar 
               label="New" 
               count={stats?.data?.pipeline?.new || 0} 
+              total={stats?.data?.kpis?.leadsGenerated || 1}
               color="bg-gray-500" 
             />
-            <PipelineStage 
+            <PipelineBar 
               label="Contacted" 
-              count={stats?.data?.pipeline?.contacted || 0} 
+              count={stats?.data?.pipeline?.contacted || 0}
+              total={stats?.data?.kpis?.leadsGenerated || 1}
               color="bg-blue-500" 
             />
-            <PipelineStage 
+            <PipelineBar 
               label="Appointment" 
-              count={stats?.data?.pipeline?.appointment_set || 0} 
+              count={stats?.data?.pipeline?.appointment_set || 0}
+              total={stats?.data?.kpis?.leadsGenerated || 1}
               color="bg-purple-500" 
             />
-            <PipelineStage 
+            <PipelineBar 
               label="Inspected" 
-              count={stats?.data?.pipeline?.inspected || 0} 
+              count={stats?.data?.pipeline?.inspected || 0}
+              total={stats?.data?.kpis?.leadsGenerated || 1}
               color="bg-yellow-500" 
             />
-            <PipelineStage 
-              label="Closed" 
-              count={stats?.data?.pipeline?.closed || 0} 
+            <PipelineBar 
+              label="Closed Won" 
+              count={stats?.data?.pipeline?.closed || 0}
+              total={stats?.data?.kpis?.leadsGenerated || 1}
               color="bg-green-500" 
             />
           </div>
@@ -499,7 +602,35 @@ function KPICard({
   );
 }
 
-// Pipeline Stage Component
+// Pipeline Bar Component
+function PipelineBar({ 
+  label, 
+  count,
+  total,
+  color 
+}: { 
+  label: string; 
+  count: number;
+  total: number;
+  color: string;
+}) {
+  const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+  
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-24 text-sm text-gray-400">{label}</div>
+      <div className="flex-1 bg-gray-700/50 rounded-full h-2 overflow-hidden">
+        <div 
+          className={`${color} h-full rounded-full transition-all duration-500`}
+          style={{ width: `${Math.max(percentage, count > 0 ? 5 : 0)}%` }}
+        />
+      </div>
+      <div className="w-8 text-right text-sm font-medium text-white">{count}</div>
+    </div>
+  );
+}
+
+// Pipeline Stage Component (kept for compatibility)
 function PipelineStage({ 
   label, 
   count, 

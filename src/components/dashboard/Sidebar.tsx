@@ -93,10 +93,8 @@ const navItems: NavItem[] = [
 		),
 	},
 	{
-		label: "Lead Generator",
+		label: "Leads",
 		href: "/dashboard/leads",
-		feature: "lead_generator",
-		badge: "Enterprise",
 		icon: (
 			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path
@@ -117,8 +115,7 @@ const navItems: NavItem[] = [
 	{
 		label: "Storm Command",
 		href: "/dashboard/territories",
-		feature: "lead_generator",
-		badge: "Enterprise",
+		badge: "🔴 LIVE",
 		icon: (
 			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path
@@ -133,8 +130,6 @@ const navItems: NavItem[] = [
 	{
 		label: "Route Planner",
 		href: "/dashboard/route-planner",
-		feature: "lead_generator",
-		badge: "Enterprise",
 		icon: (
 			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path
@@ -210,6 +205,9 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 	};
 
 	const getBadgeStyle = (badge?: string) => {
+		if (badge?.includes("LIVE")) {
+			return "bg-red-500/20 text-red-400 animate-pulse";
+		}
 		switch (badge) {
 			case "Enterprise":
 				return "bg-emerald-500/20 text-emerald-400";

@@ -64,6 +64,7 @@ interface SavedLead {
   source: string;
   storm_date?: string;
   hail_size?: number;
+  phone?: string;
   created_at: string;
 }
 
@@ -325,22 +326,23 @@ export default function LeadsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 shadow">
+      <div className="bg-white dark:bg-gray-800 shadow-lg border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Lead Generator
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                <MapPinIcon className="h-7 w-7 text-blue-500" />
+                Leads
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                AI-generated leads from storm data + property search
+                AI-scored storm leads + property search
               </p>
             </div>
 
             <div className="flex gap-3">
               <a
                 href="/dashboard/territories"
-                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/25 font-medium"
               >
                 <CloudIcon className="h-5 w-5 mr-2" />
                 Storm Command
@@ -348,36 +350,41 @@ export default function LeadsPage() {
               {routeList.length > 0 && (
                 <button
                   onClick={goToRoutePlanner}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
                   <MapIcon className="h-5 w-5 mr-2" />
-                  View Route ({routeList.length})
+                  Route ({routeList.length})
                 </button>
               )}
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="mt-6 flex gap-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="mt-6 flex gap-1 bg-gray-100 dark:bg-gray-700/50 p-1 rounded-lg w-fit">
             <button
               onClick={() => setActiveTab('saved')}
-              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
                 activeTab === 'saved'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >
               <span className="flex items-center gap-2">
-                <SparklesIcon className="h-4 w-4" />
-                Hot Leads ({savedLeads.filter(l => l.lead_score >= 70).length})
+                <StarIcon className="h-4 w-4 text-orange-500" />
+                Hot Leads
+                {savedLeads.filter(l => l.lead_score >= 70).length > 0 && (
+                  <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                    {savedLeads.filter(l => l.lead_score >= 70).length}
+                  </span>
+                )}
               </span>
             </button>
             <button
               onClick={() => setActiveTab('search')}
-              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
                 activeTab === 'search'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >
               <span className="flex items-center gap-2">
@@ -399,31 +406,42 @@ export default function LeadsPage() {
                 <ArrowPathIcon className="h-8 w-8 text-blue-500 animate-spin" />
               </div>
             ) : savedLeads.length === 0 ? (
-              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                <CloudIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No leads yet</h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
-                  Set up your territories to receive AI-generated storm leads
+              <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CloudIcon className="h-8 w-8 text-purple-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No leads yet</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                  Set up Storm Command to automatically generate leads when severe weather hits your territory
                 </p>
-                <a
-                  href="/dashboard/territories"
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <CloudIcon className="h-5 w-5 mr-2" />
-                  Set Up Storm Command
-                </a>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <a
+                    href="/dashboard/territories"
+                    className="inline-flex items-center justify-center px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 font-medium shadow-lg shadow-purple-500/25 transition-all"
+                  >
+                    <CloudIcon className="h-5 w-5 mr-2" />
+                    Set Up Storm Command
+                  </a>
+                  <button
+                    onClick={() => setActiveTab('search')}
+                    className="inline-flex items-center justify-center px-5 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 font-medium transition-colors"
+                  >
+                    <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
+                    Search Properties
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {savedLeads.map((lead) => (
                   <div
                     key={lead.id}
-                    className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow"
+                    className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl hover:border-gray-300 dark:hover:border-gray-600 transition-all"
                   >
                     {/* Score Header */}
                     <div className={`px-4 py-3 flex items-center justify-between ${
-                      lead.lead_score >= 70 ? 'bg-red-50 dark:bg-red-900/20' :
-                      lead.lead_score >= 40 ? 'bg-yellow-50 dark:bg-yellow-900/20' :
+                      lead.lead_score >= 70 ? 'bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/30 dark:to-orange-900/30' :
+                      lead.lead_score >= 40 ? 'bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20' :
                       'bg-gray-50 dark:bg-gray-700/50'
                     }`}>
                       <div className="flex items-center gap-2">
@@ -432,17 +450,17 @@ export default function LeadsPage() {
                           lead.lead_score >= 40 ? 'text-yellow-500' :
                           'text-gray-400'
                         }`} />
-                        <span className="font-bold">{lead.lead_score}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        <span className="font-bold text-lg">{lead.lead_score}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                           lead.lead_score >= 70 ? 'bg-red-500 text-white' :
                           lead.lead_score >= 40 ? 'bg-yellow-500 text-white' :
                           'bg-gray-500 text-white'
                         }`}>
-                          {lead.lead_score >= 70 ? 'HOT' : lead.lead_score >= 40 ? 'WARM' : 'COLD'}
+                          {lead.lead_score >= 70 ? '🔥 HOT' : lead.lead_score >= 40 ? 'WARM' : 'COLD'}
                         </span>
                       </div>
                       {lead.source === 'ai_auto_generated' && (
-                        <span className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400">
+                        <span className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 font-medium">
                           <SparklesSolid className="h-3 w-3" />
                           AI
                         </span>
@@ -459,14 +477,14 @@ export default function LeadsPage() {
                       </p>
                       
                       {lead.storm_date && (
-                        <div className="mt-2 flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
+                        <div className="mt-2 flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full w-fit">
                           <CloudIcon className="h-3 w-3" />
-                          {lead.hail_size}&quot; hail on {new Date(lead.storm_date).toLocaleDateString()}
+                          {lead.hail_size}&quot; hail • {new Date(lead.storm_date).toLocaleDateString()}
                         </div>
                       )}
 
-                      {/* Actions */}
-                      <div className="mt-4 flex gap-2">
+                      {/* Actions - Prep Me is primary */}
+                      <div className="mt-4 space-y-2">
                         <button
                           onClick={async () => {
                             setCopilotLoading(true);
@@ -493,27 +511,37 @@ export default function LeadsPage() {
                             }
                           }}
                           disabled={copilotLoading}
-                          className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 text-sm font-medium"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 text-sm font-semibold shadow-lg shadow-orange-500/25 transition-all"
                         >
                           {copilotLoading ? (
                             <ArrowPathIcon className="h-4 w-4 animate-spin" />
                           ) : (
                             <>
                               <SparklesIcon className="h-4 w-4" />
-                              Prep Me
+                              Prep Me for This Sale
                             </>
                           )}
                         </button>
-                        <a
-                          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-                            `${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}`
-                          )}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
-                        >
-                          <MapPinIcon className="h-4 w-4" />
-                        </a>
+                        <div className="flex gap-2">
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                              `${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm font-medium transition-colors"
+                          >
+                            <MapPinIcon className="h-4 w-4" />
+                            Navigate
+                          </a>
+                          <a
+                            href={`tel:${lead.phone || ''}`}
+                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 text-sm font-medium transition-colors"
+                          >
+                            <PhoneIcon className="h-4 w-4" />
+                            Call
+                          </a>
+                        </div>
                       </div>
                     </div>
                   </div>
