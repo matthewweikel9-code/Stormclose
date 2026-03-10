@@ -7,128 +7,75 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const CORELOGIC_API_KEY = process.env.CORELOGIC_API_KEY;
-const CORELOGIC_API_SECRET = process.env.CORELOGIC_API_SECRET;
-const CORELOGIC_BASE_URL = "https://api-prod.corelogic.com";
+// ATTOM API Configuration
+const ATTOM_API_KEY = process.env.ATTOM_API_KEY;
+const ATTOM_BASE_URL = "https://api.gateway.attomdata.com";
 
-// Token cache
-let accessToken: string | null = null;
-let tokenExpiry: number = 0;
-
-// Get CoreLogic OAuth token
-async function getCoreLogicToken(): Promise<string | null> {
-  if (accessToken && Date.now() < tokenExpiry - 60000) {
-    return accessToken;
-  }
-
-  try {
-    const credentials = Buffer.from(`${CORELOGIC_API_KEY}:${CORELOGIC_API_SECRET}`).toString("base64");
-    
-    const response = await fetch(`${CORELOGIC_BASE_URL}/oauth/token?grant_type=client_credentials`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${credentials}`,
-        "Content-Length": "0"
-      }
+// Helper function to make ATTOM API requests
+async function attomRequest(endpoint: string, params?: Record<string, string>): Promise<any> {
+  const url = new URL(`${ATTOM_BASE_URL}${endpoint}`);
+  
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, value);
     });
-
-    if (!response.ok) {
-      console.error("CoreLogic OAuth error:", await response.text());
-      return null;
-    }
-
-    const data = await response.json();
-    accessToken = data.access_token;
-    tokenExpiry = Date.now() + (parseInt(data.expires_in) * 1000);
-    return accessToken;
-  } catch (error) {
-    console.error("CoreLogic OAuth error:", error);
-    return null;
   }
+  
+  const response = await fetch(url.toString(), {
+    headers: {
+      "Accept": "application/json",
+      "APIKey": ATTOM_API_KEY || ""
+    }
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`ATTOM API error (${response.status}):`, errorText);
+    throw new Error(`ATTOM API error: ${response.status}`);
+  }
+  
+  return response.json();
 }
 
-// Search properties in a geographic area using CoreLogic Spatial Tile API
+// Search properties in a geographic area using ATTOM Property Snapshot API
 async function searchPropertiesByLocation(
   latitude: number, 
   longitude: number, 
-  radiusMiles: number = 1
+  radiusMiles: number = 2
 ): Promise<any[]> {
-  const token = await getCoreLogicToken();
-  if (!token) return [];
-
   try {
-    // CoreLogic max radius is 1609 meters (1 mile)
-    // Use 1000 meters (~0.6 miles) for reliable results
-    const radiusMeters = Math.min(Math.round(radiusMiles * 1609.34), 1600);
+    // ATTOM supports up to 20 mile radius
+    const radius = Math.min(radiusMiles, 20);
     
-    // Use Spatial Tile API for geographic parcel search
-    const url = new URL(`${CORELOGIC_BASE_URL}/spatial-tile/parcels`);
-    url.searchParams.append("lat", latitude.toString());
-    url.searchParams.append("lon", longitude.toString());
-    url.searchParams.append("within", radiusMeters.toString());
-    url.searchParams.append("pageSize", "50");
-    url.searchParams.append("pageNumber", "1");
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Accept": "application/json"
-      }
+    const data = await attomRequest("/propertyapi/v1.0.0/property/snapshot", {
+      latitude: latitude.toString(),
+      longitude: longitude.toString(),
+      radius: radius.toString(),
+      pagesize: "50"
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("CoreLogic spatial search error:", response.status, errorText);
-      return [];
-    }
-
-    const data = await response.json();
-    const parcels = data.parcels || data.data || [];
     
-    console.log(`Found ${parcels.length} parcels near ${latitude}, ${longitude}`);
+    const properties = data.property || [];
+    console.log(`Found ${properties.length} ATTOM properties near ${latitude}, ${longitude}`);
     
-    // Transform parcels to property format
-    return parcels.map((parcel: any) => ({
+    // Transform to common format
+    return properties.map((prop: any) => ({
       address: {
-        street: parcel.stdAddr || parcel.addr || "",
-        city: parcel.stdCity || parcel.city || "",
-        state: parcel.stdState || parcel.state || "",
-        zip: parcel.stdZip || parcel.zip || ""
+        street: prop.address?.line1 || prop.address?.oneLine || "",
+        city: prop.address?.locality || "",
+        state: prop.address?.countrySubd || "",
+        zip: prop.address?.postal1 || ""
       },
-      owner: parcel.owner || "Unknown",
-      yearBuilt: parcel.yearBuilt,
-      assessedValue: parcel.assessedValue || parcel.totalValue,
-      squareFeet: parcel.sqft || parcel.squareFeet,
-      latitude: parcel.lat || latitude,
-      longitude: parcel.lon || longitude,
-      apn: parcel.apn,
-      propertyType: parcel.typeCode || "R"
-    })).filter((p: any) => p.address.street); // Only include parcels with addresses
+      owner: prop.assessment?.owner?.owner1?.fullName || "Unknown",
+      yearBuilt: prop.summary?.yearBuilt || prop.building?.construction?.constructionYear,
+      assessedValue: prop.assessment?.assessed?.assdTtlValue || prop.assessment?.market?.mktTtlValue,
+      squareFeet: prop.building?.size?.livingSize || prop.building?.size?.universalSize,
+      latitude: prop.location?.latitude || latitude,
+      longitude: prop.location?.longitude || longitude,
+      propertyType: prop.summary?.propType || "R"
+    })).filter((p: any) => p.address.street); // Only include properties with addresses
   } catch (error) {
-    console.error("CoreLogic property search error:", error);
+    console.error("ATTOM property search error:", error);
     return [];
-  }
-}
-
-// Get property details including building info
-async function getPropertyDetails(propertyId: string): Promise<any> {
-  const token = await getCoreLogicToken();
-  if (!token) return null;
-
-  try {
-    const response = await fetch(`${CORELOGIC_BASE_URL}/property/${encodeURIComponent(propertyId)}/building`, {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/vnd.corelogic.v1+json",
-        "Accept": "application/json"
-      }
-    });
-
-    if (!response.ok) return null;
-    return await response.json();
-  } catch (error) {
-    console.error("Property details error:", error);
-    return null;
   }
 }
 
@@ -262,19 +209,19 @@ async function generateLeadsFromHailEvents(): Promise<{
         continue;
       }
 
-      // Process each property from CoreLogic (limit to top 10 per event for speed)
+      // Process each property from ATTOM (limit to top 10 per event for speed)
       for (const prop of properties.slice(0, 10)) {
         try {
-          // Extract property data
-          const address = prop.address?.street || prop.streetAddress || prop.addr;
-          const city = prop.address?.city || prop.city;
-          const state = prop.address?.state || prop.state || event.state;
-          const zip = prop.address?.zip || prop.zip;
-          const lat = prop.location?.latitude || prop.latitude || event.latitude;
-          const lng = prop.location?.longitude || prop.longitude || event.longitude;
-          const yearBuilt = prop.building?.yearBuilt || prop.yearBuilt;
-          const assessedValue = prop.assessment?.totalValue || prop.assessedValue || prop.marketValue;
-          const squareFeet = prop.building?.squareFeet || prop.squareFeet;
+          // Extract property data (already transformed in searchPropertiesByLocation)
+          const address = prop.address?.street;
+          const city = prop.address?.city;
+          const state = prop.address?.state || event.state;
+          const zip = prop.address?.zip;
+          const lat = prop.latitude || event.latitude;
+          const lng = prop.longitude || event.longitude;
+          const yearBuilt = prop.yearBuilt;
+          const assessedValue = prop.assessedValue;
+          const squareFeet = prop.squareFeet;
 
           if (!address) continue;
 

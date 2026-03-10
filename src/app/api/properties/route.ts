@@ -2,219 +2,199 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkFeatureAccess } from "@/lib/subscriptions";
 
-const CORELOGIC_API_KEY = process.env.CORELOGIC_API_KEY;
-const CORELOGIC_API_SECRET = process.env.CORELOGIC_API_SECRET;
-const CORELOGIC_BASE_URL = "https://api-prod.corelogic.com";
+// ATTOM API Configuration
+const ATTOM_API_KEY = process.env.ATTOM_API_KEY;
+const ATTOM_BASE_URL = "https://api.gateway.attomdata.com";
 
 // Log if credentials are present (not the values themselves)
-console.log("[CoreLogic] API Key present:", !!CORELOGIC_API_KEY);
-console.log("[CoreLogic] API Secret present:", !!CORELOGIC_API_SECRET);
+console.log("[ATTOM] API Key present:", !!ATTOM_API_KEY);
 
-// Token cache
-let accessToken: string | null = null;
-let tokenExpiry: number = 0;
-
-// Get OAuth2 access token using Basic Auth
-async function getAccessToken(): Promise<string | null> {
-	// Return cached token if still valid (with 60s buffer)
-	if (accessToken && Date.now() < tokenExpiry - 60000) {
-		console.log("[CoreLogic] Using cached token");
-		return accessToken;
+// Helper to make ATTOM API calls
+async function attomRequest(endpoint: string, params?: Record<string, string>): Promise<any> {
+	if (!ATTOM_API_KEY) {
+		throw new Error("ATTOM API key not configured");
 	}
 
-	if (!CORELOGIC_API_KEY || !CORELOGIC_API_SECRET) {
-		console.error("[CoreLogic] Missing API credentials - CORELOGIC_API_KEY or CORELOGIC_API_SECRET not set");
-		return null;
-	}
-
-	try {
-		const credentials = Buffer.from(`${CORELOGIC_API_KEY}:${CORELOGIC_API_SECRET}`).toString("base64");
-		console.log("[CoreLogic] Requesting new OAuth token...");
-		
-		const response = await fetch(`${CORELOGIC_BASE_URL}/oauth/token?grant_type=client_credentials`, {
-			method: "POST",
-			headers: {
-				"Authorization": `Basic ${credentials}`,
-				"Content-Length": "0"
-			}
-		});
-
-		if (!response.ok) {
-			const errorText = await response.text();
-			console.error("[CoreLogic] OAuth error:", response.status, errorText);
-			return null;
-		}
-
-		const data = await response.json();
-		accessToken = data.access_token;
-		tokenExpiry = Date.now() + (parseInt(data.expires_in) * 1000);
-		console.log("[CoreLogic] Token obtained, expires in:", data.expires_in, "seconds");
-		return accessToken;
-	} catch (error) {
-		console.error("[CoreLogic] OAuth exception:", error);
-		return null;
-	}
-}
-
-// Helper to make CoreLogic API calls
-async function corelogicRequest(endpoint: string, params?: Record<string, string>, contentType?: string) {
-	const token = await getAccessToken();
-	if (!token) {
-		throw new Error("Failed to authenticate with CoreLogic");
-	}
-
-	const url = new URL(`${CORELOGIC_BASE_URL}${endpoint}`);
+	const url = new URL(`${ATTOM_BASE_URL}${endpoint}`);
 	if (params) {
 		Object.entries(params).forEach(([key, value]) => {
 			url.searchParams.append(key, value);
 		});
 	}
 
+	console.log("[ATTOM] Request:", url.pathname + url.search);
+
 	const response = await fetch(url.toString(), {
 		headers: {
-			"Authorization": `Bearer ${token}`,
-			"Content-Type": contentType || "application/json",
+			"APIKey": ATTOM_API_KEY,
 			"Accept": "application/json"
 		}
 	});
 
 	if (!response.ok) {
 		const error = await response.text();
-		console.error("CoreLogic API error:", response.status, error);
-		throw new Error(`CoreLogic API error: ${response.status}`);
+		console.error("[ATTOM] API error:", response.status, error);
+		throw new Error(`ATTOM API error: ${response.status} - ${error}`);
 	}
 
 	return response.json();
 }
 
-// Search properties by address using Property API
-async function searchPropertyByAddress(address: string, zip?: string): Promise<any> {
+// Search properties within a radius using ATTOM Property Snapshot API
+async function searchPropertiesByRadius(params: {
+	lat: number;
+	lng: number;
+	radius?: number; // in miles (ATTOM default is 5, max is 20)
+	pageSize?: number;
+	page?: number;
+}): Promise<{ properties: any[]; total: number; error?: string }> {
 	try {
-		const params: Record<string, string> = { address };
-		if (zip) params.zip5 = zip;
+		const queryParams: Record<string, string> = {
+			latitude: params.lat.toString(),
+			longitude: params.lng.toString(),
+			radius: (params.radius || 3).toString(), // Default 3 miles
+			pageSize: (params.pageSize || 50).toString(),
+			page: (params.page || 1).toString(),
+			orderBy: "distance asc"
+		};
+
+		console.log("[ATTOM] Radius search params:", JSON.stringify(queryParams));
+		const data = await attomRequest("/propertyapi/v1.0.0/property/snapshot", queryParams);
 		
-		const data = await corelogicRequest("/property", params, "application/vnd.corelogic.v1+json");
-		return data.data || [];
+		const properties = data?.property || [];
+		const total = data?.status?.total || properties.length;
+		
+		console.log("[ATTOM] Radius search returned:", properties.length, "properties, total:", total);
+		return { properties, total };
 	} catch (error) {
-		console.error("Property search error:", error);
+		console.error("[ATTOM] Radius search error:", error);
+		return { 
+			properties: [], 
+			total: 0, 
+			error: error instanceof Error ? error.message : "Unknown error" 
+		};
+	}
+}
+
+// Search properties by zip code
+async function searchPropertiesByZip(params: {
+	postalCode: string;
+	pageSize?: number;
+	page?: number;
+}): Promise<{ properties: any[]; total: number; error?: string }> {
+	try {
+		const queryParams: Record<string, string> = {
+			postalcode: params.postalCode,
+			pageSize: (params.pageSize || 50).toString(),
+			page: (params.page || 1).toString()
+		};
+
+		console.log("[ATTOM] Zip search params:", JSON.stringify(queryParams));
+		const data = await attomRequest("/propertyapi/v1.0.0/property/snapshot", queryParams);
+		
+		const properties = data?.property || [];
+		const total = data?.status?.total || properties.length;
+		
+		console.log("[ATTOM] Zip search returned:", properties.length, "properties");
+		return { properties, total };
+	} catch (error) {
+		console.error("[ATTOM] Zip search error:", error);
+		return { 
+			properties: [], 
+			total: 0, 
+			error: error instanceof Error ? error.message : "Unknown error" 
+		};
+	}
+}
+
+// Search property by address
+async function searchPropertyByAddress(address1: string, address2: string): Promise<any[]> {
+	try {
+		const queryParams: Record<string, string> = {
+			address1: address1,
+			address2: address2
+		};
+
+		console.log("[ATTOM] Address search:", address1, address2);
+		const data = await attomRequest("/propertyapi/v1.0.0/property/detail", queryParams);
+		
+		return data?.property ? [data.property] : [];
+	} catch (error) {
+		console.error("[ATTOM] Address search error:", error);
 		return [];
 	}
 }
 
-// Get property building details
-async function getPropertyBuilding(propertyId: string): Promise<any> {
+// Get property details by ATTOM ID
+async function getPropertyDetail(attomId: string): Promise<any> {
 	try {
-		const data = await corelogicRequest(`/property/${encodeURIComponent(propertyId)}/building`, undefined, "application/vnd.corelogic.v1+json");
-		return data;
+		const data = await attomRequest("/propertyapi/v1.0.0/property/detail", {
+			attomId: attomId
+		});
+		return data?.property || null;
 	} catch (error) {
-		console.error("Property building error:", error);
+		console.error("[ATTOM] Property detail error:", error);
 		return null;
 	}
 }
 
-// Get property ownership details
-async function getPropertyOwnership(propertyId: string): Promise<any> {
+// Get property with owner information
+async function getPropertyDetailWithOwner(attomId: string): Promise<any> {
 	try {
-		const data = await corelogicRequest(`/property/${encodeURIComponent(propertyId)}/ownership`, undefined, "application/vnd.corelogic.v1+json");
-		return data;
+		const data = await attomRequest("/propertyapi/v1.0.0/property/detailowner", {
+			attomId: attomId
+		});
+		return data?.property || null;
 	} catch (error) {
-		console.error("Property ownership error:", error);
+		console.error("[ATTOM] Property detail with owner error:", error);
 		return null;
 	}
 }
 
-// Get property tax assessment
-async function getPropertyTaxAssessment(propertyId: string): Promise<any> {
-	try {
-		const data = await corelogicRequest(`/property/${encodeURIComponent(propertyId)}/tax-assessment`, undefined, "application/vnd.corelogic.v1+json");
-		return data;
-	} catch (error) {
-		console.error("Property tax assessment error:", error);
-		return null;
-	}
-}
-
-// Spatial search - get parcels within a radius using Spatial Tile API
-async function spatialSearch(params: {
-	lat: number;
-	lon: number;
-	within?: number; // in meters
-	pageNumber?: number;
-	pageSize?: number;
-}): Promise<{ parcels: any[]; pageInfo: any; error?: string }> {
-	try {
-		const queryParams: Record<string, string> = {
-			lat: params.lat.toString(),
-			lon: params.lon.toString(),
-			within: (params.within || 1000).toString(), // Default 1000 meters (~0.6 miles)
-			pageNumber: (params.pageNumber || 1).toString(),
-			pageSize: (params.pageSize || 50).toString()
-		};
-
-		console.log("[CoreLogic] Spatial search params:", JSON.stringify(queryParams));
-		const data = await corelogicRequest("/spatial-tile/parcels", queryParams);
-		console.log("[CoreLogic] Spatial search returned:", data?.parcels?.length || 0, "parcels");
-		return data;
-	} catch (error) {
-		console.error("[CoreLogic] Spatial search error:", error);
-		return { parcels: [], pageInfo: { length: 0 }, error: error instanceof Error ? error.message : "Unknown error" };
-	}
-}
-
-// Process parcel data from Spatial Tile API into our format
-function formatParcel(parcel: any) {
+// Format ATTOM property to our standard format
+function formatAttomProperty(prop: any) {
+	const address = prop.address || {};
+	const location = prop.location || {};
+	const summary = prop.summary || {};
+	const building = prop.building || {};
+	const lot = prop.lot || {};
+	const identifier = prop.identifier || {};
+	
 	return {
-		id: parcel.parcelId?.toString() || parcel.apn,
+		id: identifier.attomId || identifier.Id || `attom-${Date.now()}`,
 		address: {
-			full: `${parcel.stdAddr || parcel.addr || ""}, ${parcel.stdCity || parcel.city || ""}, ${parcel.stdState || parcel.state || ""} ${parcel.stdZip || parcel.zip || ""}`.trim(),
-			street: parcel.stdAddr || parcel.addr || "",
-			city: parcel.stdCity || parcel.city || "",
-			state: parcel.stdState || parcel.state || "",
-			zip: parcel.stdZip || parcel.zip || ""
+			full: `${address.line1 || address.oneLine || ""}, ${address.locality || ""}, ${address.countrySubd || ""} ${address.postal1 || ""}`.trim(),
+			street: address.line1 || address.oneLine || "",
+			city: address.locality || "",
+			state: address.countrySubd || "",
+			zip: address.postal1 || ""
 		},
 		owner: {
-			name: parcel.owner || "Unknown",
-			mailingAddress: null
+			name: prop.owner?.owner1?.fullName || prop.owner?.absenteeOwnerStatus || "Unknown",
+			mailingAddress: prop.owner?.mailAddress?.oneLine || null
 		},
 		property: {
-			apn: parcel.apn || "",
-			fips: `${parcel.stateCode || ""}${parcel.countyCode || ""}`,
-			type: parcel.typeCode || "",
-			geometry: parcel.geometry || null
+			apn: identifier.apn || "",
+			fips: identifier.fips || "",
+			type: summary.propType || summary.propSubType || "",
+			yearBuilt: summary.yearBuilt || null,
+			sqft: building.size?.livingSize || building.size?.universalSize || null,
+			bedrooms: building.rooms?.beds || null,
+			bathrooms: building.rooms?.bathsTotal || null,
+			stories: building.summary?.stories || null,
+			lotSize: lot.lotSize1 || lot.lotSize2 || null
 		},
 		location: {
-			// Extract centroid from geometry if available
-			lat: null as number | null,
-			lng: null as number | null
+			lat: location.latitude || null,
+			lng: location.longitude || null,
+			distance: location.distance || null
+		},
+		valuation: {
+			assessed: prop.assessment?.assessed?.assdTtlValue || null,
+			market: prop.assessment?.market?.mktTtlValue || null,
+			avm: prop.avm?.amount?.value || null
 		}
 	};
-}
-
-// Parse polygon geometry to get centroid
-function getCentroidFromPolygon(geometryStr: string): { lat: number; lng: number } | null {
-	try {
-		// Parse POLYGON((...)) format
-		const match = geometryStr.match(/POLYGON\(\(([^)]+)\)\)/i);
-		if (!match) return null;
-		
-		const coordPairs = match[1].split(",").map(pair => {
-			const [lng, lat] = pair.trim().split(/\s+/).map(Number);
-			return { lat, lng };
-		});
-		
-		if (coordPairs.length === 0) return null;
-		
-		// Calculate centroid
-		const sumLat = coordPairs.reduce((sum, p) => sum + p.lat, 0);
-		const sumLng = coordPairs.reduce((sum, p) => sum + p.lng, 0);
-		
-		return {
-			lat: sumLat / coordPairs.length,
-			lng: sumLng / coordPairs.length
-		};
-	} catch {
-		return null;
-	}
 }
 
 // Estimate roof age from year built
@@ -228,11 +208,11 @@ function estimateRoofAge(yearBuilt: number | undefined | null): number | null {
 	return propertyAge % 22; // Rough estimate
 }
 
-// Calculate estimated claim value based on property type
-function estimateClaimValue(parcel: any, buildingData?: any): { low: number; high: number; average: number } {
-	// Get living area from building data if available
-	const sqFt = buildingData?.livingArea || buildingData?.totalBuildingArea || 2000;
-	const stories = buildingData?.stories || 1;
+// Calculate estimated claim value based on property data
+function estimateClaimValue(prop: any): { low: number; high: number; average: number } {
+	// Get living area from property data
+	const sqFt = prop.property?.sqft || 2000;
+	const stories = prop.property?.stories || 1;
 	
 	// Rough roofing estimate: $4-8 per sq ft of roof area
 	// Roof area ≈ sqFt / stories * 1.15 (for pitch)
@@ -269,35 +249,19 @@ export async function GET(request: NextRequest) {
 		const address = searchParams.get("address");
 		const zip = searchParams.get("zip");
 		const propertyId = searchParams.get("propertyId");
+		const attomId = searchParams.get("attomId");
 
-		if (address) {
-			// Search by address using Property API
-			const results = await searchPropertyByAddress(address, zip || undefined);
+		if (address && zip) {
+			// Search by address using ATTOM Property API
+			// ATTOM expects address1 (street) and address2 (city, state zip)
+			const results = await searchPropertyByAddress(address, zip);
 			
 			if (!results || results.length === 0) {
 				return NextResponse.json({ properties: [], count: 0 });
 			}
 
 			// Format results
-			const properties = results.map((p: any) => ({
-				id: p.corelogicPropertyId || p.compositePropertyId,
-				address: {
-					full: `${p.streetAddress}, ${p.city}, ${p.state} ${p.zipcode}`,
-					street: p.streetAddress,
-					city: p.city,
-					state: p.state,
-					zip: p.zipcode
-				},
-				location: {
-					lat: p.latitude,
-					lng: p.longitude
-				},
-				property: {
-					apn: p.apn,
-					fips: p.fipsCode
-				},
-				links: p.links || []
-			}));
+			const properties = results.map((p: any) => formatAttomProperty(p));
 
 			return NextResponse.json({
 				properties,
@@ -305,28 +269,27 @@ export async function GET(request: NextRequest) {
 			});
 		}
 
-		if (propertyId) {
+		if (attomId || propertyId) {
 			// Get single property details
-			const [building, ownership, taxAssessment] = await Promise.all([
-				getPropertyBuilding(propertyId),
-				getPropertyOwnership(propertyId),
-				getPropertyTaxAssessment(propertyId)
-			]);
+			const property = await getPropertyDetailWithOwner(attomId || propertyId!);
+			
+			if (!property) {
+				return NextResponse.json({ error: "Property not found" }, { status: 404 });
+			}
 
+			const formatted = formatAttomProperty(property);
+			
 			return NextResponse.json({
 				property: {
-					id: propertyId,
-					building,
-					ownership,
-					taxAssessment,
-					estimatedRoofAge: estimateRoofAge(building?.yearBuilt),
-					estimatedClaim: estimateClaimValue({}, building)
+					...formatted,
+					estimatedRoofAge: estimateRoofAge(formatted.property.yearBuilt),
+					estimatedClaim: estimateClaimValue(formatted)
 				}
 			});
 		}
 
 		return NextResponse.json(
-			{ error: "Provide 'address' or 'propertyId'" },
+			{ error: "Provide 'address' with 'zip', or 'attomId'" },
 			{ status: 400 }
 		);
 
@@ -380,7 +343,7 @@ export async function POST(request: NextRequest) {
 					const location = geocodeData.results[0].geometry.location;
 					lat = location.lat;
 					lng = location.lng;
-					console.log("Geocoded address:", searchQuery, "to:", lat, lng);
+					console.log("[Properties API] Geocoded address:", searchQuery, "to:", lat, lng);
 				} else {
 					console.error("Geocode failed:", geocodeData.status, geocodeData.error_message);
 					return NextResponse.json(
@@ -404,67 +367,47 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		console.log("[Properties API] Searching at coordinates:", lat, lng);
+		console.log("[Properties API] Searching at coordinates:", lat, lng, "radius:", radius || 3, "miles");
 
-		// Convert radius from miles to meters (1 mile = 1609.34 meters)
-		// CoreLogic API has a max radius of 1609.344 meters (1 mile), so cap it
-		const requestedRadiusMeters = (radius || 1) * 1609.34;
-		const radiusMeters = Math.min(requestedRadiusMeters, 1600); // Cap at ~1 mile
-
-		console.log("[Properties API] Using radius:", radiusMeters, "meters");
-
-		// Spatial search for parcels using Spatial Tile API
-		const spatialData = await spatialSearch({
+		// Use ATTOM radius search - supports up to 20 miles!
+		const searchResult = await searchPropertiesByRadius({
 			lat,
-			lon: lng,
-			within: radiusMeters,
-			pageNumber: pageNumber || 1,
-			pageSize: pageSize || 50
+			lng,
+			radius: Math.min(radius || 3, 20), // ATTOM max is 20 miles
+			pageSize: pageSize || 50,
+			page: pageNumber || 1
 		});
 
-		console.log("[Properties API] Spatial search returned:", spatialData?.parcels?.length || 0, "parcels");
+		console.log("[Properties API] ATTOM search returned:", searchResult.properties.length, "properties");
 
 		// Check if there was an API error
-		if (spatialData.error) {
-			console.error("[Properties API] CoreLogic API error:", spatialData.error);
+		if (searchResult.error) {
+			console.error("[Properties API] ATTOM API error:", searchResult.error);
 			return NextResponse.json(
-				{ error: `Property search failed: ${spatialData.error}` },
+				{ error: `Property search failed: ${searchResult.error}` },
 				{ status: 500 }
 			);
 		}
 
-		const parcels = spatialData.parcels || [];
-		const pageInfo = spatialData.pageInfo || {};
-
-		// Format parcels and calculate centroids
-		const formattedProperties = parcels.map((parcel: any) => {
-			const formatted = formatParcel(parcel);
-			
-			// Get centroid from geometry
-			if (parcel.geometry) {
-				const centroid = getCentroidFromPolygon(parcel.geometry);
-				if (centroid) {
-					formatted.location.lat = centroid.lat;
-					formatted.location.lng = centroid.lng;
-				}
-			}
-			
-			// Add estimated claim value
-			const estimatedClaim = estimateClaimValue(parcel);
+		// Format properties
+		const formattedProperties = searchResult.properties.map((prop: any) => {
+			const formatted = formatAttomProperty(prop);
+			const estimatedClaim = estimateClaimValue(formatted);
+			const roofAge = estimateRoofAge(formatted.property.yearBuilt);
 			
 			return {
 				...formatted,
-				estimatedRoofAge: null, // Would need building data for this
+				estimatedRoofAge: roofAge,
 				estimatedClaim
 			};
 		});
 
-		// Filter out properties without valid addresses (common areas, roads, etc.)
+		// Filter out properties without valid addresses
 		const validProperties = formattedProperties.filter((p: any) => 
 			p.address.street && 
-			!p.address.street.startsWith("NA ") &&
+			p.address.street.length > 3 &&
 			p.owner.name &&
-			p.owner.name !== ""
+			p.owner.name !== "Unknown"
 		);
 
 		// Calculate zone statistics
@@ -475,15 +418,15 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({
 			properties: validProperties,
 			count: validProperties.length,
-			totalParcels: pageInfo.length || parcels.length,
+			totalParcels: searchResult.total,
 			zone: {
 				center: { lat, lng },
-				radius: radius || 0.5
+				radius: radius || 3
 			},
 			pagination: {
-				page: pageInfo.page || 1,
-				pageSize: pageInfo.pageSize || 50,
-				totalRecords: pageInfo.length || 0
+				page: pageNumber || 1,
+				pageSize: pageSize || 50,
+				totalRecords: searchResult.total
 			},
 			statistics: {
 				totalProperties: validProperties.length,
@@ -498,7 +441,7 @@ export async function POST(request: NextRequest) {
 		});
 
 	} catch (error) {
-		console.error("Spatial properties error:", error);
+		console.error("Properties API error:", error);
 		return NextResponse.json(
 			{ error: error instanceof Error ? error.message : "Failed to search properties" },
 			{ status: 500 }

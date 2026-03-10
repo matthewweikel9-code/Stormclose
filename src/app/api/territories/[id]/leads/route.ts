@@ -7,122 +7,111 @@ const supabaseAdmin = createAdminClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const CORELOGIC_API_KEY = process.env.CORELOGIC_API_KEY;
-const CORELOGIC_API_SECRET = process.env.CORELOGIC_API_SECRET;
-const CORELOGIC_BASE_URL = "https://api-prod.corelogic.com";
+// ATTOM API Configuration
+const ATTOM_API_KEY = process.env.ATTOM_API_KEY;
+const ATTOM_BASE_URL = "https://api.gateway.attomdata.com";
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
-// Token cache
-let accessToken: string | null = null;
-let tokenExpiry: number = 0;
-
-// Get CoreLogic OAuth token
-async function getCoreLogicToken(): Promise<string | null> {
-  if (accessToken && Date.now() < tokenExpiry - 60000) {
-    return accessToken;
-  }
-
-  try {
-    const credentials = Buffer.from(`${CORELOGIC_API_KEY}:${CORELOGIC_API_SECRET}`).toString("base64");
-    
-    const response = await fetch(`${CORELOGIC_BASE_URL}/oauth/token?grant_type=client_credentials`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${credentials}`,
-        "Content-Length": "0"
-      }
+// Helper function to make ATTOM API requests
+async function attomRequest(endpoint: string, params?: Record<string, string>): Promise<any> {
+  const url = new URL(`${ATTOM_BASE_URL}${endpoint}`);
+  
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, value);
     });
-
-    if (!response.ok) {
-      console.error("CoreLogic OAuth error:", await response.text());
-      return null;
+  }
+  
+  const response = await fetch(url.toString(), {
+    headers: {
+      "Accept": "application/json",
+      "APIKey": ATTOM_API_KEY || ""
     }
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`ATTOM API error (${response.status}):`, errorText);
+    throw new Error(`ATTOM API error: ${response.status}`);
+  }
+  
+  return response.json();
+}
 
+// Geocode address/location to coordinates using Google
+async function geocodeLocation(location: string): Promise<{ lat: number; lng: number } | null> {
+  if (!GOOGLE_MAPS_API_KEY) {
+    console.error("Google Maps API key not configured");
+    return null;
+  }
+  
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${GOOGLE_MAPS_API_KEY}`;
+    const response = await fetch(url);
     const data = await response.json();
-    accessToken = data.access_token;
-    tokenExpiry = Date.now() + (parseInt(data.expires_in) * 1000);
-    return accessToken;
+    
+    if (data.status === "OK" && data.results.length > 0) {
+      const { lat, lng } = data.results[0].geometry.location;
+      return { lat, lng };
+    }
+    
+    console.error("Geocoding failed:", data.status);
+    return null;
   } catch (error) {
-    console.error("CoreLogic OAuth error:", error);
+    console.error("Geocoding error:", error);
     return null;
   }
 }
 
-// Search properties by zip code using CoreLogic
+// Search properties by zip code using ATTOM - geocode then spatial search
 async function searchPropertiesByZip(zipCode: string, limit: number = 20): Promise<any[]> {
-  const token = await getCoreLogicToken();
-  if (!token) {
-    console.error("Failed to get CoreLogic token");
-    return [];
-  }
-
   try {
-    // Use Property API to search by zip
-    const url = new URL(`${CORELOGIC_BASE_URL}/property`);
-    url.searchParams.append("zip5", zipCode);
-    url.searchParams.append("pageSize", limit.toString());
-    url.searchParams.append("pageNumber", "1");
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/vnd.corelogic.v1+json",
-        "Accept": "application/json"
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("CoreLogic property search error:", response.status, errorText);
+    // First geocode the zip code to get coordinates
+    const coords = await geocodeLocation(zipCode);
+    if (!coords) {
+      console.error(`Failed to geocode zip ${zipCode}`);
       return [];
     }
-
-    const data = await response.json();
-    const properties = data.data || data.properties || [];
     
-    console.log(`Found ${properties.length} properties in zip ${zipCode}`);
+    // Use ATTOM spatial search with the coordinates
+    const data = await attomRequest("/propertyapi/v1.0.0/property/snapshot", {
+      latitude: coords.lat.toString(),
+      longitude: coords.lng.toString(),
+      radius: "2", // 2 mile radius
+      pagesize: limit.toString()
+    });
+    
+    const properties = data.property || [];
+    console.log(`Found ${properties.length} ATTOM properties for zip ${zipCode}`);
     return properties;
   } catch (error) {
-    console.error("CoreLogic property search error:", error);
+    console.error("ATTOM property search error:", error);
     return [];
   }
 }
 
-// Search properties near coordinates using Spatial API
+// Search properties near coordinates using ATTOM Spatial API
 async function searchPropertiesByLocation(
   latitude: number, 
   longitude: number, 
-  radiusMiles: number = 1
+  radiusMiles: number = 2
 ): Promise<any[]> {
-  const token = await getCoreLogicToken();
-  if (!token) return [];
-
   try {
-    const radiusMeters = Math.min(Math.round(radiusMiles * 1609.34), 1600);
+    // ATTOM supports up to 20 mile radius
+    const radius = Math.min(radiusMiles, 20);
     
-    const url = new URL(`${CORELOGIC_BASE_URL}/spatial-tile/parcels`);
-    url.searchParams.append("lat", latitude.toString());
-    url.searchParams.append("lon", longitude.toString());
-    url.searchParams.append("within", radiusMeters.toString());
-    url.searchParams.append("pageSize", "50");
-    url.searchParams.append("pageNumber", "1");
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Accept": "application/json"
-      }
+    const data = await attomRequest("/propertyapi/v1.0.0/property/snapshot", {
+      latitude: latitude.toString(),
+      longitude: longitude.toString(),
+      radius: radius.toString(),
+      pagesize: "50"
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("CoreLogic spatial search error:", response.status, errorText);
-      return [];
-    }
-
-    const data = await response.json();
-    return data.parcels || data.data || [];
+    
+    const properties = data.property || [];
+    console.log(`Found ${properties.length} ATTOM properties near ${latitude}, ${longitude}`);
+    return properties;
   } catch (error) {
-    console.error("CoreLogic spatial search error:", error);
+    console.error("ATTOM spatial search error:", error);
     return [];
   }
 }
@@ -224,7 +213,7 @@ export async function GET(
   }
 }
 
-// POST: Generate leads for this territory using CoreLogic
+// POST: Generate leads for this territory using ATTOM
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -273,12 +262,12 @@ export async function POST(
     let leadsGenerated = 0;
     const errors: string[] = [];
 
-    // For each zip code in the territory, search CoreLogic for properties
+    // For each zip code in the territory, search ATTOM for properties
     if (territory.zip_codes && territory.zip_codes.length > 0) {
       for (const zipCode of territory.zip_codes.slice(0, 3)) { // Limit to 3 zips per request
-        console.log(`Searching CoreLogic for properties in ${zipCode}...`);
+        console.log(`Searching ATTOM for properties in ${zipCode}...`);
         
-        // Get properties from CoreLogic
+        // Get properties from ATTOM
         const properties = await searchPropertiesByZip(zipCode, 10);
         
         if (properties.length === 0) {
@@ -294,22 +283,22 @@ export async function POST(
           }
         }
 
-        console.log(`Found ${properties.length} CoreLogic properties for zip ${zipCode}`);
+        console.log(`Found ${properties.length} ATTOM properties for zip ${zipCode}`);
 
         // Process each property
         for (const prop of properties.slice(0, 10)) {
           try {
-            // Extract property data from CoreLogic response
-            const address = prop.address?.street || prop.stdAddr || prop.addr || "";
-            const city = prop.address?.city || prop.stdCity || prop.city || "";
-            const state = prop.address?.state || prop.stdState || prop.state || "TX";
-            const zip = prop.address?.zip || prop.stdZip || prop.zip || zipCode;
-            const lat = prop.location?.latitude || prop.latitude || prop.lat || 0;
-            const lng = prop.location?.longitude || prop.longitude || prop.lon || 0;
-            const yearBuilt = prop.building?.yearBuilt || prop.yearBuilt;
-            const assessedValue = prop.assessment?.totalValue || prop.assessedValue || prop.marketValue;
-            const squareFeet = prop.building?.squareFeet || prop.squareFeet || prop.sqft;
-            const ownerName = prop.owner?.name || prop.owner || "";
+            // Extract property data from ATTOM response
+            const address = prop.address?.line1 || prop.address?.oneLine || "";
+            const city = prop.address?.locality || "";
+            const state = prop.address?.countrySubd || "TX";
+            const zip = prop.address?.postal1 || zipCode;
+            const lat = prop.location?.latitude || 0;
+            const lng = prop.location?.longitude || 0;
+            const yearBuilt = prop.summary?.yearBuilt || prop.building?.construction?.constructionYear;
+            const assessedValue = prop.assessment?.assessed?.assdTtlValue || prop.assessment?.market?.mktTtlValue;
+            const squareFeet = prop.building?.size?.livingSize || prop.building?.size?.universalSize;
+            const ownerName = prop.assessment?.owner?.owner1?.fullName || "";
 
             if (!address) {
               console.log("Skipping property without address");
@@ -348,7 +337,7 @@ export async function POST(
             // Only create leads with good scores
             if (leadScore < 50) continue;
 
-            // Create the lead with REAL CoreLogic data
+            // Create the lead with REAL ATTOM data
             const leadData = {
               user_id: user.id,
               address,
@@ -372,7 +361,7 @@ export async function POST(
               hail_event_id: nearestHail.id,
               storm_date: nearestHail.event_date,
               hail_size: nearestHail.size_inches,
-              notes: `CoreLogic property data. ${nearestHail.size_inches}" hail on ${nearestHail.event_date}. Roof ~${roofAge} years old.`,
+              notes: `ATTOM property data. ${nearestHail.size_inches}" hail on ${nearestHail.event_date}. Roof ~${roofAge} years old.`,
             };
 
             const { error: insertError } = await supabaseAdmin
@@ -405,7 +394,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Generated ${leadsGenerated} leads from CoreLogic for territory "${territory.name}"`,
+      message: `Generated ${leadsGenerated} leads from ATTOM for territory "${territory.name}"`,
       leadsGenerated,
       hailEventsFound: hailEvents.length,
       errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
