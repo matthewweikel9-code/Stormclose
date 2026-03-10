@@ -61,8 +61,8 @@ async function searchPropertiesByRadius(params: {
 		};
 
 		console.log("[ATTOM] Radius search params:", JSON.stringify(queryParams));
-		// Use /property/detail instead of /property/snapshot for complete property data
-		const data = await attomRequest("/propertyapi/v1.0.0/property/detail", queryParams);
+		// Use /property/detailowner to get complete property data including owner info
+		const data = await attomRequest("/propertyapi/v1.0.0/property/detailowner", queryParams);
 		
 		const properties = data?.property || [];
 		const total = data?.status?.total || properties.length;
@@ -95,8 +95,8 @@ async function searchPropertiesByZip(params: {
 		};
 
 		console.log("[ATTOM] Zip search params:", JSON.stringify(queryParams));
-		// Use /property/detail for complete property data including sqft, beds, baths
-		const data = await attomRequest("/propertyapi/v1.0.0/property/detail", queryParams);
+		// Use /property/detailowner for complete property data including owner info
+		const data = await attomRequest("/propertyapi/v1.0.0/property/detailowner", queryParams);
 		
 		const properties = data?.property || [];
 		const total = data?.status?.total || properties.length;
@@ -176,6 +176,19 @@ function formatAttomProperty(prop: any) {
 	const stories = building.summary?.stories || 1;
 	const yearBuilt = summary.yearbuilt || summary.yearBuilt || null;
 	
+	// Parse owner info - ATTOM uses lowercase field names
+	const owner = prop.owner || {};
+	const ownerName = owner.owner1?.fullname || owner.owner1?.fullName || 
+		               owner.owner1?.lastname || owner.owner1?.lastName || 
+		               owner.absenteeOwnerStatus || "Unknown";
+	const mailingAddress = owner.mailingaddressoneline || owner.mailingAddressOneLine || 
+		                    owner.mailAddress?.oneLine || null;
+	
+	// Parse sale info
+	const sale = prop.sale || {};
+	const saleAmount = sale.amount?.saleamt || sale.amount?.saleAmt || null;
+	const saleDate = sale.saleTransDate || sale.salesearchdate || null;
+	
 	return {
 		id: identifier.attomId || identifier.Id || `attom-${Date.now()}`,
 		address: {
@@ -186,8 +199,12 @@ function formatAttomProperty(prop: any) {
 			zip: address.postal1 || ""
 		},
 		owner: {
-			name: prop.owner?.owner1?.fullName || prop.owner?.absenteeOwnerStatus || "Unknown",
-			mailingAddress: prop.owner?.mailAddress?.oneLine || null
+			name: ownerName,
+			mailingAddress: mailingAddress
+		},
+		sale: {
+			price: saleAmount,
+			date: saleDate
 		},
 		property: {
 			apn: identifier.apn || "",

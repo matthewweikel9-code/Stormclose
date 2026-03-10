@@ -47,8 +47,8 @@ async function searchPropertiesByLocation(
     // ATTOM supports up to 20 mile radius
     const radius = Math.min(radiusMiles, 20);
     
-    // Use detail endpoint for complete property data including owner info
-    const data = await attomRequest("/propertyapi/v1.0.0/property/detail", {
+    // Use detailowner endpoint for complete property data including owner info
+    const data = await attomRequest("/propertyapi/v1.0.0/property/detailowner", {
       latitude: latitude.toString(),
       longitude: longitude.toString(),
       radius: radius.toString(),
@@ -61,21 +61,31 @@ async function searchPropertiesByLocation(
     console.log(`Found ${properties.length} ATTOM properties near ${latitude}, ${longitude}`);
     
     // Transform to common format - use lowercase field names from ATTOM
-    return properties.map((prop: any) => ({
-      address: {
-        street: prop.address?.line1 || prop.address?.oneLine || "",
-        city: prop.address?.locality || "",
-        state: prop.address?.countrySubd || "",
-        zip: prop.address?.postal1 || ""
-      },
-      owner: prop.owner?.owner1?.fullName || prop.assessment?.owner?.owner1?.fullName || "Unknown",
-      yearBuilt: prop.summary?.yearbuilt || prop.summary?.yearBuilt || prop.building?.construction?.constructionYear,
-      assessedValue: prop.assessment?.assessed?.assdTtlValue || prop.assessment?.market?.mktTtlValue,
-      squareFeet: prop.building?.size?.livingsize || prop.building?.size?.livingSize || prop.building?.size?.universalsize || prop.building?.size?.universalSize,
-      latitude: prop.location?.latitude || latitude,
-      longitude: prop.location?.longitude || longitude,
-      propertyType: prop.summary?.proptype || prop.summary?.propType || "R"
-    })).filter((p: any) => p.address.street); // Only include properties with addresses
+    return properties.map((prop: any) => {
+      const owner = prop.owner || {};
+      const ownerName = owner.owner1?.fullname || owner.owner1?.fullName || 
+                        owner.owner1?.lastname || owner.owner1?.lastName || 
+                        "Unknown";
+      
+      return {
+        address: {
+          street: prop.address?.line1 || prop.address?.oneLine || "",
+          city: prop.address?.locality || "",
+          state: prop.address?.countrySubd || "",
+          zip: prop.address?.postal1 || ""
+        },
+        owner: ownerName,
+        ownerMailingAddress: owner.mailingaddressoneline || owner.mailingAddressOneLine || null,
+        yearBuilt: prop.summary?.yearbuilt || prop.summary?.yearBuilt || prop.building?.construction?.constructionYear,
+        assessedValue: prop.assessment?.assessed?.assdTtlValue || prop.assessment?.market?.mktTtlValue,
+        squareFeet: prop.building?.size?.livingsize || prop.building?.size?.livingSize || prop.building?.size?.universalsize || prop.building?.size?.universalSize,
+        latitude: prop.location?.latitude || latitude,
+        longitude: prop.location?.longitude || longitude,
+        propertyType: prop.summary?.proptype || prop.summary?.propType || "R",
+        salePrice: prop.sale?.amount?.saleamt || prop.sale?.amount?.saleAmt || null,
+        saleDate: prop.sale?.saleTransDate || prop.sale?.salesearchdate || null
+      };
+    }).filter((p: any) => p.address.street); // Only include properties with addresses
   } catch (error) {
     console.error("ATTOM property search error:", error);
     return [];

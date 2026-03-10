@@ -184,6 +184,9 @@ export default function LeadsPage() {
           const typeCode = prop.property?.type || prop.typeCode || 'R';
           const coords = prop.location || prop.coordinates || { lat: 0, lng: 0 };
           
+          // Get actual year built from API
+          const yearBuilt = prop.property?.yearBuilt || null;
+          
           // Generate varied but realistic values based on property characteristics
           // Use a hash of the address to create consistent random values per property
           const hashCode = (str: string) => {
@@ -204,9 +207,16 @@ export default function LeadsPage() {
           // Residential vs Commercial affects pricing
           const isCommercial = typeCode === 'C' || typeCode === 'CEN';
           
-          // Calculate realistic values
-          const baseRoofAge = 5 + Math.floor(seed1 * 25); // 5-30 years
-          const roofAge = baseRoofAge;
+          // Calculate roof age from year built, or estimate if not available
+          const currentYear = new Date().getFullYear();
+          let roofAge: number;
+          if (yearBuilt) {
+            const propertyAge = currentYear - yearBuilt;
+            // Assume roof replaced every 20-25 years on average
+            roofAge = propertyAge <= 25 ? propertyAge : propertyAge % 22;
+          } else {
+            roofAge = 5 + Math.floor(seed1 * 25); // Fallback: 5-30 years
+          }
           
           // Older roofs = better leads
           const ageMultiplier = roofAge > 20 ? 1.3 : roofAge > 15 ? 1.15 : roofAge > 10 ? 1.0 : 0.85;
@@ -260,14 +270,15 @@ export default function LeadsPage() {
             successProbability: successProbability,
             estimatedProfit: estimatedProfit,
             // Include actual property details from API
-            yearBuilt: prop.property?.yearBuilt || null,
+            yearBuilt: yearBuilt,
             squareFeet: prop.property?.sqft || null,
             lotSize: prop.property?.lotSize ? `${prop.property.lotSize} acres` : null,
             bedrooms: prop.property?.bedrooms || null,
             bathrooms: prop.property?.bathrooms || null,
             roofType: prop.property?.roofType || null,
-            lastSaleDate: prop.sale?.saleDate || null,
-            lastSalePrice: prop.sale?.salePrice || prop.valuation?.market || prop.valuation?.assessed || null,
+            // Use sale data from API (sale.date and sale.price format)
+            lastSaleDate: prop.sale?.date || null,
+            lastSalePrice: prop.sale?.price || prop.valuation?.market || prop.valuation?.assessed || null,
           };
         });
 

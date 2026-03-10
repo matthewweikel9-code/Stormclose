@@ -73,8 +73,8 @@ async function searchPropertiesByZip(zipCode: string, limit: number = 20): Promi
       return [];
     }
     
-    // Use ATTOM detail endpoint for complete property data
-    const data = await attomRequest("/propertyapi/v1.0.0/property/detail", {
+    // Use ATTOM detailowner endpoint for complete property data including owner
+    const data = await attomRequest("/propertyapi/v1.0.0/property/detailowner", {
       latitude: coords.lat.toString(),
       longitude: coords.lng.toString(),
       radius: "2", // 2 mile radius
@@ -102,8 +102,8 @@ async function searchPropertiesByLocation(
     // ATTOM supports up to 20 mile radius
     const radius = Math.min(radiusMiles, 20);
     
-    // Use detail endpoint for complete property data including owner info
-    const data = await attomRequest("/propertyapi/v1.0.0/property/detail", {
+    // Use detailowner endpoint for complete property data including owner info
+    const data = await attomRequest("/propertyapi/v1.0.0/property/detailowner", {
       latitude: latitude.toString(),
       longitude: longitude.toString(),
       radius: radius.toString(),
@@ -300,10 +300,20 @@ export async function POST(
             const zip = prop.address?.postal1 || zipCode;
             const lat = prop.location?.latitude || 0;
             const lng = prop.location?.longitude || 0;
-            const yearBuilt = prop.summary?.yearBuilt || prop.building?.construction?.constructionYear;
+            const yearBuilt = prop.summary?.yearbuilt || prop.summary?.yearBuilt || prop.building?.construction?.constructionYear;
             const assessedValue = prop.assessment?.assessed?.assdTtlValue || prop.assessment?.market?.mktTtlValue;
-            const squareFeet = prop.building?.size?.livingSize || prop.building?.size?.universalSize;
-            const ownerName = prop.assessment?.owner?.owner1?.fullName || "";
+            const squareFeet = prop.building?.size?.livingsize || prop.building?.size?.livingSize || prop.building?.size?.universalsize || prop.building?.size?.universalSize;
+            
+            // Parse owner info - ATTOM uses lowercase field names
+            const owner = prop.owner || {};
+            const ownerName = owner.owner1?.fullname || owner.owner1?.fullName || 
+                              owner.owner1?.lastname || owner.owner1?.lastName || 
+                              "";
+            const ownerMailingAddress = owner.mailingaddressoneline || owner.mailingAddressOneLine || null;
+            
+            // Parse sale info
+            const salePrice = prop.sale?.amount?.saleamt || prop.sale?.amount?.saleAmt || null;
+            const saleDate = prop.sale?.saleTransDate || prop.sale?.salesearchdate || null;
 
             if (!address) {
               console.log("Skipping property without address");
