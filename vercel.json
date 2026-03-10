@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/sync-hail",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/generate-leads",
+      "schedule": "0 7 * * *"
     }
   ]
 }
