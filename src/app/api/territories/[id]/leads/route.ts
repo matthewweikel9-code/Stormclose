@@ -245,7 +245,7 @@ export async function POST(
       return NextResponse.json({ error: "Territory not found" }, { status: 404 });
     }
 
-    // Find recent hail events
+    // Check for recent hail events (optional - adds bonus scoring)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     
     const { data: hailEvents } = await supabaseAdmin
@@ -256,42 +256,24 @@ export async function POST(
       .order("event_date", { ascending: false })
       .limit(50);
 
-    if (!hailEvents || hailEvents.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: "No recent hail events found. Leads are generated when storms hit your territory.",
-        leadsGenerated: 0,
-      });
-    }
+    // Hail events are now OPTIONAL - we still generate leads without them
+    const hasHailEvents = hailEvents && hailEvents.length > 0;
 
     let leadsGenerated = 0;
     const errors: string[] = [];
 
     // For each zip code in the territory, search ATTOM for properties
     if (territory.zip_codes && territory.zip_codes.length > 0) {
-      for (const zipCode of territory.zip_codes.slice(0, 3)) { // Limit to 3 zips per request
+      for (const zipCode of territory.zip_codes.slice(0, 5)) { // Process up to 5 zips
         console.log(`Searching ATTOM for properties in ${zipCode}...`);
         
         // Get properties from ATTOM
-        const properties = await searchPropertiesByZip(zipCode, 10);
+        const properties = await searchPropertiesByZip(zipCode, 15);
         
-        if (properties.length === 0) {
-          // Fallback: try spatial search if we have hail event coordinates
-          const nearestHail = hailEvents.find((h: any) => h.latitude && h.longitude);
-          if (nearestHail) {
-            const spatialProperties = await searchPropertiesByLocation(
-              nearestHail.latitude, 
-              nearestHail.longitude, 
-              2
-            );
-            properties.push(...spatialProperties.slice(0, 10));
-          }
-        }
-
         console.log(`Found ${properties.length} ATTOM properties for zip ${zipCode}`);
 
         // Process each property
-        for (const prop of properties.slice(0, 10)) {
+        for (const prop of properties.slice(0, 15)) {
           try {
             // Extract property data from ATTOM response
             const address = prop.address?.line1 || prop.address?.oneLine || "";
@@ -333,24 +315,46 @@ export async function POST(
               continue;
             }
 
-            // Find nearest hail event
-            const nearestHail = hailEvents[0];
+            // Calculate roof age and lead score
             const currentYear = new Date().getFullYear();
             const roofAge = yearBuilt ? currentYear - yearBuilt : 15;
-            const daysSinceStorm = Math.floor(
-              (Date.now() - new Date(nearestHail.event_date).getTime()) / (1000 * 60 * 60 * 24)
-            );
+            
+            // Base score from property characteristics
+            let leadScore = 50;
+            
+            // Roof age bonus (up to +25)
+            if (roofAge >= 20) leadScore += 25;
+            else if (roofAge >= 15) leadScore += 20;
+            else if (roofAge >= 10) leadScore += 12;
+            else if (roofAge >= 5) leadScore += 5;
+            
+            // Property value bonus (up to +15)
+            if (assessedValue >= 500000) leadScore += 15;
+            else if (assessedValue >= 300000) leadScore += 10;
+            else if (assessedValue >= 200000) leadScore += 5;
+            
+            // Hail event bonus (up to +20) - if we have hail data
+            let hailEventId = null;
+            let stormDate = null;
+            let hailSize = null;
+            
+            if (hasHailEvents) {
+              const nearestHail = hailEvents[0];
+              hailEventId = nearestHail.id;
+              stormDate = nearestHail.event_date;
+              hailSize = nearestHail.size_inches;
+              
+              // Bonus for having hail event
+              if (hailSize >= 2.0) leadScore += 20;
+              else if (hailSize >= 1.5) leadScore += 15;
+              else if (hailSize >= 1.0) leadScore += 10;
+              else leadScore += 5;
+            }
+            
+            leadScore = Math.min(100, leadScore);
 
-            // Calculate lead score
-            const leadScore = calculateLeadScore({
-              hailSize: nearestHail.size_inches,
-              daysSinceStorm,
-              roofAge,
-              propertyValue: assessedValue || 200000,
-            });
-
-            // Only create leads with good scores
-            if (leadScore < 50) continue;
+            // Only create leads with decent scores (lowered threshold)
+            if (leadScore < 40) continue;
 
             // Create the lead with REAL ATTOM data
             const leadData = {
@@ -366,17 +370,19 @@ export async function POST(
               assessed_value: assessedValue,
               owner_name: ownerName,
               lead_score: leadScore,
-              storm_proximity_score: Math.min(35, nearestHail.size_inches * 10),
+              storm_proximity_score: hasHailEvents ? Math.min(35, (hailSize || 1) * 10) : 10,
               roof_age_score: Math.min(25, roofAge >= 15 ? 25 : roofAge >= 10 ? 15 : 5),
               property_value_score: Math.min(20, assessedValue >= 300000 ? 20 : 10),
-              hail_history_score: 10,
+              hail_history_score: hasHailEvents ? 15 : 5,
               status: "new",
               source: "ai_auto_generated",
               territory_id: territory.id,
-              hail_event_id: nearestHail.id,
-              storm_date: nearestHail.event_date,
-              hail_size: nearestHail.size_inches,
-              notes: `ATTOM property data. ${nearestHail.size_inches}" hail on ${nearestHail.event_date}. Roof ~${roofAge} years old.`,
+              hail_event_id: hailEventId,
+              storm_date: stormDate,
+              hail_size: hailSize,
+              notes: hasHailEvents 
+                ? `ATTOM property data. ${hailSize}" hail on ${stormDate}. Roof ~${roofAge} years old.`
+                : `ATTOM property data. Roof ~${roofAge} years old. ${squareFeet ? `${squareFeet} sqft.` : ''}`,
             };
 
             const { error: insertError } = await supabaseAdmin
@@ -396,6 +402,90 @@ export async function POST(
       }
     }
 
+    // If territory uses radius instead of zip codes
+    if ((!territory.zip_codes || territory.zip_codes.length === 0) && territory.center_lat && territory.center_lng) {
+      const properties = await searchPropertiesByLocation(
+        territory.center_lat,
+        territory.center_lng,
+        territory.radius_miles || 5
+      );
+      
+      for (const prop of properties.slice(0, 20)) {
+        try {
+          const address = prop.address?.line1 || prop.address?.oneLine || "";
+          const city = prop.address?.locality || "";
+          const state = prop.address?.countrySubd || "TX";
+          const zip = prop.address?.postal1 || "";
+          const lat = prop.location?.latitude || 0;
+          const lng = prop.location?.longitude || 0;
+          const yearBuilt = prop.summary?.yearbuilt || prop.summary?.yearBuilt;
+          const assessedValue = prop.assessment?.assessed?.assdTtlValue || prop.assessment?.market?.mktTtlValue;
+          const squareFeet = prop.building?.size?.livingsize || prop.building?.size?.livingSize;
+          
+          const owner = prop.owner || {};
+          const ownerName = owner.owner1?.fullname || owner.owner1?.fullName || "";
+
+          if (!address) continue;
+
+          const { data: existingLead } = await supabaseAdmin
+            .from("leads")
+            .select("id")
+            .eq("address", address)
+            .eq("city", city)
+            .maybeSingle();
+
+          if (existingLead) continue;
+
+          const currentYear = new Date().getFullYear();
+          const roofAge = yearBuilt ? currentYear - yearBuilt : 15;
+          
+          let leadScore = 50;
+          if (roofAge >= 20) leadScore += 25;
+          else if (roofAge >= 15) leadScore += 20;
+          else if (roofAge >= 10) leadScore += 12;
+          
+          if (assessedValue >= 300000) leadScore += 10;
+          
+          leadScore = Math.min(100, leadScore);
+          if (leadScore < 40) continue;
+
+          const leadData = {
+            user_id: user.id,
+            address,
+            city,
+            state,
+            zip,
+            latitude: lat,
+            longitude: lng,
+            year_built: yearBuilt,
+            square_feet: squareFeet,
+            assessed_value: assessedValue,
+            owner_name: ownerName,
+            lead_score: leadScore,
+            storm_proximity_score: 10,
+            roof_age_score: Math.min(25, roofAge >= 15 ? 25 : roofAge >= 10 ? 15 : 5),
+            property_value_score: Math.min(20, assessedValue >= 300000 ? 20 : 10),
+            hail_history_score: 5,
+            status: "new",
+            source: "ai_auto_generated",
+            territory_id: territory.id,
+            notes: `ATTOM property data. Roof ~${roofAge} years old. ${squareFeet ? `${squareFeet} sqft.` : ''}`,
+          };
+
+          const { error: insertError } = await supabaseAdmin
+            .from("leads")
+            .insert(leadData);
+
+          if (!insertError) {
+            leadsGenerated++;
+            console.log(`Created lead: ${address}, ${city} - Score: ${leadScore}`);
+          }
+        } catch (propError: any) {
+          errors.push(`Property error: ${propError.message}`);
+        }
+      }
+    }
+
     // Update territory lead count
     if (leadsGenerated > 0) {
       await supabaseAdmin
@@ -409,9 +499,9 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Generated ${leadsGenerated} leads from ATTOM for territory "${territory.name}"`,
+      message: `Generated ${leadsGenerated} leads from ATTOM for territory "${territory.name}"${hasHailEvents ? ` (${hailEvents.length} hail events found)` : ''}`,
       leadsGenerated,
-      hailEventsFound: hailEvents.length,
+      hailEventsFound: hasHailEvents ? hailEvents.length : 0,
       errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
     });
   } catch (error: any) {

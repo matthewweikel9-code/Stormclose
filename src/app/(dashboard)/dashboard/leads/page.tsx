@@ -326,6 +326,32 @@ export default function LeadsPage() {
     }
   };
 
+  // Convert saved lead to Property format for route
+  const savedLeadToProperty = (lead: SavedLead): Property => ({
+    id: lead.id,
+    address: lead.address,
+    city: lead.city,
+    state: lead.state,
+    zip: lead.zip,
+    owner: '',
+    apn: '',
+    propertyType: 'Residential',
+    coordinates: { lat: 0, lng: 0 },
+    leadScore: lead.lead_score,
+    estimatedValue: 0,
+    roofAge: 15,
+    successProbability: lead.lead_score,
+    estimatedProfit: 15000,
+  });
+
+  const addSavedLeadToRoute = (lead: SavedLead, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const property = savedLeadToProperty(lead);
+    if (!routeList.find(p => p.id === property.id)) {
+      setRouteList([...routeList, property]);
+    }
+  };
+
   const removeFromRoute = (propertyId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setRouteList(routeList.filter(p => p.id !== propertyId));
@@ -577,6 +603,27 @@ export default function LeadsPage() {
                             Call
                           </a>
                         </div>
+                        {/* Add to Route Button */}
+                        <button
+                          onClick={(e) => isInRoute(lead.id) ? removeFromRoute(lead.id, e) : addSavedLeadToRoute(lead, e)}
+                          className={`w-full py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+                            isInRoute(lead.id)
+                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50'
+                              : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50'
+                          }`}
+                        >
+                          {isInRoute(lead.id) ? (
+                            <>
+                              <CheckIcon className="h-5 w-5" />
+                              Added to Route
+                            </>
+                          ) : (
+                            <>
+                              <PlusIcon className="h-5 w-5" />
+                              Add to Route
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
                   </div>

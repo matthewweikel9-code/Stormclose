@@ -232,7 +232,7 @@ Be specific, actionable, and sales-focused. Assume the salesperson is profession
 	}
 }
 
-// POST: Generate briefing for multiple leads
+// POST: Generate briefing for a single lead (with data) or multiple leads (with leadIds)
 export async function POST(request: NextRequest) {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -243,10 +243,52 @@ export async function POST(request: NextRequest) {
 
 	try {
 		const body = await request.json();
-		const { leadIds } = body;
+		const { lead_id, leadIds, address, city, state, zip, owner_name, year_built, sqft, estimated_profit, lead_score, estimated_roof_age } = body;
 
+		// Handle single lead case (from Prep Me button)
+		if (lead_id && address) {
+			// Generate briefing directly from provided data (no DB lookup needed for ATTOM-sourced leads)
+			const leadData: Lead = {
+				id: lead_id,
+				address: address,
+				city: city || '',
+				state: state || '',
+				zip: zip || '',
+				year_built: year_built,
+				square_feet: sqft,
+				assessed_value: undefined,
+				roof_age: estimated_roof_age,
+				lead_score: lead_score || 50,
+				storm_date: undefined,
+				hail_size: undefined,
+				status: 'new'
+			};
+
+			// Try to get nearby hail events for context
+			let nearbyHail: any[] = [];
+			if (state) {
+				const { data: hailData } = await supabaseAdmin
+					.from("hail_events")
+					.select("event_date, size_inches, location_name")
+					.eq("state", state)
+					.gte("event_date", new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0])
+					.order("event_date", { ascending: false })
+					.limit(5);
+				nearbyHail = hailData || [];
+			}
+
+			const briefing = await generateBriefing(leadData, nearbyHail);
+
+			return NextResponse.json({
+				success: true,
+				briefing,
+				cached: false,
+			});
+		}
+
+		// Handle bulk case (legacy)
 		if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
-			return NextResponse.json({ error: "leadIds array is required" }, { status: 400 });
+			return NextResponse.json({ error: "lead_id with address OR leadIds array is required" }, { status: 400 });
 		}
 
 		// Limit batch size
