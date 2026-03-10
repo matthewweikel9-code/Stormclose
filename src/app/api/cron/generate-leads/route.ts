@@ -47,68 +47,63 @@ async function getCoreLogicToken(): Promise<string | null> {
   }
 }
 
-// Search properties in a geographic area
+// Search properties in a geographic area using CoreLogic Spatial Tile API
 async function searchPropertiesByLocation(
   latitude: number, 
   longitude: number, 
-  radiusMiles: number = 2
+  radiusMiles: number = 1
 ): Promise<any[]> {
   const token = await getCoreLogicToken();
   if (!token) return [];
 
   try {
-    // Convert radius to bounding box (approximate)
-    const latDelta = radiusMiles / 69; // ~69 miles per degree latitude
-    const lngDelta = radiusMiles / (69 * Math.cos(latitude * Math.PI / 180));
+    // CoreLogic max radius is 1609 meters (1 mile)
+    // Use 1000 meters (~0.6 miles) for reliable results
+    const radiusMeters = Math.min(Math.round(radiusMiles * 1609.34), 1600);
     
-    const minLat = latitude - latDelta;
-    const maxLat = latitude + latDelta;
-    const minLng = longitude - lngDelta;
-    const maxLng = longitude + lngDelta;
-
-    // Use CoreLogic Property API with geographic bounds
-    const url = new URL(`${CORELOGIC_BASE_URL}/property`);
-    url.searchParams.append("latitude", latitude.toString());
-    url.searchParams.append("longitude", longitude.toString());
-    url.searchParams.append("radius", radiusMiles.toString());
+    // Use Spatial Tile API for geographic parcel search
+    const url = new URL(`${CORELOGIC_BASE_URL}/spatial-tile/parcels`);
+    url.searchParams.append("lat", latitude.toString());
+    url.searchParams.append("lon", longitude.toString());
+    url.searchParams.append("within", radiusMeters.toString());
     url.searchParams.append("pageSize", "50");
+    url.searchParams.append("pageNumber", "1");
 
     const response = await fetch(url.toString(), {
       headers: {
         "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/vnd.corelogic.v1+json",
         "Accept": "application/json"
       }
     });
 
     if (!response.ok) {
-      // Try alternative endpoint for area search
-      const geoUrl = new URL(`${CORELOGIC_BASE_URL}/property/geo`);
-      geoUrl.searchParams.append("minLat", minLat.toString());
-      geoUrl.searchParams.append("maxLat", maxLat.toString());
-      geoUrl.searchParams.append("minLng", minLng.toString());
-      geoUrl.searchParams.append("maxLng", maxLng.toString());
-      geoUrl.searchParams.append("pageSize", "50");
-      
-      const geoResponse = await fetch(geoUrl.toString(), {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/vnd.corelogic.v1+json",
-          "Accept": "application/json"
-        }
-      });
-      
-      if (!geoResponse.ok) {
-        console.error("CoreLogic geo search error:", await geoResponse.text());
-        return [];
-      }
-      
-      const geoData = await geoResponse.json();
-      return geoData.data || geoData.properties || [];
+      const errorText = await response.text();
+      console.error("CoreLogic spatial search error:", response.status, errorText);
+      return [];
     }
 
     const data = await response.json();
-    return data.data || data.properties || [];
+    const parcels = data.parcels || data.data || [];
+    
+    console.log(`Found ${parcels.length} parcels near ${latitude}, ${longitude}`);
+    
+    // Transform parcels to property format
+    return parcels.map((parcel: any) => ({
+      address: {
+        street: parcel.stdAddr || parcel.addr || "",
+        city: parcel.stdCity || parcel.city || "",
+        state: parcel.stdState || parcel.state || "",
+        zip: parcel.stdZip || parcel.zip || ""
+      },
+      owner: parcel.owner || "Unknown",
+      yearBuilt: parcel.yearBuilt,
+      assessedValue: parcel.assessedValue || parcel.totalValue,
+      squareFeet: parcel.sqft || parcel.squareFeet,
+      latitude: parcel.lat || latitude,
+      longitude: parcel.lon || longitude,
+      apn: parcel.apn,
+      propertyType: parcel.typeCode || "R"
+    })).filter((p: any) => p.address.street); // Only include parcels with addresses
   } catch (error) {
     console.error("CoreLogic property search error:", error);
     return [];
@@ -263,66 +258,12 @@ async function generateLeadsFromHailEvents(): Promise<{
       const properties = await searchPropertiesByLocation(event.latitude, event.longitude, 3);
       
       if (properties.length === 0) {
-        // If CoreLogic doesn't return data, create synthetic leads from the hail event location
-        // This ensures salespeople always have leads to work
-        const syntheticLead = {
-          address: `Near ${event.location_name || 'Storm Location'}`,
-          city: event.location_name || "Storm Area",
-          state: event.state,
-          zip: null,
-          latitude: event.latitude,
-          longitude: event.longitude,
-          year_built: null,
-          assessed_value: null,
-          lead_score: calculateLeadScore({
-            hailSize: event.size_inches,
-            daysSinceStorm,
-            distanceFromStorm: 0,
-            roofAge: 15, // Assume average
-            propertyValue: 250000, // Assume average
-            hailHistoryCount: hailHistoryCount || 0
-          }).score,
-          status: "new",
-          source: "hail_event_auto",
-          hail_event_id: event.id,
-          storm_date: event.event_date,
-          hail_size: event.size_inches,
-          notes: `Auto-generated from ${event.size_inches}" hail event on ${event.event_date}. Search this area for damaged roofs.`,
-          is_area_lead: true, // Flag as area-based lead
-        };
-        
-        // Insert the area lead for all active users (or a default system user)
-        const { data: activeUsers } = await supabaseAdmin
-          .from("profiles")
-          .select("id")
-          .limit(10);
-        
-        if (activeUsers && activeUsers.length > 0) {
-          for (const user of activeUsers) {
-            // Check if this lead already exists for this user
-            const { data: existing } = await supabaseAdmin
-              .from("leads")
-              .select("id")
-              .eq("user_id", user.id)
-              .eq("hail_event_id", event.id)
-              .single();
-            
-            if (!existing) {
-              const { error: insertError } = await supabaseAdmin
-                .from("leads")
-                .insert({ ...syntheticLead, user_id: user.id });
-              
-              if (!insertError) {
-                leadsGenerated++;
-              }
-            }
-          }
-        }
+        // Skip if no properties found - we need real property data
         continue;
       }
 
-      // Process each property from CoreLogic
-      for (const prop of properties.slice(0, 20)) { // Limit to 20 per event
+      // Process each property from CoreLogic (limit to top 10 per event for speed)
+      for (const prop of properties.slice(0, 10)) {
         try {
           // Extract property data
           const address = prop.address?.street || prop.streetAddress || prop.addr;
@@ -357,62 +298,64 @@ async function generateLeadsFromHailEvents(): Promise<{
             hailHistoryCount: hailHistoryCount || 0
           });
 
-          // Only create leads with score >= 45 (warm or hot)
-          if (scoreResult.score < 45) continue;
+          // Only create leads with score >= 50 (warm or hot)
+          if (scoreResult.score < 50) continue;
 
-          // Get all active users to assign leads
-          const { data: activeUsers } = await supabaseAdmin
-            .from("profiles")
-            .select("id")
-            .limit(10);
-
-          if (!activeUsers || activeUsers.length === 0) continue;
-
-          // Check if lead already exists (by address)
+          // Check if lead already exists (by address + city)
           const { data: existingLead } = await supabaseAdmin
             .from("leads")
             .select("id")
             .eq("address", address)
             .eq("city", city)
-            .single();
+            .maybeSingle();
 
           if (existingLead) continue; // Skip duplicates
 
-          // Create lead for each active user
-          for (const user of activeUsers) {
-            const leadData = {
-              user_id: user.id,
-              address,
-              city,
-              state,
-              zip,
-              latitude: lat,
-              longitude: lng,
-              year_built: yearBuilt,
-              square_feet: squareFeet,
-              assessed_value: assessedValue,
-              lead_score: scoreResult.score,
-              storm_proximity_score: scoreResult.breakdown.stormProximity,
-              roof_age_score: scoreResult.breakdown.roofAge,
-              property_value_score: scoreResult.breakdown.propertyValue,
-              hail_history_score: scoreResult.breakdown.hailHistory,
-              status: "new",
-              source: "ai_auto_generated",
-              hail_event_id: event.id,
-              storm_date: event.event_date,
-              hail_size: event.size_inches,
-              notes: `AI-generated: ${event.size_inches}" hail on ${event.event_date}, ${distanceFromStorm.toFixed(1)} miles away. Roof age: ~${roofAge} years.`,
-            };
+          // Get first active user to assign the lead (using 'users' table)
+          const { data: firstUser } = await supabaseAdmin
+            .from("users")
+            .select("id")
+            .limit(1)
+            .single();
 
-            const { error: insertError } = await supabaseAdmin
-              .from("leads")
-              .insert(leadData);
+          if (!firstUser) {
+            errors.push("No users found to assign leads");
+            continue;
+          }
 
-            if (insertError) {
-              errors.push(`Insert error for ${address}: ${insertError.message}`);
-            } else {
-              leadsGenerated++;
-            }
+          const leadData = {
+            user_id: firstUser.id,
+            address,
+            city,
+            state,
+            zip,
+            latitude: lat,
+            longitude: lng,
+            year_built: yearBuilt,
+            square_feet: squareFeet,
+            assessed_value: assessedValue,
+            lead_score: scoreResult.score,
+            storm_proximity_score: scoreResult.breakdown.stormProximity,
+            roof_age_score: scoreResult.breakdown.roofAge,
+            property_value_score: scoreResult.breakdown.propertyValue,
+            hail_history_score: scoreResult.breakdown.hailHistory,
+            status: "new",
+            source: "ai_auto_generated",
+            hail_event_id: event.id,
+            storm_date: event.event_date,
+            hail_size: event.size_inches,
+            notes: `AI-generated: ${event.size_inches}" hail on ${event.event_date}, ${distanceFromStorm.toFixed(1)} mi away. Roof ~${roofAge}yrs old.`,
+          };
+
+          const { error: insertError } = await supabaseAdmin
+            .from("leads")
+            .insert(leadData);
+
+          if (insertError) {
+            errors.push(`Insert error for ${address}: ${insertError.message}`);
+          } else {
+            leadsGenerated++;
+            console.log(`Created lead: ${address}, ${city} - Score: ${scoreResult.score}`);
           }
         } catch (propError: any) {
           errors.push(`Property processing error: ${propError.message}`);
