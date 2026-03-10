@@ -18,8 +18,10 @@ import {
   CurrencyDollarIcon,
   BuildingOfficeIcon,
   ClipboardDocumentListIcon,
+  SparklesIcon,
+  CloudIcon,
 } from '@heroicons/react/24/outline';
-import { StarIcon } from '@heroicons/react/24/solid';
+import { StarIcon, SparklesIcon as SparklesSolid } from '@heroicons/react/24/solid';
 
 interface Property {
   id: string;
@@ -51,6 +53,20 @@ interface PropertyDetail extends Property {
   lastSalePrice?: number;
 }
 
+interface SavedLead {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  lead_score: number;
+  status: string;
+  source: string;
+  storm_date?: string;
+  hail_size?: number;
+  created_at: string;
+}
+
 export default function LeadsPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,6 +77,34 @@ export default function LeadsPage() {
   const [showModal, setShowModal] = useState(false);
   const [routeList, setRouteList] = useState<Property[]>([]);
   const [searchPerformed, setSearchPerformed] = useState(false);
+  
+  // AI Feature States
+  const [activeTab, setActiveTab] = useState<'saved' | 'search'>('saved');
+  const [savedLeads, setSavedLeads] = useState<SavedLead[]>([]);
+  const [loadingSaved, setLoadingSaved] = useState(true);
+  const [copilotLoading, setCopilotLoading] = useState(false);
+  const [copilotData, setCopilotData] = useState<any>(null);
+  const [showCopilot, setShowCopilot] = useState(false);
+
+  // Fetch saved leads on mount
+  useEffect(() => {
+    fetchSavedLeads();
+  }, []);
+
+  const fetchSavedLeads = async () => {
+    setLoadingSaved(true);
+    try {
+      const res = await fetch('/api/leads?limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        setSavedLeads(data.leads || []);
+      }
+    } catch (err) {
+      console.error('Error fetching saved leads:', err);
+    } finally {
+      setLoadingSaved(false);
+    }
+  };
 
   // Load route list from localStorage on mount
   useEffect(() => {
@@ -289,86 +333,260 @@ export default function LeadsPage() {
                 Lead Generator
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Search properties by city or zip code to find your next roofing leads
+                AI-generated leads from storm data + property search
               </p>
             </div>
 
-            {routeList.length > 0 && (
-              <button
-                onClick={goToRoutePlanner}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            <div className="flex gap-3">
+              <a
+                href="/dashboard/territories"
+                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
               >
-                <MapIcon className="h-5 w-5 mr-2" />
-                View Route ({routeList.length})
-              </button>
-            )}
+                <CloudIcon className="h-5 w-5 mr-2" />
+                Storm Command
+              </a>
+              {routeList.length > 0 && (
+                <button
+                  onClick={goToRoutePlanner}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <MapIcon className="h-5 w-5 mr-2" />
+                  View Route ({routeList.length})
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="mt-6">
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Enter city name or zip code (e.g., Dallas, TX or 75201)"
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <button
-                onClick={handleSearch}
-                disabled={loading}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                    Searching...
-                  </>
-                ) : (
-                  <>
-                    <MagnifyingGlassIcon className="h-5 w-5" />
-                    Search Leads
-                  </>
-                )}
-              </button>
-            </div>
+          {/* Tabs */}
+          <div className="mt-6 flex gap-6 border-b border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setActiveTab('saved')}
+              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'saved'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <SparklesIcon className="h-4 w-4" />
+                Hot Leads ({savedLeads.filter(l => l.lead_score >= 70).length})
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('search')}
+              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'search'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <MagnifyingGlassIcon className="h-4 w-4" />
+                Search Properties
+              </span>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg">
-            <p className="text-red-700 dark:text-red-300">{error}</p>
+        {/* Saved Leads Tab */}
+        {activeTab === 'saved' && (
+          <div>
+            {loadingSaved ? (
+              <div className="flex items-center justify-center py-12">
+                <ArrowPathIcon className="h-8 w-8 text-blue-500 animate-spin" />
+              </div>
+            ) : savedLeads.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                <CloudIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No leads yet</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  Set up your territories to receive AI-generated storm leads
+                </p>
+                <a
+                  href="/dashboard/territories"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <CloudIcon className="h-5 w-5 mr-2" />
+                  Set Up Storm Command
+                </a>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {savedLeads.map((lead) => (
+                  <div
+                    key={lead.id}
+                    className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow"
+                  >
+                    {/* Score Header */}
+                    <div className={`px-4 py-3 flex items-center justify-between ${
+                      lead.lead_score >= 70 ? 'bg-red-50 dark:bg-red-900/20' :
+                      lead.lead_score >= 40 ? 'bg-yellow-50 dark:bg-yellow-900/20' :
+                      'bg-gray-50 dark:bg-gray-700/50'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <StarIcon className={`h-5 w-5 ${
+                          lead.lead_score >= 70 ? 'text-red-500' :
+                          lead.lead_score >= 40 ? 'text-yellow-500' :
+                          'text-gray-400'
+                        }`} />
+                        <span className="font-bold">{lead.lead_score}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          lead.lead_score >= 70 ? 'bg-red-500 text-white' :
+                          lead.lead_score >= 40 ? 'bg-yellow-500 text-white' :
+                          'bg-gray-500 text-white'
+                        }`}>
+                          {lead.lead_score >= 70 ? 'HOT' : lead.lead_score >= 40 ? 'WARM' : 'COLD'}
+                        </span>
+                      </div>
+                      {lead.source === 'ai_auto_generated' && (
+                        <span className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400">
+                          <SparklesSolid className="h-3 w-3" />
+                          AI
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-4">
+                      <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                        {lead.address}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {lead.city}, {lead.state} {lead.zip}
+                      </p>
+                      
+                      {lead.storm_date && (
+                        <div className="mt-2 flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
+                          <CloudIcon className="h-3 w-3" />
+                          {lead.hail_size}&quot; hail on {new Date(lead.storm_date).toLocaleDateString()}
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          onClick={async () => {
+                            setCopilotLoading(true);
+                            try {
+                              const res = await fetch('/api/ai/briefing', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                  lead_id: lead.id,
+                                  address: lead.address,
+                                  city: lead.city,
+                                  state: lead.state
+                                }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                setCopilotData(data.briefing);
+                                setShowCopilot(true);
+                              }
+                            } catch (err) {
+                              console.error('Failed to get AI briefing:', err);
+                            } finally {
+                              setCopilotLoading(false);
+                            }
+                          }}
+                          disabled={copilotLoading}
+                          className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 text-sm font-medium"
+                        >
+                          {copilotLoading ? (
+                            <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <SparklesIcon className="h-4 w-4" />
+                              Prep Me
+                            </>
+                          )}
+                        </button>
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                            `${lead.address}, ${lead.city}, ${lead.state} ${lead.zip}`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm"
+                        >
+                          <MapPinIcon className="h-4 w-4" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-12">
-            <ArrowPathIcon className="h-12 w-12 text-blue-500 animate-spin mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">Searching properties in {searchQuery}...</p>
-          </div>
-        )}
-
-        {/* Results */}
-        {!loading && properties.length > 0 && (
-          <>
-            <div className="mb-6 flex items-center justify-between">
-              <p className="text-gray-600 dark:text-gray-400">
-                Found <span className="font-semibold text-gray-900 dark:text-white">{properties.length}</span> properties
-              </p>
-              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <ChartBarIcon className="h-4 w-4" />
-                Sorted by lead score (highest first)
+        {/* Search Tab */}
+        {activeTab === 'search' && (
+          <div>
+            {/* Search Bar */}
+            <div className="mb-6">
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Enter city name or zip code (e.g., Dallas, TX or 75201)"
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <button
+                  onClick={handleSearch}
+                  disabled={loading}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <MagnifyingGlassIcon className="h-5 w-5" />
+                      Search Leads
+                    </>
+                  )}
+                </button>
               </div>
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg">
+                <p className="text-red-700 dark:text-red-300">{error}</p>
+              </div>
+            )}
+
+            {/* Loading State */}
+            {loading && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <ArrowPathIcon className="h-12 w-12 text-blue-500 animate-spin mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">Searching properties in {searchQuery}...</p>
+              </div>
+            )}
+
+            {/* Results */}
+            {!loading && properties.length > 0 && (
+              <>
+                <div className="mb-6 flex items-center justify-between">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Found <span className="font-semibold text-gray-900 dark:text-white">{properties.length}</span> properties
+                  </p>
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <ChartBarIcon className="h-4 w-4" />
+                    Sorted by lead score (highest first)
+                  </div>
+                </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {properties.map((property) => (
@@ -462,32 +680,34 @@ export default function LeadsPage() {
                 </div>
               ))}
             </div>
-          </>
-        )}
+            </>
+            )}
 
-        {/* Empty State */}
-        {!loading && searchPerformed && properties.length === 0 && !error && (
-          <div className="text-center py-12">
-            <MapPinIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No properties found
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400">
-              Try searching for a different city or zip code
-            </p>
-          </div>
-        )}
+            {/* Empty State */}
+            {!loading && searchPerformed && properties.length === 0 && !error && (
+              <div className="text-center py-12">
+                <MapPinIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  No properties found
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400">
+                  Try searching for a different city or zip code
+                </p>
+              </div>
+            )}
 
-        {/* Initial State */}
-        {!loading && !searchPerformed && (
-          <div className="text-center py-12">
-            <ClipboardDocumentListIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              Search for Properties
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-              Enter a city name (e.g., &quot;Dallas, TX&quot;) or zip code (e.g., &quot;75201&quot;) to find roofing leads in that area
-            </p>
+            {/* Initial State */}
+            {!loading && !searchPerformed && (
+              <div className="text-center py-12">
+                <ClipboardDocumentListIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  Search for Properties
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                  Enter a city name (e.g., &quot;Dallas, TX&quot;) or zip code (e.g., &quot;75201&quot;) to find roofing leads in that area
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -656,6 +876,48 @@ export default function LeadsPage() {
 
                     {/* Action Buttons */}
                     <div className="space-y-3">
+                      {/* AI Prep Me Button */}
+                      <button
+                        onClick={async () => {
+                          setCopilotLoading(true);
+                          try {
+                            const res = await fetch('/api/ai/briefing', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ 
+                                lead_id: selectedProperty.id,
+                                address: selectedProperty.address,
+                                city: selectedProperty.city,
+                                state: selectedProperty.state
+                              }),
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              setCopilotData(data.briefing);
+                              setShowCopilot(true);
+                            }
+                          } catch (err) {
+                            console.error('Failed to get AI briefing:', err);
+                          } finally {
+                            setCopilotLoading(false);
+                          }
+                        }}
+                        disabled={copilotLoading}
+                        className="w-full py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center justify-center gap-2 font-medium shadow-lg"
+                      >
+                        {copilotLoading ? (
+                          <>
+                            <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                            Preparing Briefing...
+                          </>
+                        ) : (
+                          <>
+                            <SparklesIcon className="h-5 w-5" />
+                            🔥 Prep Me for This Sale
+                          </>
+                        )}
+                      </button>
+
                       <button
                         onClick={importToRoofMeasure}
                         className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 font-medium"
@@ -704,6 +966,129 @@ export default function LeadsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Copilot Modal */}
+      {showCopilot && copilotData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-yellow-500 to-orange-500 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <SparklesIcon className="h-8 w-8 text-white" />
+                <div>
+                  <h3 className="text-xl font-bold text-white">AI Sales Copilot</h3>
+                  <p className="text-yellow-100 text-sm">Your personalized briefing is ready</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCopilot(false)}
+                className="text-white/80 hover:text-white"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Score Breakdown */}
+              {copilotData.score_breakdown && (
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                    📊 Score Breakdown
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {Object.entries(copilotData.score_breakdown).map(([key, value]: [string, any]) => (
+                      <div key={key} className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400 capitalize">
+                          {key.replace(/_/g, ' ')}:
+                        </span>
+                        <span className="font-medium text-gray-900 dark:text-white">{String(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Best Approach */}
+              {copilotData.best_approach && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
+                    🎯 Best Approach
+                  </h4>
+                  <p className="text-blue-800 dark:text-blue-200">{copilotData.best_approach}</p>
+                </div>
+              )}
+
+              {/* Talking Points */}
+              {copilotData.talking_points && copilotData.talking_points.length > 0 && (
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
+                  <h4 className="font-semibold text-green-900 dark:text-green-100 mb-3 flex items-center gap-2">
+                    💬 Talking Points
+                  </h4>
+                  <ul className="space-y-2">
+                    {copilotData.talking_points.map((point: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2 text-green-800 dark:text-green-200">
+                        <span className="text-green-600 mt-1">✓</span>
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Objection Handlers */}
+              {copilotData.objection_handlers && copilotData.objection_handlers.length > 0 && (
+                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4">
+                  <h4 className="font-semibold text-orange-900 dark:text-orange-100 mb-3 flex items-center gap-2">
+                    🛡️ Objection Handlers
+                  </h4>
+                  <div className="space-y-3">
+                    {copilotData.objection_handlers.map((handler: any, i: number) => (
+                      <div key={i} className="border-l-2 border-orange-400 pl-3">
+                        <p className="font-medium text-orange-800 dark:text-orange-200">
+                          &quot;{handler.objection}&quot;
+                        </p>
+                        <p className="text-orange-700 dark:text-orange-300 text-sm mt-1">
+                          → {handler.response}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Urgency Note */}
+              {copilotData.urgency && (
+                <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 border border-red-200 dark:border-red-800">
+                  <h4 className="font-semibold text-red-900 dark:text-red-100 mb-2 flex items-center gap-2">
+                    ⚡ Urgency Factor
+                  </h4>
+                  <p className="text-red-800 dark:text-red-200">{copilotData.urgency}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-700 px-6 py-4 flex gap-3 rounded-b-2xl">
+              <button
+                onClick={() => setShowCopilot(false)}
+                className="flex-1 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors font-medium"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  const text = copilotData.talking_points?.join('\n• ') || '';
+                  navigator.clipboard.writeText('• ' + text);
+                }}
+                className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                📋 Copy Talking Points
+              </button>
             </div>
           </div>
         </div>
