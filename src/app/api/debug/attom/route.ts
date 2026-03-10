@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
 			testParams: { lat, lng, radius }
 		};
 
-		// Test ATTOM API
+		// Test ATTOM API with property/detail for full property data
 		if (ATTOM_API_KEY) {
-			const url = new URL(`${ATTOM_BASE_URL}/propertyapi/v1.0.0/property/snapshot`);
+			const url = new URL(`${ATTOM_BASE_URL}/propertyapi/v1.0.0/property/detail`);
 			url.searchParams.append("latitude", lat);
 			url.searchParams.append("longitude", lng);
 			url.searchParams.append("radius", radius);
@@ -45,15 +45,31 @@ export async function GET(request: NextRequest) {
 				const data = await response.json();
 				debugInfo.apiResponse.success = true;
 				debugInfo.apiResponse.propertyCount = data.property?.length || 0;
-				debugInfo.apiResponse.sampleProperty = data.property?.[0] ? {
-					address: data.property[0].address,
-					summary: data.property[0].summary,
-					assessment: data.property[0].assessment ? {
-						yearBuilt: data.property[0].summary?.yearBuilt,
-						ownerName: data.property[0].assessment?.owner?.owner1?.fullName,
-						assessedValue: data.property[0].assessment?.assessed?.assdTtlValue
-					} : null
-				} : null;
+				
+				const prop = data.property?.[0];
+				if (prop) {
+					debugInfo.apiResponse.sampleProperty = {
+						address: prop.address,
+						summary: prop.summary,
+						building: {
+							size: prop.building?.size,
+							rooms: prop.building?.rooms,
+							construction: prop.building?.construction
+						},
+						assessment: prop.assessment ? {
+							assessed: prop.assessment.assessed,
+							market: prop.assessment.market,
+							owner: prop.assessment.owner?.owner1?.fullName
+						} : null,
+						lot: prop.lot,
+						// Calculate what the estimate would be
+						calculatedEstimate: {
+							sqft: prop.building?.size?.livingSize || prop.building?.size?.universalSize || 2000,
+							stories: prop.building?.summary?.stories || 1,
+							assessedValue: prop.assessment?.assessed?.assdTtlValue || prop.assessment?.market?.mktTtlValue
+						}
+					};
+				}
 			} else {
 				const errorText = await response.text();
 				debugInfo.apiResponse.success = false;

@@ -40,7 +40,7 @@ async function attomRequest(endpoint: string, params?: Record<string, string>): 
 	return response.json();
 }
 
-// Search properties within a radius using ATTOM Property Snapshot API
+// Search properties within a radius using ATTOM Property Detail API (more complete data)
 async function searchPropertiesByRadius(params: {
 	lat: number;
 	lng: number;
@@ -60,7 +60,8 @@ async function searchPropertiesByRadius(params: {
 		};
 
 		console.log("[ATTOM] Radius search params:", JSON.stringify(queryParams));
-		const data = await attomRequest("/propertyapi/v1.0.0/property/snapshot", queryParams);
+		// Use /property/detail instead of /property/snapshot for complete property data
+		const data = await attomRequest("/propertyapi/v1.0.0/property/detail", queryParams);
 		
 		const properties = data?.property || [];
 		const total = data?.status?.total || properties.length;
@@ -87,11 +88,13 @@ async function searchPropertiesByZip(params: {
 		const queryParams: Record<string, string> = {
 			postalcode: params.postalCode,
 			pageSize: (params.pageSize || 50).toString(),
-			page: (params.page || 1).toString()
+			page: (params.page || 1).toString(),
+			propertytype: "SFR" // Single Family Residence only
 		};
 
 		console.log("[ATTOM] Zip search params:", JSON.stringify(queryParams));
-		const data = await attomRequest("/propertyapi/v1.0.0/property/snapshot", queryParams);
+		// Use /property/detail for complete property data including sqft, beds, baths
+		const data = await attomRequest("/propertyapi/v1.0.0/property/detail", queryParams);
 		
 		const properties = data?.property || [];
 		const total = data?.status?.total || properties.length;
@@ -160,6 +163,16 @@ function formatAttomProperty(prop: any) {
 	const building = prop.building || {};
 	const lot = prop.lot || {};
 	const identifier = prop.identifier || {};
+	const size = building.size || {};
+	const rooms = building.rooms || {};
+	const construction = building.construction || {};
+	
+	// ATTOM uses lowercase field names
+	const sqft = size.livingsize || size.livingSize || size.universalsize || size.universalSize || null;
+	const beds = rooms.beds || null;
+	const baths = rooms.bathstotal || rooms.bathsTotal || null;
+	const stories = building.summary?.stories || 1;
+	const yearBuilt = summary.yearbuilt || summary.yearBuilt || null;
 	
 	return {
 		id: identifier.attomId || identifier.Id || `attom-${Date.now()}`,
@@ -177,13 +190,15 @@ function formatAttomProperty(prop: any) {
 		property: {
 			apn: identifier.apn || "",
 			fips: identifier.fips || "",
-			type: summary.propType || summary.propSubType || "",
-			yearBuilt: summary.yearBuilt || null,
-			sqft: building.size?.livingSize || building.size?.universalSize || null,
-			bedrooms: building.rooms?.beds || null,
-			bathrooms: building.rooms?.bathsTotal || null,
-			stories: building.summary?.stories || null,
-			lotSize: lot.lotSize1 || lot.lotSize2 || null
+			type: summary.propType || summary.proptype || summary.propSubType || "",
+			yearBuilt: yearBuilt,
+			sqft: sqft,
+			bedrooms: beds,
+			bathrooms: baths,
+			stories: stories,
+			lotSize: lot.lotSize1 || lot.lotsize1 || lot.lotSize2 || lot.lotsize2 || null,
+			roofType: construction.roofcover || construction.roofCover || null,
+			condition: construction.condition || null
 		},
 		location: {
 			lat: location.latitude || null,
@@ -191,8 +206,8 @@ function formatAttomProperty(prop: any) {
 			distance: location.distance || null
 		},
 		valuation: {
-			assessed: prop.assessment?.assessed?.assdTtlValue || null,
-			market: prop.assessment?.market?.mktTtlValue || null,
+			assessed: prop.assessment?.assessed?.assdTtlValue || prop.assessment?.assessed?.assdttlvalue || null,
+			market: prop.assessment?.market?.mktTtlValue || prop.assessment?.market?.mktttlvalue || null,
 			avm: prop.avm?.amount?.value || null
 		}
 	};
@@ -212,17 +227,33 @@ function estimateRoofAge(yearBuilt: number | undefined | null): number | null {
 // Calculate estimated claim value based on property data
 function estimateClaimValue(prop: any): { low: number; high: number; average: number } {
 	// Get living area from property data
-	const sqFt = prop.property?.sqft || 2000;
+	const sqFt = prop.property?.sqft || 0;
 	const stories = prop.property?.stories || 1;
+	const assessedValue = prop.valuation?.assessed || prop.valuation?.market || 0;
 	
-	// Rough roofing estimate: $4-8 per sq ft of roof area
-	// Roof area ≈ sqFt / stories * 1.15 (for pitch)
-	const roofArea = (sqFt / (stories || 1)) * 1.15;
+	// If we have sqft, use it for roofing estimate
+	// Roof area ≈ sqFt / stories * 1.15 (for pitch factor)
+	// Roofing cost: $5-10 per sq ft of roof area (2024 prices)
+	let roofArea = 0;
 	
+	if (sqFt > 0) {
+		roofArea = (sqFt / (stories || 1)) * 1.15;
+	} else if (assessedValue > 0) {
+		// Fallback: estimate sqft from assessed value
+		// Average $150-200/sqft for residential properties
+		const estimatedSqft = assessedValue / 175;
+		roofArea = (estimatedSqft / (stories || 1)) * 1.15;
+	} else {
+		// Last resort: assume average home (2000 sqft)
+		roofArea = 2000 * 1.15;
+	}
+	
+	// Roofing materials + labor: $5-10 per sqft depending on material
+	// Including tear-off, underlayment, and installation
 	return {
-		low: Math.round(roofArea * 4),
-		high: Math.round(roofArea * 8),
-		average: Math.round(roofArea * 6)
+		low: Math.round(roofArea * 5),
+		high: Math.round(roofArea * 10),
+		average: Math.round(roofArea * 7.5)
 	};
 }
 
