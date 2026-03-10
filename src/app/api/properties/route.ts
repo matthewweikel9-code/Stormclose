@@ -56,7 +56,8 @@ async function searchPropertiesByRadius(params: {
 			pageSize: (params.pageSize || 50).toString(),
 			page: (params.page || 1).toString(),
 			orderBy: "distance asc",
-			propertytype: "SFR" // Single Family Residence only
+			// Include all residential property types useful for roofing
+			propertytype: "SFR|CONDO|TOWNHOUSE|MOBILE|DUPLEX|TRIPLEX|QUADPLEX"
 		};
 
 		console.log("[ATTOM] Radius search params:", JSON.stringify(queryParams));
@@ -89,7 +90,8 @@ async function searchPropertiesByZip(params: {
 			postalcode: params.postalCode,
 			pageSize: (params.pageSize || 50).toString(),
 			page: (params.page || 1).toString(),
-			propertytype: "SFR" // Single Family Residence only
+			// Include all residential property types useful for roofing
+			propertytype: "SFR|CONDO|TOWNHOUSE|MOBILE|DUPLEX|TRIPLEX|QUADPLEX"
 		};
 
 		console.log("[ATTOM] Zip search params:", JSON.stringify(queryParams));

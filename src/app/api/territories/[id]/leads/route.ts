@@ -73,12 +73,14 @@ async function searchPropertiesByZip(zipCode: string, limit: number = 20): Promi
       return [];
     }
     
-    // Use ATTOM spatial search with the coordinates
-    const data = await attomRequest("/propertyapi/v1.0.0/property/snapshot", {
+    // Use ATTOM detail endpoint for complete property data
+    const data = await attomRequest("/propertyapi/v1.0.0/property/detail", {
       latitude: coords.lat.toString(),
       longitude: coords.lng.toString(),
       radius: "2", // 2 mile radius
-      pagesize: limit.toString()
+      pagesize: limit.toString(),
+      // Include all residential property types useful for roofing
+      propertytype: "SFR|CONDO|TOWNHOUSE|MOBILE|DUPLEX|TRIPLEX|QUADPLEX"
     });
     
     const properties = data.property || [];
@@ -90,7 +92,7 @@ async function searchPropertiesByZip(zipCode: string, limit: number = 20): Promi
   }
 }
 
-// Search properties near coordinates using ATTOM Spatial API
+// Search properties near coordinates using ATTOM Detail API
 async function searchPropertiesByLocation(
   latitude: number, 
   longitude: number, 
@@ -100,11 +102,14 @@ async function searchPropertiesByLocation(
     // ATTOM supports up to 20 mile radius
     const radius = Math.min(radiusMiles, 20);
     
-    const data = await attomRequest("/propertyapi/v1.0.0/property/snapshot", {
+    // Use detail endpoint for complete property data including owner info
+    const data = await attomRequest("/propertyapi/v1.0.0/property/detail", {
       latitude: latitude.toString(),
       longitude: longitude.toString(),
       radius: radius.toString(),
-      pagesize: "50"
+      pagesize: "50",
+      // Include all residential property types useful for roofing
+      propertytype: "SFR|CONDO|TOWNHOUSE|MOBILE|DUPLEX|TRIPLEX|QUADPLEX"
     });
     
     const properties = data.property || [];

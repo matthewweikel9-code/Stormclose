@@ -37,7 +37,7 @@ async function attomRequest(endpoint: string, params?: Record<string, string>): 
   return response.json();
 }
 
-// Search properties in a geographic area using ATTOM Property Snapshot API
+// Search properties in a geographic area using ATTOM Property Detail API
 async function searchPropertiesByLocation(
   latitude: number, 
   longitude: number, 
@@ -47,17 +47,20 @@ async function searchPropertiesByLocation(
     // ATTOM supports up to 20 mile radius
     const radius = Math.min(radiusMiles, 20);
     
-    const data = await attomRequest("/propertyapi/v1.0.0/property/snapshot", {
+    // Use detail endpoint for complete property data including owner info
+    const data = await attomRequest("/propertyapi/v1.0.0/property/detail", {
       latitude: latitude.toString(),
       longitude: longitude.toString(),
       radius: radius.toString(),
-      pagesize: "50"
+      pagesize: "50",
+      // Include all residential property types useful for roofing
+      propertytype: "SFR|CONDO|TOWNHOUSE|MOBILE|DUPLEX|TRIPLEX|QUADPLEX"
     });
     
     const properties = data.property || [];
     console.log(`Found ${properties.length} ATTOM properties near ${latitude}, ${longitude}`);
     
-    // Transform to common format
+    // Transform to common format - use lowercase field names from ATTOM
     return properties.map((prop: any) => ({
       address: {
         street: prop.address?.line1 || prop.address?.oneLine || "",
@@ -65,13 +68,13 @@ async function searchPropertiesByLocation(
         state: prop.address?.countrySubd || "",
         zip: prop.address?.postal1 || ""
       },
-      owner: prop.assessment?.owner?.owner1?.fullName || "Unknown",
-      yearBuilt: prop.summary?.yearBuilt || prop.building?.construction?.constructionYear,
+      owner: prop.owner?.owner1?.fullName || prop.assessment?.owner?.owner1?.fullName || "Unknown",
+      yearBuilt: prop.summary?.yearbuilt || prop.summary?.yearBuilt || prop.building?.construction?.constructionYear,
       assessedValue: prop.assessment?.assessed?.assdTtlValue || prop.assessment?.market?.mktTtlValue,
-      squareFeet: prop.building?.size?.livingSize || prop.building?.size?.universalSize,
+      squareFeet: prop.building?.size?.livingsize || prop.building?.size?.livingSize || prop.building?.size?.universalsize || prop.building?.size?.universalSize,
       latitude: prop.location?.latitude || latitude,
       longitude: prop.location?.longitude || longitude,
-      propertyType: prop.summary?.propType || "R"
+      propertyType: prop.summary?.proptype || prop.summary?.propType || "R"
     })).filter((p: any) => p.address.street); // Only include properties with addresses
   } catch (error) {
     console.error("ATTOM property search error:", error);
