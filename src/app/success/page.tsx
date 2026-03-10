@@ -29,45 +29,69 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
   const sessionId = searchParams?.session_id;
 
   return (
-    <section className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-      <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Billing</p>
-      <h1 className="mt-2 text-3xl font-bold text-slate-900">Checkout complete</h1>
-      <p className="mt-3 text-slate-600">
-        {isActive
-          ? "Your subscription is active and your account is ready to use."
-          : "Your payment was received. Subscription activation can take a few seconds while Stripe webhook events finish syncing."}
-      </p>
+    <main className="min-h-screen bg-[#0B0F1A] flex items-center justify-center p-4">
+      <section className="mx-auto max-w-lg rounded-2xl border border-slate-700 bg-slate-800/50 p-8">
+        <div className="text-center mb-6">
+          <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+            isActive ? "bg-emerald-500/10" : "bg-amber-500/10"
+          }`}>
+            {isActive ? (
+              <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-8 h-8 text-amber-500 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
+          </div>
+          <h1 className="text-2xl font-bold text-white">
+            {isActive ? "Welcome to StormClose AI!" : "Processing Payment..."}
+          </h1>
+          <p className="mt-2 text-slate-400">
+            {isActive
+              ? "Your subscription is active and your account is ready to use."
+              : "Your payment was received. Activation takes a few seconds while we sync with Stripe."}
+          </p>
+        </div>
 
-      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
-        <p className="text-sm text-slate-500">Subscription status</p>
-        <p
-          className={`mt-1 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-            isActive ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-          }`}
-        >
-          {subscriptionStatus}
-        </p>
-        {sessionId ? <p className="mt-3 text-xs text-slate-500">Session: {sessionId}</p> : null}
-      </div>
+        <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-4 text-center">
+          <p className="text-sm text-slate-500">Subscription Status</p>
+          <p
+            className={`mt-2 inline-flex rounded-full px-4 py-1.5 text-sm font-semibold ${
+              isActive ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
+            }`}
+          >
+            {subscriptionStatus.charAt(0).toUpperCase() + subscriptionStatus.slice(1)}
+          </p>
+          {sessionId && (
+            <p className="mt-3 text-xs text-slate-600 truncate">Session: {sessionId}</p>
+          )}
+        </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Link href="/dashboard" className="button-primary">
-          Go to dashboard
-        </Link>
-        {!isActive ? (
-          <Link href="/success" className="button-secondary">
-            Refresh status
+        <div className="mt-6 flex flex-col gap-3">
+          <Link 
+            href="/dashboard" 
+            className="w-full py-3 text-center bg-gradient-to-r from-[#6D5CFF] to-[#A78BFA] text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+          >
+            Go to Dashboard
           </Link>
-        ) : null}
-      </div>
+          {!isActive && (
+            <Link 
+              href="/success" 
+              className="w-full py-3 text-center border border-slate-600 text-slate-300 font-medium rounded-lg hover:bg-slate-700/50 transition-colors"
+            >
+              Refresh Status
+            </Link>
+          )}
+        </div>
 
-      {!isActive ? (
-        <p className="mt-4 text-sm text-slate-600">
-          If status stays inactive, confirm your Stripe webhook endpoint points to
-          <span className="font-medium text-slate-900"> /api/stripe/webhook</span> and that
-          <span className="font-medium text-slate-900"> STRIPE_WEBHOOK_SECRET</span> matches Stripe.
-        </p>
-      ) : null}
-    </section>
+        {!isActive && (
+          <p className="mt-4 text-xs text-slate-500 text-center">
+            If status stays inactive, please contact support or check your email for confirmation.
+          </p>
+        )}
+      </section>
+    </main>
   );
 }

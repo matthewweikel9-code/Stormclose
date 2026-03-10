@@ -36,29 +36,37 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
   const tierName = TIER_DISPLAY_NAMES[tier];
 
   return (
-    <section className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-      <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Billing</p>
-      <h1 className="mt-2 text-3xl font-bold text-slate-900">Activate StormClose AI</h1>
-      <p className="mt-3 text-slate-600">
-        Subscribe to the {tierName} plan to unlock AI-powered roofing workflows.
-      </p>
+    <main className="min-h-screen bg-[#0B0F1A] flex items-center justify-center p-4">
+      <section className="mx-auto max-w-md rounded-2xl border border-slate-700 bg-slate-800/50 p-8">
+        <div className="text-center mb-6">
+          <div className="mx-auto w-16 h-16 bg-[#6D5CFF]/10 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-[#6D5CFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white">Activate StormClose AI</h1>
+          <p className="mt-2 text-slate-400">
+            Subscribe to the {tierName} plan to unlock AI-powered roofing workflows.
+          </p>
+        </div>
 
-      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
-        <p className="text-sm text-slate-500">{tierName} plan</p>
-        <p className="mt-1 text-2xl font-bold text-slate-900">${price}/month</p>
-        <p className="mt-1 text-sm text-slate-600">Billed monthly, cancel any time.</p>
-      </div>
+        <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-5 text-center">
+          <p className="text-sm text-slate-500">{tierName} Plan</p>
+          <p className="mt-2 text-3xl font-bold text-white">${price}<span className="text-lg text-slate-400">/month</span></p>
+          <p className="mt-1 text-sm text-slate-500">Billed monthly • Cancel anytime</p>
+        </div>
 
-      <div className="mt-6">
-        <CheckoutButton tier={tier} />
-      </div>
+        <div className="mt-6">
+          <CheckoutButton tier={tier} />
+        </div>
 
-      <p className="mt-5 text-sm text-slate-600">
-        Not ready yet?{" "}
-        <Link href="/" className="font-semibold text-brand-700 hover:text-brand-600">
-          Return home
-        </Link>
-      </p>
-    </section>
+        <p className="mt-5 text-sm text-slate-500 text-center">
+          Not ready yet?{" "}
+          <Link href="/" className="font-semibold text-[#A78BFA] hover:text-[#6D5CFF]">
+            Return home
+          </Link>
+        </p>
+      </section>
+    </main>
   );
 }
