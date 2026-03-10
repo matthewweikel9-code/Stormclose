@@ -55,7 +55,8 @@ async function searchPropertiesByRadius(params: {
 			radius: (params.radius || 3).toString(), // Default 3 miles
 			pageSize: (params.pageSize || 50).toString(),
 			page: (params.page || 1).toString(),
-			orderBy: "distance asc"
+			orderBy: "distance asc",
+			propertytype: "SFR" // Single Family Residence only
 		};
 
 		console.log("[ATTOM] Radius search params:", JSON.stringify(queryParams));
@@ -402,12 +403,10 @@ export async function POST(request: NextRequest) {
 			};
 		});
 
-		// Filter out properties without valid addresses
+		// Filter out properties without valid addresses (but keep those without owner info)
 		const validProperties = formattedProperties.filter((p: any) => 
 			p.address.street && 
-			p.address.street.length > 3 &&
-			p.owner.name &&
-			p.owner.name !== "Unknown"
+			p.address.street.length > 3
 		);
 
 		// Calculate zone statistics

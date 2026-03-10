@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
 			url.searchParams.append("longitude", lng);
 			url.searchParams.append("radius", radius);
 			url.searchParams.append("pagesize", "5");
+			url.searchParams.append("propertytype", "SFR"); // Single Family Residence
 
 			console.log("Testing ATTOM API with URL:", url.toString());
 
