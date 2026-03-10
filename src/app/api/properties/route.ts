@@ -6,6 +6,10 @@ const CORELOGIC_API_KEY = process.env.CORELOGIC_API_KEY;
 const CORELOGIC_API_SECRET = process.env.CORELOGIC_API_SECRET;
 const CORELOGIC_BASE_URL = "https://api-prod.corelogic.com";
 
+// Log if credentials are present (not the values themselves)
+console.log("[CoreLogic] API Key present:", !!CORELOGIC_API_KEY);
+console.log("[CoreLogic] API Secret present:", !!CORELOGIC_API_SECRET);
+
 // Token cache
 let accessToken: string | null = null;
 let tokenExpiry: number = 0;
@@ -14,11 +18,18 @@ let tokenExpiry: number = 0;
 async function getAccessToken(): Promise<string | null> {
 	// Return cached token if still valid (with 60s buffer)
 	if (accessToken && Date.now() < tokenExpiry - 60000) {
+		console.log("[CoreLogic] Using cached token");
 		return accessToken;
+	}
+
+	if (!CORELOGIC_API_KEY || !CORELOGIC_API_SECRET) {
+		console.error("[CoreLogic] Missing API credentials - CORELOGIC_API_KEY or CORELOGIC_API_SECRET not set");
+		return null;
 	}
 
 	try {
 		const credentials = Buffer.from(`${CORELOGIC_API_KEY}:${CORELOGIC_API_SECRET}`).toString("base64");
+		console.log("[CoreLogic] Requesting new OAuth token...");
 		
 		const response = await fetch(`${CORELOGIC_BASE_URL}/oauth/token?grant_type=client_credentials`, {
 			method: "POST",
@@ -29,17 +40,18 @@ async function getAccessToken(): Promise<string | null> {
 		});
 
 		if (!response.ok) {
-			console.error("CoreLogic OAuth error:", await response.text());
+			const errorText = await response.text();
+			console.error("[CoreLogic] OAuth error:", response.status, errorText);
 			return null;
 		}
 
 		const data = await response.json();
 		accessToken = data.access_token;
 		tokenExpiry = Date.now() + (parseInt(data.expires_in) * 1000);
-		console.log("CoreLogic token obtained, expires in:", data.expires_in, "seconds");
+		console.log("[CoreLogic] Token obtained, expires in:", data.expires_in, "seconds");
 		return accessToken;
 	} catch (error) {
-		console.error("CoreLogic OAuth error:", error);
+		console.error("[CoreLogic] OAuth exception:", error);
 		return null;
 	}
 }
@@ -129,7 +141,7 @@ async function spatialSearch(params: {
 	within?: number; // in meters
 	pageNumber?: number;
 	pageSize?: number;
-}): Promise<any> {
+}): Promise<{ parcels: any[]; pageInfo: any; error?: string }> {
 	try {
 		const queryParams: Record<string, string> = {
 			lat: params.lat.toString(),
@@ -139,11 +151,13 @@ async function spatialSearch(params: {
 			pageSize: (params.pageSize || 50).toString()
 		};
 
+		console.log("[CoreLogic] Spatial search params:", JSON.stringify(queryParams));
 		const data = await corelogicRequest("/spatial-tile/parcels", queryParams);
+		console.log("[CoreLogic] Spatial search returned:", data?.parcels?.length || 0, "parcels");
 		return data;
 	} catch (error) {
-		console.error("Spatial search error:", error);
-		return { parcels: [], pageInfo: { length: 0 } };
+		console.error("[CoreLogic] Spatial search error:", error);
+		return { parcels: [], pageInfo: { length: 0 }, error: error instanceof Error ? error.message : "Unknown error" };
 	}
 }
 
@@ -409,6 +423,15 @@ export async function POST(request: NextRequest) {
 		});
 
 		console.log("[Properties API] Spatial search returned:", spatialData?.parcels?.length || 0, "parcels");
+
+		// Check if there was an API error
+		if (spatialData.error) {
+			console.error("[Properties API] CoreLogic API error:", spatialData.error);
+			return NextResponse.json(
+				{ error: `Property search failed: ${spatialData.error}` },
+				{ status: 500 }
+			);
+		}
 
 		const parcels = spatialData.parcels || [];
 		const pageInfo = spatialData.pageInfo || {};
