@@ -119,87 +119,14 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Failed to create territory" }, { status: 500 });
 		}
 
-		// Auto-generate leads for the new territory
-		let leadsGenerated = 0;
-		try {
-			// Find recent hail events
-			const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-				.toISOString()
-				.split("T")[0];
-
-			const { data: hailEvents } = await supabaseAdmin
-				.from("hail_events")
-				.select("*")
-				.gte("event_date", thirtyDaysAgo)
-				.gte("size_inches", 0.75)
-				.order("event_date", { ascending: false })
-				.limit(50);
-
-			if (hailEvents && hailEvents.length > 0 && zip_codes) {
-				const processedZips = new Set<string>();
-				
-				for (const zipCode of zip_codes.slice(0, 5)) {
-					if (processedZips.has(zipCode)) continue;
-					processedZips.add(zipCode);
-
-					const nearestHail = hailEvents[0];
-					const daysSinceStorm = Math.floor(
-						(Date.now() - new Date(nearestHail.event_date).getTime()) /
-							(1000 * 60 * 60 * 24)
-					);
-
-					const baseScore = Math.max(
-						50,
-						85 - daysSinceStorm * 2 + nearestHail.size_inches * 5
-					);
-
-					const leadData = {
-						user_id: user.id,
-						address: `Storm-affected property in ${zipCode}`,
-						city: nearestHail.location_name || name,
-						state: nearestHail.state || "TX",
-						zip: zipCode,
-						latitude: nearestHail.latitude || 0,
-						longitude: nearestHail.longitude || 0,
-						lead_score: Math.min(Math.round(baseScore), 100),
-						storm_proximity_score: Math.min(35, nearestHail.size_inches * 10),
-						roof_age_score: 15,
-						property_value_score: 10,
-						hail_history_score: 10,
-						status: "new",
-						source: "ai_auto_generated",
-						hail_event_id: nearestHail.id,
-						storm_date: nearestHail.event_date,
-						hail_size: nearestHail.size_inches,
-						notes: `Auto-generated for new territory "${name}". ${nearestHail.size_inches}" hail on ${nearestHail.event_date}.`,
-					};
-
-					const { error: insertError } = await supabaseAdmin
-						.from("leads")
-						.insert(leadData);
-
-					if (!insertError) {
-						leadsGenerated++;
-					}
-				}
-
-				// Update territory with lead count
-				if (leadsGenerated > 0) {
-					await supabaseAdmin
-						.from("territories")
-						.update({ total_leads: leadsGenerated })
-						.eq("id", territory.id);
-				}
-			}
-		} catch (leadError) {
-			console.error("Error auto-generating leads:", leadError);
-			// Don't fail territory creation if lead generation fails
-		}
+		// Note: Lead generation happens via the /api/cron/generate-leads endpoint
+		// which uses CoreLogic to get real property data. We don't auto-generate
+		// placeholder leads here to avoid polluting the database with fake addresses.
 
 		return NextResponse.json({
 			success: true,
 			territory,
-			leadsGenerated,
+			message: "Territory created! Leads will be auto-generated when storms hit this area.",
 		});
 	} catch (error) {
 		console.error("Territory creation error:", error);
