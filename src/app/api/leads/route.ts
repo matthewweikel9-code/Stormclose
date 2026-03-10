@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
 
 	const searchParams = request.nextUrl.searchParams;
 	const status = searchParams.get("status");
+	const tier = searchParams.get("tier");
 	const minScore = searchParams.get("minScore");
 	const limit = parseInt(searchParams.get("limit") || "50", 10);
 	const offset = parseInt(searchParams.get("offset") || "0", 10);
@@ -38,6 +39,15 @@ export async function GET(request: NextRequest) {
 
 		if (status) {
 			query = query.eq("status", status);
+		}
+
+		// Filter by lead score tier
+		if (tier === "hot") {
+			query = query.gte("lead_score", 70);
+		} else if (tier === "warm") {
+			query = query.gte("lead_score", 40).lt("lead_score", 70);
+		} else if (tier === "cold") {
+			query = query.lt("lead_score", 40);
 		}
 
 		if (minScore) {

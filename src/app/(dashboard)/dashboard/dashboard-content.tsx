@@ -56,13 +56,17 @@ interface DashboardStats {
 
 interface Lead {
   id: string;
-  name: string;
+  name?: string;
   address: string;
-  score: number;
-  score_tier: string;
+  city?: string;
+  state?: string;
+  lead_score: number;
+  score?: number; // legacy alias
+  score_tier?: string;
   status: string;
   phone?: string;
   last_contact?: string;
+  updated_at?: string;
 }
 
 interface HailAlert {
@@ -193,6 +197,12 @@ export function DashboardContent({
     }
   };
 
+  const getScoreTier = (score: number): string => {
+    if (score >= 70) return 'hot';
+    if (score >= 40) return 'warm';
+    return 'cold';
+  };
+
   const timeAgo = (date: string) => {
     const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
     if (seconds < 60) return 'just now';
@@ -243,18 +253,18 @@ export function DashboardContent({
         </div>
         <div className="flex gap-3">
           <button 
-            onClick={() => window.location.href = '/leads/new'}
+            onClick={() => window.location.href = '/dashboard/leads'}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Add Lead
+            View Leads
           </button>
           <button 
-            onClick={() => window.location.href = '/route'}
+            onClick={() => window.location.href = '/dashboard/route-planner'}
             className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
           >
             <Navigation className="w-4 h-4" />
-            Start Route
+            Route Planner
           </button>
         </div>
       </div>
@@ -307,7 +317,7 @@ export function DashboardContent({
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
               <h2 className="font-semibold text-white">Hot Leads</h2>
             </div>
-            <a href="/leads" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
+            <a href="/dashboard/leads" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
               View All <ChevronRight className="w-4 h-4" />
             </a>
           </div>
@@ -318,14 +328,14 @@ export function DashboardContent({
                 <div 
                   key={lead.id}
                   className="p-4 hover:bg-gray-700/30 transition-colors cursor-pointer"
-                  onClick={() => window.location.href = `/leads/${lead.id}`}
+                  onClick={() => window.location.href = `/dashboard/leads`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-medium text-white">{lead.name}</h3>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium text-white ${getScoreColor(lead.score_tier)}`}>
-                          {lead.score}
+                        <h3 className="font-medium text-white">{lead.address || lead.name || 'Unknown'}</h3>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium text-white ${getScoreColor(lead.score_tier || getScoreTier(lead.lead_score))}`}>
+                          {lead.lead_score || lead.score || 0}
                         </span>
                       </div>
                       <p className="text-gray-400 text-sm mt-0.5">{lead.address}</p>
@@ -370,7 +380,7 @@ export function DashboardContent({
         <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
             <h2 className="font-semibold text-white">Recent Activity</h2>
-            <a href="/activity" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
+            <a href="/dashboard/leads" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
               View All <ChevronRight className="w-4 h-4" />
             </a>
           </div>
@@ -415,7 +425,7 @@ export function DashboardContent({
       <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
           <h2 className="font-semibold text-white">Pipeline Overview</h2>
-          <a href="/pipeline" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
+          <a href="/dashboard/leads" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
             View Pipeline <ChevronRight className="w-4 h-4" />
           </a>
         </div>
