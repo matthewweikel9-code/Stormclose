@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { getHailReports, formatStormReportToHailEvent } from "@/lib/xweather";
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -245,16 +246,48 @@ export async function POST(
       return NextResponse.json({ error: "Territory not found" }, { status: 404 });
     }
 
-    // Check for recent hail events (optional - adds bonus scoring)
+    // Check for recent hail events from database (optional - adds bonus scoring)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     
-    const { data: hailEvents } = await supabaseAdmin
+    let { data: hailEvents } = await supabaseAdmin
       .from("hail_events")
       .select("*")
       .gte("event_date", thirtyDaysAgo)
       .gte("size_inches", 0.75)
       .order("event_date", { ascending: false })
       .limit(50);
+
+    // If no database hail events and territory has coordinates, check Xweather for real-time data
+    if ((!hailEvents || hailEvents.length === 0) && territory.center_lat && territory.center_lng) {
+      try {
+        console.log(`Checking Xweather for hail near ${territory.center_lat}, ${territory.center_lng}...`);
+        const xweatherReports = await getHailReports(
+          territory.center_lat, 
+          territory.center_lng, 
+          50, // 50 mile radius
+          30  // Last 30 days
+        );
+        
+        if (xweatherReports.length > 0) {
+          console.log(`Found ${xweatherReports.length} hail reports from Xweather`);
+          // Convert Xweather reports to hail_events format
+          hailEvents = xweatherReports.map(report => ({
+            id: report.id,
+            event_date: report.report.dateTimeISO.split('T')[0],
+            size_inches: report.report.detail.hailIN || 0,
+            latitude: report.loc.lat,
+            longitude: report.loc.long,
+            location_name: report.place.name,
+            state: report.place.state,
+            county: report.place.county,
+            source: 'xweather'
+          })).filter(e => e.size_inches >= 0.75);
+        }
+      } catch (xweatherError) {
+        console.error("Xweather hail check failed:", xweatherError);
+        // Continue without Xweather data
+      }
+    }
 
     // Hail events are now OPTIONAL - we still generate leads without them
     const hasHailEvents = hailEvents && hailEvents.length > 0;
@@ -338,7 +371,7 @@ export async function POST(
             let stormDate = null;
             let hailSize = null;
             
-            if (hasHailEvents) {
+            if (hasHailEvents && hailEvents && hailEvents.length > 0) {
               const nearestHail = hailEvents[0];
               hailEventId = nearestHail.id;
               stormDate = nearestHail.event_date;
@@ -497,11 +530,13 @@ export async function POST(
         .eq("id", id);
     }
 
+    const hailCount = hailEvents?.length || 0;
+    
     return NextResponse.json({
       success: true,
-      message: `Generated ${leadsGenerated} leads from ATTOM for territory "${territory.name}"${hasHailEvents ? ` (${hailEvents.length} hail events found)` : ''}`,
+      message: `Generated ${leadsGenerated} leads from ATTOM for territory "${territory.name}"${hasHailEvents ? ` (${hailCount} hail events found)` : ''}`,
       leadsGenerated,
-      hailEventsFound: hasHailEvents ? hailEvents.length : 0,
+      hailEventsFound: hailCount,
       errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
     });
   } catch (error: any) {

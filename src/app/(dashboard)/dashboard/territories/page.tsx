@@ -92,6 +92,31 @@ export default function TerritoriesPage() {
 
   const fetchAlerts = async () => {
     try {
+      // Try Xweather-powered endpoint first for real-time data
+      const xweatherRes = await fetch('/api/weather/feed');
+      if (xweatherRes.ok) {
+        const data = await xweatherRes.json();
+        // Transform Xweather response to match expected format
+        const combinedAlerts = (data.alerts || []).map((alert: any) => ({
+          id: alert.id,
+          alert_type: alert.alert_type,
+          severity: alert.severity,
+          headline: alert.headline,
+          description: alert.description,
+          affected_areas: alert.affected_areas || [],
+          hail_size_inches: alert.hail_size_inches,
+          wind_speed_mph: alert.wind_speed_mph,
+          expires_at: alert.expires_at,
+          issued_at: alert.issued_at || alert.onset_at,
+          affects_user: alert.affects_user ?? true,
+          matching_territories: [],
+          source: 'xweather'
+        }));
+        setAlerts(combinedAlerts);
+        return;
+      }
+      
+      // Fallback to database alerts if Xweather fails
       const res = await fetch('/api/storm-alerts?limit=10');
       if (res.ok) {
         const data = await res.json();
@@ -99,6 +124,16 @@ export default function TerritoriesPage() {
       }
     } catch (error) {
       console.error('Error fetching alerts:', error);
+      // Fallback to database alerts
+      try {
+        const res = await fetch('/api/storm-alerts?limit=10');
+        if (res.ok) {
+          const data = await res.json();
+          setAlerts(data.alerts || []);
+        }
+      } catch {
+        // Silent fail - show empty alerts
+      }
     }
   };
 
