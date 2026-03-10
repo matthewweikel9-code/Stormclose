@@ -20,18 +20,38 @@ import {
 } from 'lucide-react';
 
 interface DashboardStats {
-  leads: { total: number; hot: number; warm: number; cold: number };
-  appointments: { today: number; thisWeek: number; total: number };
-  deals: { closedThisMonth: number; closedThisWeek: number; total: number };
-  pipeline: { value: number; averageDealSize: number };
-  rates: { closeRate: number; appointmentRate: number };
-  recentActivity: Array<{
-    id: string;
-    type: string;
-    lead_name?: string;
-    notes?: string;
-    created_at: string;
-  }>;
+  success: boolean;
+  data: {
+    kpis: {
+      leadsGenerated: number;
+      appointmentsSet: number;
+      dealsClosed: number;
+      pipelineValue: number;
+      closeRate: number;
+      closedValue: number;
+    };
+    activitySummary: {
+      doorKnocks: number;
+      phoneCalls: number;
+      appointmentsSet: number;
+      inspections: number;
+    };
+    pipeline: Record<string, number>;
+    recentActivities: Array<{
+      id: string;
+      activity_type: string;
+      title?: string;
+      description?: string;
+      outcome?: string;
+      created_at: string;
+      leads?: { id: string; address: string; city: string };
+    }>;
+    hotLeads: Array<any>;
+    hailAlerts: {
+      count: number;
+      events: Array<any>;
+    };
+  };
 }
 
 interface Lead {
@@ -90,11 +110,28 @@ export function DashboardContent({
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
+        // Set hot leads from stats if available
+        if (statsData?.data?.hotLeads) {
+          setHotLeads(statsData.data.hotLeads);
+        }
+        // Set hail alerts from stats
+        if (statsData?.data?.hailAlerts?.events) {
+          setHailAlerts(statsData.data.hailAlerts.events.map((e: any) => ({
+            city: e.location_name || 'Unknown',
+            state: e.state,
+            size: e.size_inches,
+            date: e.event_date,
+            distance_miles: e.distance_miles || 0
+          })));
+        }
       }
 
-      if (leadsRes.ok) {
+      // Fallback: fetch leads separately if not in stats
+      if (leadsRes.ok && hotLeads.length === 0) {
         const leadsData = await leadsRes.json();
-        setHotLeads(leadsData.leads || []);
+        if (leadsData.leads) {
+          setHotLeads(leadsData.leads);
+        }
       }
 
       // Check for recent hail events (would need user's location)
@@ -201,7 +238,7 @@ export function DashboardContent({
             {getGreeting()}, {userName}!
           </h1>
           <p className="text-gray-400 mt-1">
-            {stats?.appointments.today || 0} appointments today • {hotLeads.length} hot leads ready
+            {stats?.data?.kpis?.appointmentsSet || 0} appointments this week • {hotLeads.length} hot leads ready
           </p>
         </div>
         <div className="flex gap-3">
@@ -226,36 +263,36 @@ export function DashboardContent({
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <KPICard
           label="Total Leads"
-          value={stats?.leads.total || 0}
-          subtext={`${stats?.leads.hot || 0} hot`}
+          value={stats?.data?.kpis?.leadsGenerated || 0}
+          subtext={`${hotLeads.length} hot`}
           icon={<Users className="w-5 h-5" />}
           color="blue"
         />
         <KPICard
           label="Appointments"
-          value={stats?.appointments.thisWeek || 0}
+          value={stats?.data?.kpis?.appointmentsSet || 0}
           subtext="this week"
           icon={<Calendar className="w-5 h-5" />}
           color="purple"
         />
         <KPICard
           label="Deals Closed"
-          value={stats?.deals.closedThisMonth || 0}
+          value={stats?.data?.kpis?.dealsClosed || 0}
           subtext="this month"
           icon={<Zap className="w-5 h-5" />}
           color="green"
         />
         <KPICard
           label="Pipeline"
-          value={formatCurrency(stats?.pipeline.value || 0)}
-          subtext={`avg ${formatCurrency(stats?.pipeline.averageDealSize || 0)}`}
+          value={formatCurrency(stats?.data?.kpis?.pipelineValue || 0)}
+          subtext={`${stats?.data?.kpis?.dealsClosed || 0} deals closed`}
           icon={<DollarSign className="w-5 h-5" />}
           color="yellow"
         />
         <KPICard
           label="Close Rate"
-          value={`${(stats?.rates.closeRate || 0).toFixed(0)}%`}
-          subtext={`${(stats?.rates.appointmentRate || 0).toFixed(0)}% appt rate`}
+          value={`${stats?.data?.kpis?.closeRate || 0}%`}
+          subtext={`${stats?.data?.activitySummary?.appointmentsSet || 0} appts set`}
           icon={<TrendingUp className="w-5 h-5" />}
           color="emerald"
         />
@@ -338,23 +375,23 @@ export function DashboardContent({
             </a>
           </div>
           
-          {stats?.recentActivity && stats.recentActivity.length > 0 ? (
+          {stats?.data?.recentActivities && stats.data.recentActivities.length > 0 ? (
             <div className="divide-y divide-gray-700/50">
-              {stats.recentActivity.slice(0, 8).map((activity) => (
+              {stats.data.recentActivities.slice(0, 8).map((activity) => (
                 <div key={activity.id} className="p-3 hover:bg-gray-700/30 transition-colors">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5">
-                      {getActivityIcon(activity.type)}
+                      {getActivityIcon(activity.activity_type)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-white">
-                        <span className="font-medium">{formatActivityType(activity.type)}</span>
-                        {activity.lead_name && (
-                          <span className="text-gray-400"> • {activity.lead_name}</span>
+                        <span className="font-medium">{formatActivityType(activity.activity_type)}</span>
+                        {activity.leads?.address && (
+                          <span className="text-gray-400"> • {activity.leads.address}</span>
                         )}
                       </p>
-                      {activity.notes && (
-                        <p className="text-gray-500 text-xs truncate mt-0.5">{activity.notes}</p>
+                      {activity.description && (
+                        <p className="text-gray-500 text-xs truncate mt-0.5">{activity.description}</p>
                       )}
                     </div>
                     <span className="text-gray-500 text-xs whitespace-nowrap">
@@ -386,27 +423,27 @@ export function DashboardContent({
           <div className="grid grid-cols-5 gap-2">
             <PipelineStage 
               label="New" 
-              count={stats?.leads.total || 0} 
+              count={stats?.data?.pipeline?.new || 0} 
               color="bg-gray-500" 
             />
             <PipelineStage 
               label="Contacted" 
-              count={0} 
+              count={stats?.data?.pipeline?.contacted || 0} 
               color="bg-blue-500" 
             />
             <PipelineStage 
               label="Appointment" 
-              count={stats?.appointments.total || 0} 
+              count={stats?.data?.pipeline?.appointment_set || 0} 
               color="bg-purple-500" 
             />
             <PipelineStage 
-              label="Estimate Sent" 
-              count={0} 
+              label="Inspected" 
+              count={stats?.data?.pipeline?.inspected || 0} 
               color="bg-yellow-500" 
             />
             <PipelineStage 
-              label="Closed Won" 
-              count={stats?.deals.total || 0} 
+              label="Closed" 
+              count={stats?.data?.pipeline?.closed || 0} 
               color="bg-green-500" 
             />
           </div>
