@@ -1,371 +1,472 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { PageHeader, StatCard, Card } from "@/components/dashboard";
-import { Button } from "@/components/dashboard/Button";
-import { hasFeature, type SubscriptionTier } from "@/lib/subscriptions/tiers";
+import React, { useEffect, useState } from 'react';
+import { User } from '@supabase/supabase-js';
+import { 
+  AlertTriangle, 
+  Users, 
+  Calendar, 
+  DollarSign, 
+  TrendingUp,
+  Phone,
+  MapPin,
+  Clock,
+  ChevronRight,
+  Zap,
+  Target,
+  CloudRain,
+  Plus,
+  Navigation
+} from 'lucide-react';
 
-interface DashboardContentProps {
-	user: {
-		email?: string | null;
-	};
-	subscriptionStatus: string;
-	subscriptionTier?: SubscriptionTier;
-	logoutAction: () => Promise<void>;
+interface DashboardStats {
+  leads: { total: number; hot: number; warm: number; cold: number };
+  appointments: { today: number; thisWeek: number; total: number };
+  deals: { closedThisMonth: number; closedThisWeek: number; total: number };
+  pipeline: { value: number; averageDealSize: number };
+  rates: { closeRate: number; appointmentRate: number };
+  recentActivity: Array<{
+    id: string;
+    type: string;
+    lead_name?: string;
+    notes?: string;
+    created_at: string;
+  }>;
 }
 
-const quickActions = [
-	{
-		title: "Objection Responses",
-		description: "AI-powered responses to homeowner objections.",
-		href: "/dashboard/objection",
-		feature: "objection_handler" as const,
-		tier: "Pro",
-		icon: (
-			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-				/>
-			</svg>
-		),
-	},
-	{
-		title: "Supplement Generator",
-		description: "Find missing Xactimate line items automatically.",
-		href: "/dashboard/supplements",
-		feature: "supplement_generator" as const,
-		tier: "Pro+",
-		icon: (
-			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-				/>
-			</svg>
-		),
-	},
-	{
-		title: "Negotiation Coach",
-		description: "Real-time guidance for adjuster negotiations.",
-		href: "/dashboard/negotiation",
-		feature: "negotiation_coach" as const,
-		tier: "Pro+",
-		icon: (
-			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
-				/>
-			</svg>
-		),
-	},
-	{
-		title: "Carrier Intelligence",
-		description: "Know how each insurance carrier operates.",
-		href: "/dashboard/carriers",
-		feature: "carrier_intelligence" as const,
-		tier: "Enterprise",
-		icon: (
-			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-				/>
-			</svg>
-		),
-	},
-	{
-		title: "Lead Generator",
-		description: "Search properties and find high-potential leads.",
-		href: "/dashboard/leads",
-		feature: "lead_generator" as const,
-		tier: "Enterprise",
-		icon: (
-			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-				/>
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-				/>
-			</svg>
-		),
-	},
-	{
-		title: "Live Roof Measurement AI",
-		description: "Instant satellite measurements for any address.",
-		href: "/dashboard/roof-measure",
-		feature: "roof_measurement" as const,
-		tier: "Pro+",
-		icon: (
-			<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-				/>
-			</svg>
-		),
-	},
-];
+interface Lead {
+  id: string;
+  name: string;
+  address: string;
+  score: number;
+  score_tier: string;
+  status: string;
+  phone?: string;
+  last_contact?: string;
+}
 
-export function DashboardContent({
-	user,
-	subscriptionStatus,
-	subscriptionTier = "free",
-	logoutAction,
+interface HailAlert {
+  city: string;
+  state: string;
+  size: number;
+  date: string;
+  distance_miles: number;
+}
+
+interface DashboardContentProps {
+  user: User;
+  subscriptionStatus: string;
+  subscriptionTier: 'free' | 'pro' | 'pro_plus';
+  logoutAction: () => Promise<void>;
+}
+
+export function DashboardContent({ 
+  user, 
+  subscriptionStatus, 
+  subscriptionTier, 
+  logoutAction 
 }: DashboardContentProps) {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [hotLeads, setHotLeads] = useState<Lead[]>([]);
+  const [hailAlerts, setHailAlerts] = useState<HailAlert[]>([]);
+  const [loading, setLoading] = useState(true);
 
-	const getTierDisplay = () => {
-		switch (subscriptionTier) {
-			case "enterprise":
-				return "Enterprise";
-			case "pro_plus":
-				return "Pro+";
-			case "pro":
-				return "Pro";
-			case "trial":
-				return "Trial";
-			default:
-				return "Free";
-		}
-	};
+  // Get user's first name from email or metadata
+  const userName = user.user_metadata?.full_name?.split(' ')[0] || 
+                   user.email?.split('@')[0] || 
+                   'there';
 
-	const getTierDescription = () => {
-		switch (subscriptionTier) {
-			case "enterprise":
-				return "All features unlocked";
-			case "pro_plus":
-				return "Advanced AI features";
-			case "pro":
-				return "Active plan";
-			case "trial":
-				return "7-day trial";
-			default:
-				return "Limited features";
-		}
-	};
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-	const getTierBadgeStyle = (tier: string) => {
-		switch (tier) {
-			case "Enterprise":
-				return "bg-emerald-500/20 text-emerald-400";
-			case "Pro+":
-				return "bg-amber-500/20 text-amber-400";
-			case "Pro":
-				return "bg-[#6D5CFF]/20 text-[#A78BFA]";
-			default:
-				return "bg-slate-700 text-slate-400";
-		}
-	};
+  const fetchDashboardData = async () => {
+    try {
+      const [statsRes, leadsRes] = await Promise.all([
+        fetch('/api/dashboard/stats'),
+        fetch('/api/leads?tier=hot&limit=5')
+      ]);
 
-	return (
-		<div className="mx-auto max-w-6xl space-y-8">
-			{/* Header */}
-			<PageHeader
-				kicker="Dashboard"
-				title={`Welcome back${user.email ? `, ${user.email.split("@")[0]}` : ""}`}
-				description="Your AI-powered insurance negotiation command center."
-				actions={
-					<form action={logoutAction}>
-						<Button type="submit" variant="secondary">
-							Sign Out
-						</Button>
-					</form>
-				}
-			/>
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
+      }
 
-			{/* Stats Grid */}
-			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-				<StatCard
-					title="Supplements Won"
-					value="12"
-					description="$47,500 recovered"
-					icon={
-						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={1.5}
-								d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						</svg>
-					}
-				/>
-				<StatCard
-					title="Negotiation Win Rate"
-					value="78%"
-					description="+12% vs last month"
-					icon={
-						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={1.5}
-								d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-							/>
-						</svg>
-					}
-				/>
-				<StatCard
-					title="Storm Alerts"
-					value="8"
-					description="3 active zones"
-					icon={
-						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={1.5}
-								d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
-							/>
-						</svg>
-					}
-				/>
-				<StatCard
-					title="Subscription"
-					value={getTierDisplay()}
-					description={getTierDescription()}
-					icon={
-						<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={1.5}
-								d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-							/>
-						</svg>
-					}
-				/>
-			</div>
+      if (leadsRes.ok) {
+        const leadsData = await leadsRes.json();
+        setHotLeads(leadsData.leads || []);
+      }
 
-			{/* Upgrade Banner (for non-enterprise users) */}
-			{subscriptionTier !== "enterprise" && (
-				<motion.div
-					initial={{ opacity: 0, y: 10 }}
-					animate={{ opacity: 1, y: 0 }}
-					className="relative overflow-hidden rounded-xl border border-[#6D5CFF]/30 bg-gradient-to-r from-[#6D5CFF]/10 via-[#111827] to-[#A78BFA]/10 p-6"
-				>
-					<div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-[#6D5CFF]/20 blur-[60px]" />
-					<div className="relative flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-						<div>
-							<h3 className="text-lg font-semibold text-white">
-								{subscriptionTier === "free" && "Unlock AI-Powered Insurance Tools"}
-								{subscriptionTier === "trial" && "Your Trial is Active"}
-								{subscriptionTier === "pro" && "Upgrade to Pro+ for More Power"}
-								{subscriptionTier === "pro_plus" && "Go Enterprise for Full Access"}
-							</h3>
-							<p className="mt-1 text-sm text-slate-400">
-								{subscriptionTier === "free" && "Get Objection AI, Supplement Generator, and Negotiation Coach."}
-								{subscriptionTier === "trial" && "Explore all Pro features before your trial ends."}
-								{subscriptionTier === "pro" && "Add Supplement Generation and AI Negotiation coaching."}
-								{subscriptionTier === "pro_plus" && "Lead Generator, Route Planner, and Roof Measurement AI."}
-							</p>
-						</div>
-						<Link href="/settings/billing">
-							<Button variant="primary" glow>
-								{subscriptionTier === "trial" ? "Choose a Plan" : "Upgrade Now"}
-							</Button>
-						</Link>
-					</div>
-				</motion.div>
-			)}
+      // Check for recent hail events (would need user's location)
+      // For now, we'll check if there are any hot leads (indicating storm activity)
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-			{/* Quick Actions */}
-			<div>
-				<h2 className="mb-4 text-lg font-semibold text-white">AI Tools</h2>
-				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-					{quickActions.map((action, index) => {
-						const hasAccess = hasFeature(subscriptionTier, action.feature);
-						return (
-							<motion.div
-								key={action.href}
-								initial={{ opacity: 0, y: 10 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: index * 0.05 }}
-							>
-								{hasAccess ? (
-									<Link href={action.href}>
-										<Card className="group h-full p-5 transition-all hover:border-[#6D5CFF]/50 hover:bg-[#6D5CFF]/5">
-											<div className="flex items-start gap-4">
-												<div className="rounded-lg bg-[#6D5CFF]/10 p-2.5 text-[#A78BFA] transition-colors group-hover:bg-[#6D5CFF]/20">
-													{action.icon}
-												</div>
-												<div className="flex-1">
-													<div className="flex items-center gap-2">
-														<h3 className="font-semibold text-white">{action.title}</h3>
-													</div>
-													<p className="mt-1 text-sm text-slate-400">
-														{action.description}
-													</p>
-												</div>
-											</div>
-										</Card>
-									</Link>
-								) : (
-									<Card className="h-full p-5 opacity-60">
-										<div className="flex items-start gap-4">
-											<div className="rounded-lg bg-slate-700/50 p-2.5 text-slate-500">
-												{action.icon}
-											</div>
-											<div className="flex-1">
-												<div className="flex items-center gap-2">
-													<h3 className="font-semibold text-slate-400">{action.title}</h3>
-													<span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${getTierBadgeStyle(action.tier)}`}>
-														{action.tier}
-													</span>
-												</div>
-												<p className="mt-1 text-sm text-slate-500">
-													{action.description}
-												</p>
-											</div>
-										</div>
-									</Card>
-								)}
-							</motion.div>
-						);
-					})}
-				</div>
-			</div>
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
 
-			{/* Recent Activity */}
-			<Card className="p-6">
-				<h2 className="mb-4 text-lg font-semibold text-white">Recent Activity</h2>
-				<div className="space-y-4">
-					{[
-						{ action: "Supplement approved", detail: "State Farm - $4,250 recovered", time: "2 hours ago", type: "success" },
-						{ action: "Storm alert detected", detail: "Hail event - 127 properties identified", time: "3 hours ago", type: "info" },
-						{ action: "Negotiation won", detail: "O&P approved by Allstate", time: "Yesterday", type: "success" },
-						{ action: "SMS response sent", detail: "Maria Garcia - Appointment booked", time: "Yesterday", type: "info" },
-					].map((item, i) => (
-						<div key={i} className="flex items-center gap-4 rounded-lg bg-slate-800/50 p-4">
-							<div className={`h-2 w-2 rounded-full ${item.type === "success" ? "bg-emerald-400" : "bg-[#6D5CFF]"}`} />
-							<div className="flex-1">
-								<p className="text-sm font-medium text-white">{item.action}</p>
-								<p className="text-xs text-slate-400">{item.detail}</p>
-							</div>
-							<span className="text-xs text-slate-500">{item.time}</span>
-						</div>
-					))}
-				</div>
-			</Card>
-		</div>
-	);
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(1)}M`;
+    }
+    if (value >= 1000) {
+      return `$${(value / 1000).toFixed(0)}K`;
+    }
+    return `$${value.toFixed(0)}`;
+  };
+
+  const formatActivityType = (type: string) => {
+    const types: Record<string, string> = {
+      door_knock: 'Door Knock',
+      phone_call: 'Phone Call',
+      appointment_set: 'Appointment Set',
+      inspection: 'Inspection',
+      estimate_sent: 'Estimate Sent',
+      deal_closed: 'Deal Closed'
+    };
+    return types[type] || type;
+  };
+
+  const getActivityIcon = (type: string) => {
+    const icons: Record<string, React.ReactNode> = {
+      door_knock: <MapPin className="w-4 h-4 text-blue-400" />,
+      phone_call: <Phone className="w-4 h-4 text-green-400" />,
+      appointment_set: <Calendar className="w-4 h-4 text-purple-400" />,
+      inspection: <Target className="w-4 h-4 text-orange-400" />,
+      estimate_sent: <DollarSign className="w-4 h-4 text-yellow-400" />,
+      deal_closed: <Zap className="w-4 h-4 text-emerald-400" />
+    };
+    return icons[type] || <Clock className="w-4 h-4 text-gray-400" />;
+  };
+
+  const getScoreColor = (tier: string) => {
+    switch (tier) {
+      case 'hot': return 'bg-red-500';
+      case 'warm': return 'bg-orange-500';
+      case 'moderate': return 'bg-yellow-500';
+      default: return 'bg-blue-500';
+    }
+  };
+
+  const timeAgo = (date: string) => {
+    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 pb-8">
+      {/* Storm Alert Banner - Only shows if recent hail nearby */}
+      {hailAlerts.length > 0 && (
+        <div className="bg-gradient-to-r from-red-600 to-orange-600 rounded-xl p-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 rounded-full p-2">
+              <CloudRain className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-white">🚨 Storm Alert</h3>
+              <p className="text-white/90 text-sm">
+                {hailAlerts[0].size}" hail reported {hailAlerts[0].distance_miles.toFixed(1)} miles away in {hailAlerts[0].city}
+              </p>
+            </div>
+            <button className="bg-white text-red-600 px-4 py-2 rounded-lg font-medium hover:bg-white/90 transition-colors">
+              View Leads
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Header with Greeting */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">
+            {getGreeting()}, {userName}!
+          </h1>
+          <p className="text-gray-400 mt-1">
+            {stats?.appointments.today || 0} appointments today • {hotLeads.length} hot leads ready
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => window.location.href = '/leads/new'}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Lead
+          </button>
+          <button 
+            onClick={() => window.location.href = '/route'}
+            className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Navigation className="w-4 h-4" />
+            Start Route
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <KPICard
+          label="Total Leads"
+          value={stats?.leads.total || 0}
+          subtext={`${stats?.leads.hot || 0} hot`}
+          icon={<Users className="w-5 h-5" />}
+          color="blue"
+        />
+        <KPICard
+          label="Appointments"
+          value={stats?.appointments.thisWeek || 0}
+          subtext="this week"
+          icon={<Calendar className="w-5 h-5" />}
+          color="purple"
+        />
+        <KPICard
+          label="Deals Closed"
+          value={stats?.deals.closedThisMonth || 0}
+          subtext="this month"
+          icon={<Zap className="w-5 h-5" />}
+          color="green"
+        />
+        <KPICard
+          label="Pipeline"
+          value={formatCurrency(stats?.pipeline.value || 0)}
+          subtext={`avg ${formatCurrency(stats?.pipeline.averageDealSize || 0)}`}
+          icon={<DollarSign className="w-5 h-5" />}
+          color="yellow"
+        />
+        <KPICard
+          label="Close Rate"
+          value={`${(stats?.rates.closeRate || 0).toFixed(0)}%`}
+          subtext={`${(stats?.rates.appointmentRate || 0).toFixed(0)}% appt rate`}
+          icon={<TrendingUp className="w-5 h-5" />}
+          color="emerald"
+        />
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Hot Leads - Left Column */}
+        <div className="lg:col-span-2 bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              <h2 className="font-semibold text-white">Hot Leads</h2>
+            </div>
+            <a href="/leads" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
+              View All <ChevronRight className="w-4 h-4" />
+            </a>
+          </div>
+          
+          {hotLeads.length > 0 ? (
+            <div className="divide-y divide-gray-700/50">
+              {hotLeads.map((lead) => (
+                <div 
+                  key={lead.id}
+                  className="p-4 hover:bg-gray-700/30 transition-colors cursor-pointer"
+                  onClick={() => window.location.href = `/leads/${lead.id}`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium text-white">{lead.name}</h3>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium text-white ${getScoreColor(lead.score_tier)}`}>
+                          {lead.score}
+                        </span>
+                      </div>
+                      <p className="text-gray-400 text-sm mt-0.5">{lead.address}</p>
+                      {lead.phone && (
+                        <p className="text-gray-500 text-sm mt-1">{lead.phone}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `tel:${lead.phone}`;
+                        }}
+                        className="p-2 bg-green-600/20 text-green-400 rounded-lg hover:bg-green-600/30 transition-colors"
+                      >
+                        <Phone className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(`https://maps.google.com?q=${encodeURIComponent(lead.address)}`, '_blank');
+                        }}
+                        className="p-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition-colors"
+                      >
+                        <MapPin className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400">No hot leads yet</p>
+              <p className="text-gray-500 text-sm mt-1">Import leads or sync storm data to get started</p>
+            </div>
+          )}
+        </div>
+
+        {/* Activity Feed - Right Column */}
+        <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
+            <h2 className="font-semibold text-white">Recent Activity</h2>
+            <a href="/activity" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
+              View All <ChevronRight className="w-4 h-4" />
+            </a>
+          </div>
+          
+          {stats?.recentActivity && stats.recentActivity.length > 0 ? (
+            <div className="divide-y divide-gray-700/50">
+              {stats.recentActivity.slice(0, 8).map((activity) => (
+                <div key={activity.id} className="p-3 hover:bg-gray-700/30 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      {getActivityIcon(activity.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white">
+                        <span className="font-medium">{formatActivityType(activity.type)}</span>
+                        {activity.lead_name && (
+                          <span className="text-gray-400"> • {activity.lead_name}</span>
+                        )}
+                      </p>
+                      {activity.notes && (
+                        <p className="text-gray-500 text-xs truncate mt-0.5">{activity.notes}</p>
+                      )}
+                    </div>
+                    <span className="text-gray-500 text-xs whitespace-nowrap">
+                      {timeAgo(activity.created_at)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <Clock className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400">No activity yet</p>
+              <p className="text-gray-500 text-sm mt-1">Start knocking doors to see your activity here</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Pipeline Overview */}
+      <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
+          <h2 className="font-semibold text-white">Pipeline Overview</h2>
+          <a href="/pipeline" className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
+            View Pipeline <ChevronRight className="w-4 h-4" />
+          </a>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-5 gap-2">
+            <PipelineStage 
+              label="New" 
+              count={stats?.leads.total || 0} 
+              color="bg-gray-500" 
+            />
+            <PipelineStage 
+              label="Contacted" 
+              count={0} 
+              color="bg-blue-500" 
+            />
+            <PipelineStage 
+              label="Appointment" 
+              count={stats?.appointments.total || 0} 
+              color="bg-purple-500" 
+            />
+            <PipelineStage 
+              label="Estimate Sent" 
+              count={0} 
+              color="bg-yellow-500" 
+            />
+            <PipelineStage 
+              label="Closed Won" 
+              count={stats?.deals.total || 0} 
+              color="bg-green-500" 
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// KPI Card Component
+function KPICard({ 
+  label, 
+  value, 
+  subtext, 
+  icon, 
+  color 
+}: { 
+  label: string; 
+  value: string | number; 
+  subtext: string; 
+  icon: React.ReactNode; 
+  color: 'blue' | 'purple' | 'green' | 'yellow' | 'emerald';
+}) {
+  const colors = {
+    blue: 'from-blue-600 to-blue-700',
+    purple: 'from-purple-600 to-purple-700',
+    green: 'from-green-600 to-green-700',
+    yellow: 'from-yellow-600 to-yellow-700',
+    emerald: 'from-emerald-600 to-emerald-700'
+  };
+
+  return (
+    <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 hover:border-gray-600/50 transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-gray-400 text-sm">{label}</span>
+        <div className={`p-1.5 rounded-lg bg-gradient-to-br ${colors[color]} text-white`}>
+          {icon}
+        </div>
+      </div>
+      <p className="text-2xl font-bold text-white">{value}</p>
+      <p className="text-gray-500 text-sm">{subtext}</p>
+    </div>
+  );
+}
+
+// Pipeline Stage Component
+function PipelineStage({ 
+  label, 
+  count, 
+  color 
+}: { 
+  label: string; 
+  count: number; 
+  color: string;
+}) {
+  return (
+    <div className="text-center">
+      <div className={`${color} h-2 rounded-full mb-2`}></div>
+      <p className="text-white font-semibold">{count}</p>
+      <p className="text-gray-500 text-xs">{label}</p>
+    </div>
+  );
 }
