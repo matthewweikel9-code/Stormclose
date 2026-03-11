@@ -162,8 +162,31 @@ export async function GET(request: NextRequest) {
     const properties = data?.property || [];
     console.log("[ATTOM Nearby] Found", properties.length, "properties");
 
+    // Filter to residential properties only (propIndicator: 10=SFR, 11=Condo, 22=Duplex/Multi)
+    const residentialIndicators = [10, 11, 22];
+    const residentialProperties = properties.filter((prop: any) => {
+      const indicator = prop.summary?.propIndicator || prop.summary?.propindicator;
+      const propType = (prop.summary?.propType || prop.summary?.proptype || "").toLowerCase();
+      const address = prop.address?.line1 || prop.address?.oneLine || "";
+      
+      // Must have an actual street address
+      if (!address || address.length < 5) return false;
+      
+      // Filter by property indicator if available
+      if (indicator !== undefined && indicator !== null) {
+        return residentialIndicators.includes(Number(indicator));
+      }
+      
+      // Fallback: filter by property type string
+      return propType.includes("sfr") || propType.includes("single") || 
+             propType.includes("condo") || propType.includes("town") || 
+             propType.includes("residential") || propType.includes("duplex");
+    });
+
+    console.log("[ATTOM Nearby] After residential filter:", residentialProperties.length, "properties");
+
     // Format properties as leads
-    let leads = properties.map((prop: any) => formatPropertyToLead(prop, lat, lng));
+    let leads = residentialProperties.map((prop: any) => formatPropertyToLead(prop, lat, lng));
     
     // Filter by minimum score
     if (minScore > 0) {

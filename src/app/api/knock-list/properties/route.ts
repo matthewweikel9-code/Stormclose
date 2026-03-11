@@ -58,9 +58,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // If no ATTOM data, generate fallback properties
+    // If no ATTOM data, return empty result
     if (properties.length === 0) {
-      properties = generatePropertiesInRadius(lat, lng, radius, 50, stormData);
+      return NextResponse.json({ 
+        properties: [],
+        source: "none",
+        stormData,
+        location: { lat, lng, radius },
+        message: ATTOM_API_KEY 
+          ? "No residential properties found in this area. Try a different location or larger radius."
+          : "Property data requires ATTOM API key. Contact your administrator.",
+      });
     }
 
     return NextResponse.json({ 
@@ -149,60 +157,6 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
-}
-
-// Generate fallback properties when ATTOM is not available
-function generatePropertiesInRadius(
-  centerLat: number,
-  centerLng: number,
-  radius: number,
-  count: number,
-  stormData: any
-): KnockListProperty[] {
-  const properties: KnockListProperty[] = [];
-  const streets = ["Oak", "Maple", "Cedar", "Pine", "Elm", "Main", "Park", "Lake", "Ridge", "Valley"];
-  const types = ["St", "Ave", "Dr", "Blvd", "Ln", "Way"];
-  const firstNames = ["John", "Jane", "Robert", "Mary", "David", "Sarah", "Michael", "Lisa"];
-  const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis"];
-
-  for (let i = 0; i < count; i++) {
-    const angle = Math.random() * 2 * Math.PI;
-    const distance = Math.sqrt(Math.random()) * radius;
-    
-    const latOffset = (distance * Math.cos(angle)) / 69;
-    const lngOffset = (distance * Math.sin(angle)) / 54;
-
-    const seed = Date.now() + i;
-    const roofAge = Math.round(5 + Math.random() * 25);
-    const roofSize = Math.round(15 + Math.random() * 40);
-    
-    const baseScore = stormData ? 50 + Math.min(40, stormData.hailEvents * 10) : 40;
-    const ageBonus = Math.min(30, roofAge * 1.5);
-    const damageScore = Math.min(100, Math.round(baseScore + ageBonus + Math.random() * 10));
-
-    const stormSeverity = stormData 
-      ? Math.min(100, Math.round(50 + (stormData.maxHailSize || 0) * 20))
-      : Math.round(30 + Math.random() * 40);
-
-    properties.push({
-      id: `prop-${seed}`,
-      address: `${1000 + (seed % 9000)} ${streets[seed % streets.length]} ${types[seed % types.length]}, Your City`,
-      lat: centerLat + latOffset,
-      lng: centerLng + lngOffset,
-      damageScore,
-      roofAge,
-      roofSize,
-      propertyValue: Math.round(150000 + Math.random() * 850000),
-      stormSeverity,
-      estimatedJobValue: Math.round(roofSize * 400 + damageScore * 50),
-      distance: Math.round(distance * 10) / 10,
-      selected: false,
-      ownerName: `${firstNames[seed % firstNames.length]} ${lastNames[(seed >> 4) % lastNames.length]}`,
-      yearBuilt: 1980 + (seed % 44),
-    });
-  }
-
-  return properties.sort((a, b) => b.damageScore - a.damageScore);
 }
 
 // POST - Save a knock list

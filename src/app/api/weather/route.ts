@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getActiveAlerts } from '@/lib/xweather';
 
-const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
+const XWEATHER_CLIENT_ID = process.env.XWEATHER_CLIENT_ID;
+const XWEATHER_CLIENT_SECRET = process.env.XWEATHER_CLIENT_SECRET;
+const XWEATHER_BASE_URL = "https://data.api.xweather.com";
 
 interface WeatherData {
   temperature: number;
@@ -95,14 +98,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Fetch fresh weather data
+    // Fetch fresh weather data from Xweather
     const weather = await fetchWeatherData(latitude, longitude);
 
     if (!weather) {
-      // Return error if weather API is unavailable
       return NextResponse.json({
         error: 'Weather data unavailable',
-        message: 'Could not fetch weather data. Please check your API key configuration.',
+        message: 'Could not fetch weather data. Please check your Xweather API credentials.',
         weather: null,
         routing_recommendations: null,
         cached: false,
@@ -141,67 +143,82 @@ export async function GET(request: NextRequest) {
 }
 
 async function fetchWeatherData(lat: number, lng: number): Promise<WeatherData | null> {
-  if (!OPENWEATHER_API_KEY) {
-    console.log('OpenWeather API key not configured');
+  if (!XWEATHER_CLIENT_ID || !XWEATHER_CLIENT_SECRET) {
+    console.log('Xweather API credentials not configured');
     return null;
   }
 
   try {
-    // Get current weather and forecast
-    const [currentRes, forecastRes] = await Promise.all([
-      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${OPENWEATHER_API_KEY}&units=imperial`),
-      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${OPENWEATHER_API_KEY}&units=imperial`),
+    const authParams = `client_id=${XWEATHER_CLIENT_ID}&client_secret=${XWEATHER_CLIENT_SECRET}`;
+
+    // Fetch current conditions, hourly forecast, and alerts in parallel
+    const [conditionsRes, forecastRes, alerts] = await Promise.all([
+      fetch(`${XWEATHER_BASE_URL}/conditions/${lat},${lng}?${authParams}`),
+      fetch(`${XWEATHER_BASE_URL}/forecasts/${lat},${lng}?filter=1hr&limit=12&${authParams}`),
+      getActiveAlerts(lat, lng).catch(() => []),
     ]);
 
-    if (!currentRes.ok || !forecastRes.ok) {
+    if (!conditionsRes.ok || !forecastRes.ok) {
+      console.error('Xweather API error:', conditionsRes.status, forecastRes.status);
       return null;
     }
 
-    const current = await currentRes.json();
-    const forecast = await forecastRes.json();
+    const conditionsData = await conditionsRes.json();
+    const forecastData = await forecastRes.json();
 
-    // Parse hourly forecast (next 12 hours)
-    const hourlyForecast: HourlyForecast[] = forecast.list.slice(0, 4).map((item: any) => ({
-      time: item.dt_txt,
-      hour: new Date(item.dt * 1000).getHours(),
-      temperature: Math.round(item.main.temp),
-      conditions: item.weather[0]?.main || 'Clear',
-      icon: item.weather[0]?.icon || '01d',
-      precipitation_chance: Math.round((item.pop || 0) * 100),
-      wind_speed: Math.round(item.wind?.speed || 0),
+    if (!conditionsData.success || !conditionsData.response?.length) {
+      console.error('Xweather conditions: no data returned');
+      return null;
+    }
+
+    const current = conditionsData.response[0].periods[0];
+    const forecastPeriods = forecastData.success ? (forecastData.response?.[0]?.periods || []) : [];
+
+    // Parse hourly forecast
+    const hourlyForecast: HourlyForecast[] = forecastPeriods.slice(0, 8).map((period: any) => ({
+      time: period.dateTimeISO,
+      hour: new Date(period.dateTimeISO).getHours(),
+      temperature: Math.round(period.tempF ?? period.avgTempF ?? 0),
+      conditions: period.weatherPrimary || period.weather || 'Clear',
+      icon: period.icon || 'clear.png',
+      precipitation_chance: period.pop || 0,
+      wind_speed: Math.round(period.windSpeedMPH || 0),
     }));
 
-    // Get wind direction as compass
-    const windDeg = current.wind?.deg || 0;
-    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    const windDirection = directions[Math.round(windDeg / 45) % 8];
+    // Determine precipitation type from weather coded string
+    const weatherCoded = current.weatherPrimaryCoded || '';
+    let precipType: string | null = null;
+    if (weatherCoded.includes('T')) precipType = 'thunderstorm';
+    else if (weatherCoded.includes('R') || weatherCoded.includes('L')) precipType = 'rain';
+    else if (weatherCoded.includes('S') || weatherCoded.includes('BS')) precipType = 'snow';
+    else if (weatherCoded.includes('ZR') || weatherCoded.includes('IP')) precipType = 'ice';
+
+    // Format alerts
+    const formattedAlerts: WeatherAlert[] = alerts.map((a: any) => ({
+      event: a.details?.type || a.details?.name || 'Weather Alert',
+      headline: a.details?.body?.split('\n')[0] || a.details?.name || '',
+      severity: a.details?.emergency ? 'extreme' : a.details?.significance === 'W' ? 'severe' : 'moderate',
+      start: a.timestamps?.beginsISO || '',
+      end: a.timestamps?.expiresISO || '',
+    }));
 
     return {
-      temperature: Math.round(current.main?.temp || 0),
-      feels_like: Math.round(current.main?.feels_like || 0),
-      humidity: current.main?.humidity || 0,
-      wind_speed: Math.round(current.wind?.speed || 0),
-      wind_direction: windDirection,
-      conditions: current.weather[0]?.main || 'Clear',
-      conditions_icon: current.weather[0]?.icon || '01d',
-      precipitation_chance: Math.round((forecast.list[0]?.pop || 0) * 100),
-      precipitation_type: getPrecipitationType(current.weather[0]?.id),
+      temperature: Math.round(current.tempF || 0),
+      feels_like: Math.round(current.feelslikeF || 0),
+      humidity: current.humidity || 0,
+      wind_speed: Math.round(current.windSpeedMPH || 0),
+      wind_direction: current.windDir || 'N',
+      conditions: current.weatherPrimary || current.weather || 'Clear',
+      conditions_icon: current.icon || 'clear.png',
+      precipitation_chance: current.pop || forecastPeriods[0]?.pop || 0,
+      precipitation_type: precipType,
       hourly_forecast: hourlyForecast,
-      alerts: [], // Would need separate alerts API call
+      alerts: formattedAlerts,
     };
   } catch (error) {
-    console.error('Error fetching weather:', error);
+    console.error('Error fetching weather from Xweather:', error);
     return null;
   }
-}
-
-function getPrecipitationType(weatherId: number): string | null {
-  if (!weatherId) return null;
-  if (weatherId >= 200 && weatherId < 300) return 'thunderstorm';
-  if (weatherId >= 300 && weatherId < 400) return 'drizzle';
-  if (weatherId >= 500 && weatherId < 600) return 'rain';
-  if (weatherId >= 600 && weatherId < 700) return 'snow';
-  return null;
 }
 
 function generateRoutingRecommendations(weather: any): {

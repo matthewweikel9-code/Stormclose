@@ -86,14 +86,25 @@ export async function GET(request: NextRequest) {
       console.log("Xweather storm data not available");
     }
 
-    // Format response - combine ATTOM data with calculated fields
-    const propertyData = attomProperty 
-      ? formatATTOMProperty(attomProperty, stormExposure)
-      : generateFallbackProperty(address || `${coords.lat}, ${coords.lng}`, coords, stormExposure);
+    // Format response - ATTOM data only
+    if (!attomProperty) {
+      return NextResponse.json({
+        error: "Property not found",
+        message: ATTOM_API_KEY
+          ? "No property found at this location. Try a different address or coordinates."
+          : "Property data requires ATTOM API key. Contact your administrator.",
+        address: address || `${coords.lat}, ${coords.lng}`,
+        lat: coords.lat,
+        lng: coords.lng,
+        source: "none",
+      }, { status: 404 });
+    }
+
+    const propertyData = formatATTOMProperty(attomProperty, stormExposure);
 
     return NextResponse.json({
       ...propertyData,
-      source: attomProperty ? "attom" : "generated",
+      source: "attom",
     });
   } catch (error) {
     console.error("Error looking up property:", error);
@@ -211,69 +222,4 @@ function formatATTOMProperty(property: ATTOMProperty, stormExposure: any) {
   };
 }
 
-// Generate fallback property data when ATTOM is not available
-function generateFallbackProperty(address: string, coords: { lat: number; lng: number }, stormExposure: any) {
-  const hash = address.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
-  const seed = Math.abs(hash);
-
-  const yearBuilt = 1980 + (seed % 44);
-  const roofAge = 2026 - yearBuilt > 25 ? (seed % 15) + 5 : 2026 - yearBuilt;
-  const propertyValue = 150000 + (seed % 850000);
-  const squareFootage = 1200 + (seed % 3800);
-  
-  const conditionIndex = roofAge < 10 ? 0 : roofAge < 15 ? 1 : roofAge < 20 ? 2 : 3;
-  const conditions: ("excellent" | "good" | "fair" | "poor")[] = ["excellent", "good", "fair", "poor"];
-  
-  const firstNames = ["John", "Jane", "Robert", "Mary", "David", "Sarah", "Michael", "Lisa"];
-  const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis"];
-
-  return {
-    address,
-    lat: coords.lat,
-    lng: coords.lng,
-    owner: {
-      name: `${firstNames[seed % firstNames.length]} ${lastNames[(seed >> 4) % lastNames.length]}`,
-      mailingAddress: address,
-    },
-    property: {
-      value: propertyValue,
-      yearBuilt,
-      squareFootage,
-      lotSize: squareFootage * 2 + (seed % 5000),
-      buildingType: "Single Family",
-      bedrooms: 2 + (seed % 5),
-      bathrooms: 1 + (seed % 4),
-    },
-    roof: {
-      type: ["Gable", "Hip", "Flat"][seed % 3],
-      material: "Asphalt Shingle",
-      age: roofAge,
-      complexity: roofAge > 20 ? "complex" : "moderate",
-      condition: conditions[conditionIndex],
-      squareFootage: Math.round(squareFootage * 1.15),
-      pitch: 4 + (seed % 9),
-    },
-    parcel: {
-      id: `GEN-${(seed % 100000).toString().padStart(6, "0")}`,
-    },
-    claimEstimate: {
-      roofReplacement: Math.round(squareFootage * 8.5),
-      siding: Math.round(squareFootage * 0.4 * 6),
-      gutters: Math.round(Math.sqrt(squareFootage) * 4 * 12),
-      total: Math.round(squareFootage * 8.5 + squareFootage * 0.4 * 6 + Math.sqrt(squareFootage) * 4 * 12),
-      confidence: "low" as const,
-    },
-    stormExposure: stormExposure || {
-      hailEvents: 1 + (seed % 5),
-      maxHailSize: 0.75 + (seed % 200) / 100,
-      windEvents: 2 + (seed % 6),
-      maxWindSpeed: 45 + (seed % 40),
-      lastStormDate: new Date(Date.now() - (seed % 365) * 86400000).toISOString().split("T")[0],
-    },
-    neighborhood: {
-      avgHomeValue: Math.round(propertyValue * (0.9 + (seed % 20) / 100)),
-      avgRoofAge: 10 + (seed % 15),
-      claimLikelihood: 40 + (seed % 50),
-    },
-  };
-}
+// end of file
