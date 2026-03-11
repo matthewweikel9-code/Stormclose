@@ -20,6 +20,8 @@ import {
   ClipboardDocumentListIcon,
   SparklesIcon,
   CloudIcon,
+  ArrowUpTrayIcon,
+  LinkIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon, SparklesIcon as SparklesSolid } from '@heroicons/react/24/solid';
 
@@ -95,11 +97,60 @@ export default function LeadsPage() {
   const [copilotLoading, setCopilotLoading] = useState(false);
   const [copilotData, setCopilotData] = useState<any>(null);
   const [showCopilot, setShowCopilot] = useState(false);
+  
+  // JobNimbus Integration States
+  const [jnConnected, setJnConnected] = useState(false);
+  const [exportingLeads, setExportingLeads] = useState<Set<string>>(new Set());
+  const [exportedLeads, setExportedLeads] = useState<Set<string>>(new Set());
 
   // Fetch saved leads on mount
   useEffect(() => {
     fetchSavedLeads();
+    checkJobNimbusConnection();
   }, []);
+
+  const checkJobNimbusConnection = async () => {
+    try {
+      const res = await fetch('/api/integrations/jobnimbus/connect');
+      if (res.ok) {
+        const data = await res.json();
+        setJnConnected(data.connected);
+      }
+    } catch (err) {
+      console.error('Error checking JN connection:', err);
+    }
+  };
+
+  const exportToJobNimbus = async (lead: SavedLead) => {
+    if (exportingLeads.has(lead.id) || exportedLeads.has(lead.id)) return;
+    
+    setExportingLeads(prev => new Set(prev).add(lead.id));
+    
+    try {
+      const res = await fetch('/api/integrations/jobnimbus/export-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: lead.id }),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        setExportedLeads(prev => new Set(prev).add(lead.id));
+      } else {
+        console.error('Export failed:', data.error);
+        // Show error toast or message
+      }
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExportingLeads(prev => {
+        const next = new Set(prev);
+        next.delete(lead.id);
+        return next;
+      });
+    }
+  };
 
   const fetchSavedLeads = async () => {
     setLoadingSaved(true);
@@ -624,6 +675,44 @@ export default function LeadsPage() {
                             </>
                           )}
                         </button>
+                        
+                        {/* Export to JobNimbus Button */}
+                        {jnConnected ? (
+                          <button
+                            onClick={() => exportToJobNimbus(lead)}
+                            disabled={exportingLeads.has(lead.id) || exportedLeads.has(lead.id)}
+                            className={`w-full py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+                              exportedLeads.has(lead.id)
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50'
+                            } disabled:opacity-50`}
+                          >
+                            {exportingLeads.has(lead.id) ? (
+                              <>
+                                <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                                Exporting...
+                              </>
+                            ) : exportedLeads.has(lead.id) ? (
+                              <>
+                                <CheckIcon className="h-4 w-4" />
+                                Exported to JN
+                              </>
+                            ) : (
+                              <>
+                                <ArrowUpTrayIcon className="h-4 w-4" />
+                                Export to JobNimbus
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <a
+                            href="/settings/integrations"
+                            className="w-full py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-700/30 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50"
+                          >
+                            <LinkIcon className="h-4 w-4" />
+                            Connect JobNimbus
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>

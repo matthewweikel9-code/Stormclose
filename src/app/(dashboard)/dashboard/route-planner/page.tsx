@@ -1,10 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { PageHeader, Card } from "@/components/dashboard";
 import { Button } from "@/components/dashboard/Button";
 import { useRouter } from "next/navigation";
+import { Cloud, Sun, CloudRain, Wind, Thermometer, Clock, AlertTriangle, CheckCircle } from "lucide-react";
+
+interface WeatherData {
+	temperature: number;
+	feels_like: number;
+	humidity: number;
+	wind_speed: number;
+	wind_direction: string;
+	conditions: string;
+	conditions_icon: string;
+	precipitation_chance: number;
+	hourly_forecast: Array<{
+		hour: number;
+		temperature: number;
+		conditions: string;
+		precipitation_chance: number;
+	}>;
+}
+
+interface RoutingRecommendations {
+	can_canvas: boolean;
+	optimal_hours: number[];
+	warnings: string[];
+	tips: string[];
+}
 
 interface Property {
 	id: string;
@@ -42,6 +67,46 @@ export default function RoutePlannerPage() {
 	const [isOptimized, setIsOptimized] = useState(false);
 	const [startingPoint, setStartingPoint] = useState("");
 	const [error, setError] = useState<string | null>(null);
+	const [weather, setWeather] = useState<WeatherData | null>(null);
+	const [routingRecs, setRoutingRecs] = useState<RoutingRecommendations | null>(null);
+	const [weatherLoading, setWeatherLoading] = useState(true);
+
+	// Fetch weather data
+	const fetchWeather = useCallback(async (lat?: number, lng?: number) => {
+		try {
+			setWeatherLoading(true);
+			const url = lat && lng 
+				? `/api/weather?lat=${lat}&lng=${lng}`
+				: '/api/weather';
+			const res = await fetch(url);
+			if (res.ok) {
+				const data = await res.json();
+				setWeather(data.weather);
+				setRoutingRecs(data.routing_recommendations);
+			}
+		} catch (error) {
+			console.error('Error fetching weather:', error);
+		} finally {
+			setWeatherLoading(false);
+		}
+	}, []);
+
+	// Get user location and fetch weather
+	useEffect(() => {
+		if (navigator.geolocation) {
+			navigator.geolocation.getCurrentPosition(
+				(position) => {
+					fetchWeather(position.coords.latitude, position.coords.longitude);
+				},
+				() => {
+					// Fallback without location
+					fetchWeather();
+				}
+			);
+		} else {
+			fetchWeather();
+		}
+	}, [fetchWeather]);
 
 	// Load properties from localStorage on mount (from Lead Generator)
 	useEffect(() => {
@@ -189,8 +254,102 @@ export default function RoutePlannerPage() {
 		<div className="space-y-6">
 			<PageHeader
 				title="Route Planner"
-				description="Optimize your door-to-door route for maximum efficiency"
+				description="Weather-aware routing for maximum efficiency"
 			/>
+
+			{/* Weather Banner */}
+			{weather && (
+				<Card className={`p-4 border ${
+					routingRecs?.can_canvas 
+						? 'bg-gradient-to-r from-emerald-500/10 to-green-500/10 border-emerald-500/30' 
+						: 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30'
+				}`}>
+					<div className="flex flex-col md:flex-row md:items-center gap-4">
+						{/* Current Weather */}
+						<div className="flex items-center gap-4">
+							<div className="text-4xl">
+								{weather.conditions?.toLowerCase().includes('rain') ? '🌧️' : 
+								 weather.conditions?.toLowerCase().includes('cloud') ? '☁️' : 
+								 weather.conditions?.toLowerCase().includes('snow') ? '❄️' : '☀️'}
+							</div>
+							<div>
+								<div className="flex items-center gap-2">
+									<span className="text-2xl font-bold text-white">{weather.temperature}°F</span>
+									<span className="text-slate-400">| Feels like {weather.feels_like}°F</span>
+								</div>
+								<div className="flex items-center gap-4 text-sm text-slate-400 mt-1">
+									<span className="flex items-center gap-1">
+										<Wind className="h-4 w-4" />
+										{weather.wind_speed} mph {weather.wind_direction}
+									</span>
+									<span className="flex items-center gap-1">
+										<CloudRain className="h-4 w-4" />
+										{weather.precipitation_chance}% rain
+									</span>
+								</div>
+							</div>
+						</div>
+
+						{/* Divider */}
+						<div className="hidden md:block w-px h-12 bg-slate-700" />
+
+						{/* Routing Recommendations */}
+						<div className="flex-1">
+							{routingRecs?.can_canvas ? (
+								<div className="flex items-start gap-2">
+									<CheckCircle className="h-5 w-5 text-emerald-400 mt-0.5 shrink-0" />
+									<div>
+										<p className="font-medium text-emerald-400">Great conditions for canvassing!</p>
+										{routingRecs.optimal_hours.length > 0 && (
+											<p className="text-sm text-slate-400">
+												Optimal hours: {routingRecs.optimal_hours.map(h => 
+													h > 12 ? `${h-12}pm` : h === 12 ? '12pm' : `${h}am`
+												).join(', ')}
+											</p>
+										)}
+									</div>
+								</div>
+							) : (
+								<div className="flex items-start gap-2">
+									<AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
+									<div>
+										<p className="font-medium text-amber-400">Weather Advisory</p>
+										<p className="text-sm text-slate-400">
+											{routingRecs?.warnings[0] || 'Check conditions before heading out'}
+										</p>
+									</div>
+								</div>
+							)}
+						</div>
+
+						{/* Hourly Preview */}
+						<div className="flex gap-2">
+							{weather.hourly_forecast?.slice(0, 4).map((hour, i) => (
+								<div key={i} className="text-center px-3 py-2 bg-slate-800/50 rounded-lg">
+									<p className="text-xs text-slate-400">
+										{hour.hour > 12 ? `${hour.hour-12}pm` : hour.hour === 12 ? '12pm' : `${hour.hour}am`}
+									</p>
+									<p className="text-sm font-medium text-white">{hour.temperature}°</p>
+									<p className="text-xs text-slate-500">{hour.precipitation_chance}%</p>
+								</div>
+							))}
+						</div>
+					</div>
+
+					{/* Tips */}
+					{routingRecs?.tips && routingRecs.tips.length > 0 && (
+						<div className="mt-3 pt-3 border-t border-slate-700/50">
+							<div className="flex flex-wrap gap-2">
+								{routingRecs.tips.map((tip, i) => (
+									<span key={i} className="px-2 py-1 bg-slate-800/50 rounded text-xs text-slate-300">
+										💡 {tip}
+									</span>
+								))}
+							</div>
+						</div>
+					)}
+				</Card>
+			)}
 
 			{/* Route Summary */}
 			<Card className="p-6 bg-gradient-to-br from-[#6D5CFF]/10 to-transparent border-[#6D5CFF]/30">
