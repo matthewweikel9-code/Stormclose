@@ -29,60 +29,6 @@ const dashboardItem: NavItem = {
 	),
 };
 
-// Field Tools - Lead finding, routing, storm tracking
-const fieldTools: NavItem[] = [
-	{
-		label: "Lead Finder",
-		href: "/dashboard/leads",
-		badge: "AI",
-		icon: (
-			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-				/>
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-				/>
-			</svg>
-		),
-	},
-	{
-		label: "Route Planner",
-		href: "/dashboard/route-planner",
-		icon: (
-			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-				/>
-			</svg>
-		),
-	},
-	{
-		label: "Storm Command",
-		href: "/dashboard/territories",
-		badge: "🔴 LIVE",
-		icon: (
-			<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
-				/>
-			</svg>
-		),
-	},
-];
-
 // Storm Intelligence Tools - NEW FEATURES
 const stormIntelligence: NavItem[] = [
 	{
@@ -485,59 +431,8 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 					)}
 				</Link>
 
-				{/* Field Tools Section */}
+				{/* Storm Intelligence Section */}
 				<p className="mb-2 mt-4 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-					🎯 Field Tools
-				</p>
-				{fieldTools.map((item) => {
-					const isActive = pathname === item.href;
-					const hasAccess = !item.feature || hasFeature(subscriptionTier, item.feature);
-					
-					if (!hasAccess) {
-						return (
-							<div
-								key={item.href}
-								className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 cursor-not-allowed"
-							>
-								<span className="text-slate-600">{item.icon}</span>
-								<span className="flex-1">{item.label}</span>
-								{item.badge && (
-									<span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${getBadgeStyle(item.badge)}`}>
-										{item.badge}
-									</span>
-								)}
-							</div>
-						);
-					}
-					
-					return (
-						<Link
-							key={item.href}
-							href={item.href}
-							className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
-								isActive
-									? "bg-[#6D5CFF]/10 text-[#A78BFA]"
-									: "text-slate-400 hover:bg-[#1E293B] hover:text-white"
-							}`}
-						>
-							<span className={isActive ? "text-[#A78BFA]" : "text-slate-500"}>
-								{item.icon}
-							</span>
-							<span className="flex-1">{item.label}</span>
-							{item.badge && (
-								<span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${getBadgeStyle(item.badge)}`}>
-									{item.badge}
-								</span>
-							)}
-							{isActive && !item.badge && (
-								<span className="h-2 w-2 rounded-full bg-[#6D5CFF]" />
-							)}
-						</Link>
-					);
-				})}
-
-				{/* Storm Intelligence Section - NEW */}
-				<p className="mb-2 mt-6 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
 					⛈️ Storm Intelligence
 				</p>
 				{stormIntelligence.map((item) => {
