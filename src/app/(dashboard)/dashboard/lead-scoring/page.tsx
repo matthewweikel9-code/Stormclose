@@ -388,10 +388,17 @@ export default function AILeadScoringPage() {
 
                     {/* Actions */}
                     <div className="flex flex-col gap-2">
-                      <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">
+                      <button onClick={() => {
+                        const routeList = JSON.parse(localStorage.getItem("routeList") || "[]");
+                        routeList.push({ address: lead.address, lat: lead.lat, lng: lead.lng, damageScore: lead.damageScore });
+                        localStorage.setItem("routeList", JSON.stringify(routeList));
+                        alert(`Added ${lead.address} to route list!`);
+                      }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">
                         Add to List
                       </button>
-                      <button className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm font-medium transition-colors">
+                      <button onClick={() => {
+                        window.open(`/dashboard/property-lookup?address=${encodeURIComponent(lead.address)}`, "_self");
+                      }} className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm font-medium transition-colors">
                         View Details
                       </button>
                     </div>
@@ -443,10 +450,10 @@ export default function AILeadScoringPage() {
                   </div>
 
                   <div className="mt-4 flex gap-2">
-                    <button className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">
+                    <button onClick={() => window.open("/dashboard/knock-list", "_self")} className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">
                       Generate Knock List
                     </button>
-                    <button className="px-3 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm font-medium transition-colors">
+                    <button onClick={() => window.open("/dashboard/storm-map", "_self")} className="px-3 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm font-medium transition-colors">
                       View Map
                     </button>
                   </div>
@@ -496,7 +503,12 @@ export default function AILeadScoringPage() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className={`font-bold ${getScoreColor(lead.damageScore)}`}>{lead.damageScore}</div>
-                          <button className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-sm">
+                          <button onClick={() => {
+                            const routeList = JSON.parse(localStorage.getItem("routeList") || "[]");
+                            routeList.push({ address: lead.address, lat: lead.lat, lng: lead.lng });
+                            localStorage.setItem("routeList", JSON.stringify(routeList));
+                            alert(`Added ${lead.address} to route list!`);
+                          }} className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-sm">
                             Add
                           </button>
                         </div>

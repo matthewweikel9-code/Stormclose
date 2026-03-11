@@ -540,7 +540,14 @@ export default function StormMapPage() {
                   </div>
                 )}
                 <div className="pt-3 border-t border-zinc-700">
-                  <button className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-medium transition-colors">
+                  <button onClick={() => {
+                    if (selectedStorm) {
+                      const params = new URLSearchParams();
+                      if (selectedStorm.lat) params.set("lat", String(selectedStorm.lat));
+                      if (selectedStorm.lng) params.set("lng", String(selectedStorm.lng));
+                      window.open(`/dashboard/knock-list?${params.toString()}`, "_self");
+                    }
+                  }} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-medium transition-colors">
                     Generate Knock List for This Storm
                   </button>
                 </div>

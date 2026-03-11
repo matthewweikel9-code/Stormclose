@@ -578,10 +578,16 @@ export default function KnockListPage() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold">Knock List Map</h3>
             <div className="flex gap-2">
-              <button className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm flex items-center gap-2">
+              <button onClick={() => {
+                const addresses = knockList.slice(0, 10).map(p => encodeURIComponent(p.address)).join("/");
+                window.open(`https://www.google.com/maps/dir/${addresses}`, "_blank");
+              }} className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm flex items-center gap-2">
                 <span>🗺️</span> Open in Google Maps
               </button>
-              <button className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm flex items-center gap-2">
+              <button onClick={() => {
+                const dest = knockList.length > 0 ? encodeURIComponent(knockList[0].address) : "";
+                window.open(`http://maps.apple.com/?daddr=${dest}&dirflg=d`, "_blank");
+              }} className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm flex items-center gap-2">
                 <span>🍎</span> Open in Apple Maps
               </button>
             </div>

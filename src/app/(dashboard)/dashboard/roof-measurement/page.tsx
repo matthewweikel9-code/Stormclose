@@ -53,13 +53,35 @@ export default function RoofMeasurementToolPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Load satellite image
+  // Load satellite image from Mapbox Static API
   const loadSatelliteImage = async () => {
     if (!address.trim()) return;
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSatelliteImage("/api/placeholder/satellite");
-    setLoading(false);
+    try {
+      const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      if (!mapboxToken) {
+        console.error("Mapbox token not configured");
+        setLoading(false);
+        return;
+      }
+      // Geocode the address using Mapbox
+      const geocodeRes = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${mapboxToken}&country=us&types=address&limit=1`
+      );
+      const geocodeData = await geocodeRes.json();
+      if (geocodeData.features && geocodeData.features.length > 0) {
+        const [lng, lat] = geocodeData.features[0].center;
+        // Fetch satellite imagery from Mapbox Static Images API
+        const imageUrl = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${lng},${lat},19,0/600x500@2x?access_token=${mapboxToken}`;
+        setSatelliteImage(imageUrl);
+      } else {
+        console.error("Could not geocode address");
+      }
+    } catch (error) {
+      console.error("Error loading satellite image:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Draw on canvas
@@ -308,8 +330,14 @@ export default function RoofMeasurementToolPage() {
               <span className="text-sm text-zinc-400">{isDrawing ? `Drawing: ${currentSegment.length} points` : `${segments.length} segments`}</span>
             </div>
             <div ref={containerRef} className="relative bg-zinc-900 rounded-lg overflow-hidden" style={{ height: 500 }}>
-              <canvas ref={canvasRef} width={600} height={500} onClick={handleCanvasClick} className="cursor-crosshair w-full h-full" />
-              {satelliteImage && <div className="absolute inset-0 opacity-50 pointer-events-none bg-gradient-to-br from-green-900/30 to-green-700/30" />}
+              {satelliteImage && (
+                <img
+                  src={satelliteImage}
+                  alt="Satellite view"
+                  className="absolute inset-0 w-full h-full object-cover opacity-70 pointer-events-none"
+                />
+              )}
+              <canvas ref={canvasRef} width={600} height={500} onClick={handleCanvasClick} className="cursor-crosshair w-full h-full relative z-10" />
             </div>
           </div>
 
@@ -400,7 +428,7 @@ export default function RoofMeasurementToolPage() {
         <div className="bg-zinc-800 rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold">Roof Diagram</h3>
-            <button className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm">🖨️ Print</button>
+            <button onClick={() => window.print()} className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm">🖨️ Print</button>
           </div>
           <div className="bg-white rounded-lg p-6 text-black" style={{ minHeight: 400 }}>
             <div className="text-center mb-6">

@@ -452,10 +452,17 @@ export default function KnockTrackerPage() {
                 )}
 
                 <div className="pt-3 border-t border-gray-700/50 flex gap-2">
-                  <button className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  <button onClick={() => window.open("/dashboard/jobnimbus", "_blank")} className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
                     Export to JobNimbus
                   </button>
-                  <button className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors">
+                  <button onClick={() => {
+                    if (selectedKnock) {
+                      const routeList = JSON.parse(localStorage.getItem("routeList") || "[]");
+                      routeList.push({ address: selectedKnock.property_address, lat: selectedKnock.latitude, lng: selectedKnock.longitude });
+                      localStorage.setItem("routeList", JSON.stringify(routeList));
+                      alert("Added to route list!");
+                    }
+                  }} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors">
                     Add to Route
                   </button>
                 </div>
@@ -504,7 +511,24 @@ export default function KnockTrackerPage() {
             <p className="text-sm text-gray-400 mb-4">
               Use the mobile app for best results, or enter manually below.
             </p>
-            <button className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors">
+            <button onClick={() => {
+              if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async (pos) => {
+                  const address = prompt("Enter the address:");
+                  if (!address) return;
+                  const outcome = prompt("Outcome (not_home, interested, not_interested, appointment_set, callback):") || "not_home";
+                  const notes = prompt("Notes (optional):") || "";
+                  try {
+                    await fetch("/api/door-knocks", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ address, lat: pos.coords.latitude, lng: pos.coords.longitude, outcome, notes }),
+                    });
+                    window.location.reload();
+                  } catch (e) { console.error(e); }
+                });
+              }
+            }} className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors">
               + Log New Knock
             </button>
           </div>

@@ -182,7 +182,7 @@ export default function PropertyLookupPage() {
               )}
               {hasLocation ? "Search Here" : "My Location"}
             </button>
-            <button className="p-2 bg-zinc-800 rounded-lg text-xs hover:bg-zinc-700 transition-colors flex items-center gap-2">
+            <button onClick={() => alert("Open the Storm Map page to click on properties directly.")} className="p-2 bg-zinc-800 rounded-lg text-xs hover:bg-zinc-700 transition-colors flex items-center gap-2">
               <span>🗺️</span> Click on Map
             </button>
           </div>
@@ -244,10 +244,17 @@ export default function PropertyLookupPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">
+                  <button onClick={() => {
+                    if (selectedProperty) {
+                      const routeList = JSON.parse(localStorage.getItem("routeList") || "[]");
+                      routeList.push({ address: selectedProperty.address });
+                      localStorage.setItem("routeList", JSON.stringify(routeList));
+                      alert(`Added ${selectedProperty.address} to knock list!`);
+                    }
+                  }} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">
                     Add to Knock List
                   </button>
-                  <button className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm font-medium transition-colors">
+                  <button onClick={() => window.print()} className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm font-medium transition-colors">
                     Export Report
                   </button>
                 </div>

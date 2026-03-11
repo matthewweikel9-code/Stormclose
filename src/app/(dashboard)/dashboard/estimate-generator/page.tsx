@@ -269,10 +269,27 @@ export default function EstimateGeneratorPage() {
               <button onClick={printEstimate} className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium transition-colors flex items-center gap-2">
                 🖨️ Print
               </button>
-              <button className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium transition-colors flex items-center gap-2">
+              <button onClick={() => {
+                if (email && estimate) {
+                  alert(`Estimate would be emailed to ${email}. Email integration coming soon.`);
+                } else {
+                  alert("Please enter a customer email address first.");
+                }
+              }} className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium transition-colors flex items-center gap-2">
                 📧 Email
               </button>
-              <button className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors flex items-center gap-2">
+              <button onClick={() => {
+                if (estimate) {
+                  const data = JSON.stringify({ estimate, customerName, address, phone, email }, null, 2);
+                  const blob = new Blob([data], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `estimate-${customerName.replace(/\s+/g, "-").toLowerCase() || "draft"}-${new Date().toISOString().split("T")[0]}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }
+              }} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors flex items-center gap-2">
                 💾 Save
               </button>
             </>

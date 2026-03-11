@@ -82,7 +82,9 @@ export default function SmartRoutePlannerPage() {
   const loadFromKnockList = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/knock-list/properties?lat=32.7767&lng=-96.7970&radius=10");
+      const lat = currentLocation?.lat ?? 32.7767;
+      const lng = currentLocation?.lng ?? -96.7970;
+      const res = await fetch(`/api/knock-list/properties?lat=${lat}&lng=${lng}&radius=10`);
       if (res.ok) {
         const data = await res.json();
         const newStops: RouteStop[] = (data.properties || []).slice(0, 15).map((p: any, i: number) => ({
@@ -102,23 +104,52 @@ export default function SmartRoutePlannerPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentLocation]);
 
   // Add address to route
   const addAddress = async () => {
     if (!addressInput.trim()) return;
     
-    // In production, geocode the address
-    const newStop: RouteStop = {
-      id: `stop-${Date.now()}`,
-      address: addressInput,
-      lat: 32.7767 + Math.random() * 0.1,
-      lng: -96.7970 + Math.random() * 0.1,
-      stopNumber: stops.length + 1,
-      status: "pending",
-    };
-    setStops([...stops, newStop]);
-    setAddressInput("");
+    try {
+      // Geocode the address using Mapbox
+      const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      let lat = currentLocation?.lat ?? 32.7767;
+      let lng = currentLocation?.lng ?? -96.7970;
+
+      if (mapboxToken) {
+        const geocodeRes = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(addressInput)}.json?access_token=${mapboxToken}&country=us&types=address&limit=1`
+        );
+        const geocodeData = await geocodeRes.json();
+        if (geocodeData.features && geocodeData.features.length > 0) {
+          [lng, lat] = geocodeData.features[0].center;
+        }
+      }
+
+      const newStop: RouteStop = {
+        id: `stop-${Date.now()}`,
+        address: addressInput,
+        lat,
+        lng,
+        stopNumber: stops.length + 1,
+        status: "pending",
+      };
+      setStops([...stops, newStop]);
+      setAddressInput("");
+    } catch (error) {
+      console.error("Error geocoding address:", error);
+      // Still add the stop with approximate coords if geocoding fails
+      const newStop: RouteStop = {
+        id: `stop-${Date.now()}`,
+        address: addressInput,
+        lat: currentLocation?.lat ?? 32.7767,
+        lng: currentLocation?.lng ?? -96.7970,
+        stopNumber: stops.length + 1,
+        status: "pending",
+      };
+      setStops([...stops, newStop]);
+      setAddressInput("");
+    }
   };
 
   // Optimize route
@@ -127,42 +158,87 @@ export default function SmartRoutePlannerPage() {
     
     setOptimizing(true);
     try {
-      // Simulate optimization - in production, use Google Routes API or similar
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Simple nearest neighbor optimization
-      const optimized = [...stops];
-      if (currentLocation) {
-        // Sort by distance from current location, then chain
-        optimized.sort((a, b) => {
-          const distA = Math.sqrt(Math.pow(a.lat - currentLocation.lat, 2) + Math.pow(a.lng - currentLocation.lng, 2));
-          const distB = Math.sqrt(Math.pow(b.lat - currentLocation.lat, 2) + Math.pow(b.lng - currentLocation.lng, 2));
-          return distA - distB;
+      // Build waypoints from stop addresses
+      const waypoints = stops.map(s => s.address);
+      const startingPoint = currentLocation
+        ? `${currentLocation.lat},${currentLocation.lng}`
+        : undefined;
+
+      const res = await fetch("/api/route-optimize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startingPoint,
+          waypoints,
+          optimizeWaypoints: true,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        
+        // Parse distance and duration from API response
+        const parsedDistance = parseFloat(data.routeInfo?.totalDistance) || stops.length * 0.5;
+        const parsedDuration = parseInt(data.routeInfo?.totalDuration) || stops.length * 5;
+
+        // Reorder stops based on optimized waypoint order
+        if (data.waypointOrder && data.waypointOrder.length > 0) {
+          const reordered = data.waypointOrder.map((originalIndex: number, newIndex: number) => ({
+            ...stops[originalIndex],
+            stopNumber: newIndex + 1,
+          }));
+          setStops(reordered);
+          
+          setRoute({
+            id: `route-${Date.now()}`,
+            name: `Route ${new Date().toLocaleDateString()}`,
+            stops: reordered,
+            totalDistance: parsedDistance,
+            totalDuration: parsedDuration,
+            mode,
+            createdAt: new Date().toISOString(),
+          });
+        } else {
+          // API returned results but no reordering needed
+          setRoute({
+            id: `route-${Date.now()}`,
+            name: `Route ${new Date().toLocaleDateString()}`,
+            stops,
+            totalDistance: parsedDistance,
+            totalDuration: parsedDuration,
+            mode,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      } else {
+        // Fallback to client-side nearest-neighbor if API fails
+        console.warn("Route optimize API failed, using client-side sort");
+        const optimized = [...stops];
+        if (currentLocation) {
+          optimized.sort((a, b) => {
+            const distA = Math.sqrt(Math.pow(a.lat - currentLocation.lat, 2) + Math.pow(a.lng - currentLocation.lng, 2));
+            const distB = Math.sqrt(Math.pow(b.lat - currentLocation.lat, 2) + Math.pow(b.lng - currentLocation.lng, 2));
+            return distA - distB;
+          });
+        }
+        optimized.forEach((stop, i) => { stop.stopNumber = i + 1; });
+        setStops(optimized);
+
+        const totalDistance = stops.length * 0.3 + Math.random() * 2;
+        const totalDuration = mode === "driving" 
+          ? stops.length * 3 + Math.random() * 10 
+          : stops.length * 8 + Math.random() * 20;
+
+        setRoute({
+          id: `route-${Date.now()}`,
+          name: `Route ${new Date().toLocaleDateString()}`,
+          stops: optimized,
+          totalDistance: Math.round(totalDistance * 10) / 10,
+          totalDuration: Math.round(totalDuration),
+          mode,
+          createdAt: new Date().toISOString(),
         });
       }
-      
-      // Renumber
-      optimized.forEach((stop, i) => {
-        stop.stopNumber = i + 1;
-      });
-      
-      setStops(optimized);
-      
-      // Calculate route info
-      const totalDistance = stops.length * 0.3 + Math.random() * 2; // miles
-      const totalDuration = mode === "driving" 
-        ? stops.length * 3 + Math.random() * 10 
-        : stops.length * 8 + Math.random() * 20; // minutes
-      
-      setRoute({
-        id: `route-${Date.now()}`,
-        name: `Route ${new Date().toLocaleDateString()}`,
-        stops: optimized,
-        totalDistance: Math.round(totalDistance * 10) / 10,
-        totalDuration: Math.round(totalDuration),
-        mode,
-        createdAt: new Date().toISOString(),
-      });
       
       setActiveTab("route");
     } catch (error) {

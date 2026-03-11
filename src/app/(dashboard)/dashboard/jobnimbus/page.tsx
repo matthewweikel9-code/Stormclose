@@ -471,7 +471,7 @@ export default function JobNimbusSyncPage() {
         <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
           <div className="p-4 border-b border-gray-700/50 flex items-center justify-between">
             <h3 className="font-semibold text-white">Sync Logs</h3>
-            <button className="text-sm text-gray-400 hover:text-white">Clear logs</button>
+            <button onClick={() => setSyncLogs([])} className="text-sm text-gray-400 hover:text-white">Clear logs</button>
           </div>
           <div className="divide-y divide-gray-700/50 max-h-[600px] overflow-y-auto">
             {syncLogs.length === 0 ? (
