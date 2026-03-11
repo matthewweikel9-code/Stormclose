@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useGeolocation } from "@/hooks";
 
 interface ScoredLead {
   id: string;
@@ -44,15 +45,29 @@ export default function AILeadScoringPage() {
   const [activeView, setActiveView] = useState<"leads" | "neighborhoods" | "tags">("leads");
   const [sortBy, setSortBy] = useState<"overallRank" | "damageScore" | "opportunityScore" | "estimatedJobValue">("overallRank");
   const [filterTag, setFilterTag] = useState<string | null>(null);
+  const [stormData, setStormData] = useState<{ reportsFound: number; maxHailSize: number; maxWindSpeed: number } | null>(null);
+  const [dataSource, setDataSource] = useState<{ storms: string; properties: string }>({ storms: "loading", properties: "loading" });
 
-  const fetchScoredLeads = useCallback(async () => {
+  // Get user's location
+  const { latitude, longitude, loading: geoLoading, error: geoError, getLocation } = useGeolocation({ autoFetch: true });
+
+  const fetchScoredLeads = useCallback(async (lat?: number, lng?: number) => {
     setLoading(true);
     try {
-      const response = await fetch("/api/leads/score");
+      const params = new URLSearchParams();
+      if (lat && lng) {
+        params.set("lat", lat.toString());
+        params.set("lng", lng.toString());
+      }
+      params.set("radius", "25");
+      
+      const response = await fetch(`/api/leads/score?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setLeads(data.leads || []);
         setNeighborhoods(data.neighborhoods || []);
+        setStormData(data.stormData || null);
+        setDataSource(data.source || { storms: "generated", properties: "generated" });
       } else {
         // Demo data
         const demoLeads: ScoredLead[] = Array.from({ length: 20 }, (_, i) => ({
@@ -97,9 +112,15 @@ export default function AILeadScoringPage() {
     }
   }, []);
 
+  // Fetch when location is available
   useEffect(() => {
-    fetchScoredLeads();
-  }, [fetchScoredLeads]);
+    if (latitude && longitude) {
+      fetchScoredLeads(latitude, longitude);
+    } else if (!geoLoading && !latitude) {
+      // No location available, fetch with defaults
+      fetchScoredLeads();
+    }
+  }, [latitude, longitude, geoLoading, fetchScoredLeads]);
 
   const generateTags = (index: number): string[] => {
     const allTags = [
@@ -151,18 +172,53 @@ export default function AILeadScoringPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">AI Lead Scoring</h1>
-          <p className="text-zinc-400 text-sm mt-1">Intelligent property ranking based on storm damage and opportunity</p>
+          <p className="text-zinc-400 text-sm mt-1">
+            Intelligent property ranking based on storm damage and opportunity
+            {latitude && longitude && (
+              <span className="ml-2 text-green-400">
+                📍 Using your location
+              </span>
+            )}
+          </p>
         </div>
-        <button
-          onClick={fetchScoredLeads}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh Scores
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Data Source Indicators */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className={`px-2 py-1 rounded ${dataSource.storms === "xweather" ? "bg-green-500/20 text-green-400" : "bg-zinc-700 text-zinc-400"}`}>
+              {dataSource.storms === "xweather" ? "🌧️ Live Storm Data" : "📊 Demo Storm Data"}
+            </span>
+            <span className={`px-2 py-1 rounded ${dataSource.properties === "attom" ? "bg-green-500/20 text-green-400" : "bg-zinc-700 text-zinc-400"}`}>
+              {dataSource.properties === "attom" ? "🏠 Live Property Data" : "🏠 Demo Properties"}
+            </span>
+          </div>
+          <button
+            onClick={() => fetchScoredLeads(latitude ?? undefined, longitude ?? undefined)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh Scores
+          </button>
+        </div>
       </div>
+
+      {/* Storm Data Summary */}
+      {stormData && stormData.reportsFound > 0 && (
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">⛈️</div>
+            <div>
+              <div className="font-semibold text-blue-400">Active Storm Data Found</div>
+              <div className="text-sm text-zinc-400">
+                {stormData.reportsFound} storm reports within 25 miles • 
+                Max Hail: {stormData.maxHailSize.toFixed(1)}" • 
+                Max Wind: {stormData.maxWindSpeed} mph
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-4 gap-4 mb-6">
