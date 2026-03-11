@@ -50,9 +50,11 @@ export default function AILeadScoringPage() {
 
   // Get user's location
   const { latitude, longitude, loading: geoLoading, error: geoError, getLocation } = useGeolocation({ autoFetch: true });
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const fetchScoredLeads = useCallback(async (lat?: number, lng?: number) => {
     setLoading(true);
+    setApiError(null);
     try {
       const params = new URLSearchParams();
       if (lat && lng) {
@@ -62,51 +64,29 @@ export default function AILeadScoringPage() {
       params.set("radius", "25");
       
       const response = await fetch(`/api/leads/score?${params.toString()}`);
+      const data = await response.json();
+      
       if (response.ok) {
-        const data = await response.json();
         setLeads(data.leads || []);
         setNeighborhoods(data.neighborhoods || []);
         setStormData(data.stormData || null);
-        setDataSource(data.source || { storms: "generated", properties: "generated" });
+        setDataSource(data.source ? { storms: data.source, properties: data.source } : { storms: "live", properties: "live" });
+        
+        // Show any API errors
+        if (data.errors?.property) {
+          setApiError(data.errors.property);
+        }
       } else {
-        // Demo data
-        const demoLeads: ScoredLead[] = Array.from({ length: 20 }, (_, i) => ({
-          id: `lead-${i + 1}`,
-          address: `${1000 + i * 100} ${["Oak", "Maple", "Cedar", "Pine", "Elm"][i % 5]} St, ${["Dallas", "Plano", "Frisco", "McKinney"][i % 4]} TX`,
-          lat: 32.7767 + (i * 0.01),
-          lng: -96.7970 + (i * 0.01),
-          damageScore: 95 - i * 3,
-          opportunityScore: 92 - i * 2.5,
-          overallRank: i + 1,
-          factors: {
-            hailSize: 2.5 - (i * 0.1),
-            windSpeed: 75 - i * 2,
-            roofAge: 12 + (i % 15),
-            roofType: ["Asphalt", "Metal", "Tile"][i % 3],
-            propertyValue: 450000 - i * 15000,
-            stormProximity: 0.5 + (i * 0.3),
-            roofSize: 35 - (i % 10),
-            neighborhoodValue: 425000 - i * 10000,
-            insuranceLikelihood: 90 - i * 3,
-          },
-          tags: generateTags(i),
-          estimatedJobValue: 18000 - i * 500,
-          claimProbability: 92 - i * 3,
-        }));
-
-        const demoNeighborhoods: NeighborhoodScore[] = [
-          { name: "Highland Park", lat: 32.8312, lng: -96.7992, score: 94, propertyCount: 156, avgDamageScore: 88, avgRoofAge: 18, totalOpportunityValue: 2450000 },
-          { name: "University Park", lat: 32.8507, lng: -96.7888, score: 89, propertyCount: 203, avgDamageScore: 82, avgRoofAge: 15, totalOpportunityValue: 3120000 },
-          { name: "Preston Hollow", lat: 32.8712, lng: -96.8122, score: 86, propertyCount: 178, avgDamageScore: 79, avgRoofAge: 22, totalOpportunityValue: 2890000 },
-          { name: "Lake Highlands", lat: 32.8888, lng: -96.7234, score: 82, propertyCount: 245, avgDamageScore: 75, avgRoofAge: 16, totalOpportunityValue: 3560000 },
-          { name: "Lakewood", lat: 32.8123, lng: -96.7456, score: 78, propertyCount: 189, avgDamageScore: 71, avgRoofAge: 14, totalOpportunityValue: 2180000 },
-        ];
-
-        setLeads(demoLeads);
-        setNeighborhoods(demoNeighborhoods);
+        // API returned an error
+        setApiError(data.message || data.error || "Failed to load lead data");
+        setLeads([]);
+        setNeighborhoods([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching scored leads:", error);
+      setApiError(error.message || "Network error - please try again");
+      setLeads([]);
+      setNeighborhoods([]);
     } finally {
       setLoading(false);
     }
@@ -117,25 +97,11 @@ export default function AILeadScoringPage() {
     if (latitude && longitude) {
       fetchScoredLeads(latitude, longitude);
     } else if (!geoLoading && !latitude) {
-      // No location available, fetch with defaults
-      fetchScoredLeads();
+      // No location available, show error
+      setApiError("Please enable location services to find properties in your area");
+      setLoading(false);
     }
   }, [latitude, longitude, geoLoading, fetchScoredLeads]);
-
-  const generateTags = (index: number): string[] => {
-    const allTags = [
-      "🧊 High Hail Risk",
-      "🏚️ Old Roof",
-      "📋 High Insurance Likelihood",
-      "📐 Large Roof",
-      "💰 High Value Property",
-      "⚡ Recent Storm Impact",
-      "🎯 Prime Candidate",
-      "🔥 Hot Lead",
-    ];
-    const numTags = 2 + (index % 4);
-    return allTags.slice(0, numTags);
-  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
@@ -173,24 +139,21 @@ export default function AILeadScoringPage() {
         <div>
           <h1 className="text-2xl font-bold">AI Lead Scoring</h1>
           <p className="text-zinc-400 text-sm mt-1">
-            Intelligent property ranking based on storm damage and opportunity
+            Real-time property data from ATTOM + Xweather storm reports
             {latitude && longitude && (
               <span className="ml-2 text-green-400">
-                📍 Using your location
+                📍 {latitude.toFixed(4)}, {longitude.toFixed(4)}
               </span>
             )}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Data Source Indicators */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className={`px-2 py-1 rounded ${dataSource.storms === "xweather" ? "bg-green-500/20 text-green-400" : "bg-zinc-700 text-zinc-400"}`}>
-              {dataSource.storms === "xweather" ? "🌧️ Live Storm Data" : "📊 Demo Storm Data"}
+          {/* Live Data Indicator */}
+          {leads.length > 0 && (
+            <span className="px-2 py-1 rounded bg-green-500/20 text-green-400 text-xs">
+              🔴 Live Data • {leads.length} properties
             </span>
-            <span className={`px-2 py-1 rounded ${dataSource.properties === "attom" ? "bg-green-500/20 text-green-400" : "bg-zinc-700 text-zinc-400"}`}>
-              {dataSource.properties === "attom" ? "🏠 Live Property Data" : "🏠 Demo Properties"}
-            </span>
-          </div>
+          )}
           <button
             onClick={() => fetchScoredLeads(latitude ?? undefined, longitude ?? undefined)}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors flex items-center gap-2"
@@ -198,7 +161,7 @@ export default function AILeadScoringPage() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Refresh Scores
+            Refresh
           </button>
         </div>
       </div>
@@ -302,7 +265,45 @@ export default function AILeadScoringPage() {
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-zinc-400">Analyzing properties...</span>
+            <span className="text-sm text-zinc-400">
+              {geoLoading ? "Getting your location..." : "Loading real property data from ATTOM..."}
+            </span>
+          </div>
+        </div>
+      ) : apiError && leads.length === 0 ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4 max-w-md text-center">
+            <div className="text-4xl">⚠️</div>
+            <h3 className="text-xl font-semibold">Unable to Load Properties</h3>
+            <p className="text-zinc-400">{apiError}</p>
+            <button
+              onClick={() => {
+                getLocation();
+                if (latitude && longitude) {
+                  fetchScoredLeads(latitude, longitude);
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      ) : leads.length === 0 ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-4 max-w-md text-center">
+            <div className="text-4xl">🏠</div>
+            <h3 className="text-xl font-semibold">No Properties Found</h3>
+            <p className="text-zinc-400">
+              No properties were found in your area. This could mean there are no recent storms nearby, 
+              or ATTOM doesn&apos;t have coverage in this location.
+            </p>
+            <button
+              onClick={() => fetchScoredLeads(latitude ?? undefined, longitude ?? undefined)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium"
+            >
+              Search Again
+            </button>
           </div>
         </div>
       ) : (
