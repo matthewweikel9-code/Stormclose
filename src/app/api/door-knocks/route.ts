@@ -4,9 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 interface DoorKnock {
   id: string;
   user_id: string;
-  address: string;
-  lat: number;
-  lng: number;
+  property_address: string;
+  latitude: number;
+  longitude: number;
   knocked_at: string;
   outcome: string;
   notes?: string;

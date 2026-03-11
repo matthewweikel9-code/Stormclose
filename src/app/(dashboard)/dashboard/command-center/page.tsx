@@ -189,6 +189,29 @@ const tabs: { id: ActiveTab; label: string; icon: React.ElementType; badge?: str
 
 export default function CommandCenterPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('storm-map');
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+
+  // Get user location ONCE at the page level, share with all panels
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setLocationLoading(false);
+        },
+        () => {
+          // Fallback to Dallas, TX
+          setUserLocation({ lat: 32.7767, lng: -96.7970 });
+          setLocationLoading(false);
+        },
+        { timeout: 5000, maximumAge: 300000 }
+      );
+    } else {
+      setUserLocation({ lat: 32.7767, lng: -96.7970 });
+      setLocationLoading(false);
+    }
+  }, []);
 
   return (
     <div className="space-y-0">
@@ -232,13 +255,22 @@ export default function CommandCenterPage() {
 
       {/* Tab Content */}
       <div className="min-h-[calc(100vh-14rem)]">
-        {activeTab === 'storm-map' && <StormMapPanel />}
-        {activeTab === 'opportunities' && <OpportunitiesPanel />}
-        {activeTab === 'property-lookup' && <PropertyLookupPanel />}
-        {activeTab === 'lead-scoring' && <LeadScoringPanel />}
-        {activeTab === 'knock-list' && <KnockListPanel />}
-        {activeTab === 'smart-route' && <SmartRoutePanel />}
-        {activeTab === 'knock-tracker' && <KnockTrackerPanel />}
+        {locationLoading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF] mb-3" />
+            <p className="text-sm text-slate-400">Getting your location...</p>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'storm-map' && <StormMapPanel userLocation={userLocation!} />}
+            {activeTab === 'opportunities' && <OpportunitiesPanel userLocation={userLocation!} />}
+            {activeTab === 'property-lookup' && <PropertyLookupPanel />}
+            {activeTab === 'lead-scoring' && <LeadScoringPanel userLocation={userLocation!} />}
+            {activeTab === 'knock-list' && <KnockListPanel userLocation={userLocation!} />}
+            {activeTab === 'smart-route' && <SmartRoutePanel />}
+            {activeTab === 'knock-tracker' && <KnockTrackerPanel />}
+          </>
+        )}
       </div>
     </div>
   );
@@ -248,72 +280,63 @@ export default function CommandCenterPage() {
 // STORM MAP PANEL
 // ============================================================================
 
-function StormMapPanel() {
+function StormMapPanel({ userLocation }: { userLocation: { lat: number; lng: number } }) {
   const [storms, setStorms] = useState<StormEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStorm, setSelectedStorm] = useState<StormEvent | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchStorms = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (userLocation) {
-        params.set('lat', String(userLocation.lat));
-        params.set('lng', String(userLocation.lng));
-      }
+      setError(null);
+      const params = new URLSearchParams({
+        lat: String(userLocation.lat),
+        lng: String(userLocation.lng),
+        live: 'true',
+        radius: '150',
+      });
       const res = await fetch(`/api/storms?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setStorms(data.storms || data.data || []);
+        setStorms(data.storms || []);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.error || 'Failed to fetch storm data');
       }
-    } catch (error) {
-      console.error('Error fetching storms:', error);
+    } catch (err) {
+      console.error('Error fetching storms:', err);
+      setError('Network error fetching storms');
     } finally {
       setLoading(false);
     }
   }, [userLocation]);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => setUserLocation({ lat: 32.7767, lng: -96.7970 }) // Dallas fallback
-      );
-    }
-  }, []);
-
-  useEffect(() => {
-    if (userLocation) fetchStorms();
-  }, [userLocation, fetchStorms]);
+    fetchStorms();
+  }, [fetchStorms]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Map */}
       <div className="lg:col-span-2 h-[600px] rounded-xl overflow-hidden border border-[#1F2937]">
-        {userLocation ? (
-          <MapboxMap
-            center={{ lat: userLocation.lat, lng: userLocation.lng }}
-            zoom={8}
-            showUserLocation
-            markers={storms.map((s: StormEvent) => ({
-              id: s.id,
-              lat: s.lat,
-              lng: s.lng,
-              type: (s.type === 'hail' ? 'hail' : s.type === 'tornado' ? 'tornado' : s.type === 'wind' ? 'wind' : 'storm') as MapMarker['type'],
-              severity: (s.severity === 'severe' ? 'severe' : s.severity === 'moderate' ? 'moderate' : 'minor') as MapMarker['severity'],
-              popup: `${s.type} - ${s.location || ''}`,
-            }))}
-            onMarkerClick={(marker) => {
-              const storm = storms.find((s: StormEvent) => s.id === marker.id);
-              if (storm) setSelectedStorm(storm);
-            }}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center bg-[#111827]">
-            <Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" />
-          </div>
-        )}
+        <MapboxMap
+          center={{ lat: userLocation.lat, lng: userLocation.lng }}
+          zoom={8}
+          showUserLocation
+          markers={storms.map((s: StormEvent) => ({
+            id: s.id,
+            lat: s.lat,
+            lng: s.lng,
+            type: (s.type === 'hail' ? 'hail' : s.type === 'tornado' ? 'tornado' : s.type === 'wind' ? 'wind' : 'storm') as MapMarker['type'],
+            severity: (s.severity === 'severe' ? 'severe' : s.severity === 'moderate' ? 'moderate' : 'minor') as MapMarker['severity'],
+            popup: `${s.type} - ${s.location || ''}`,
+          }))}
+          onMarkerClick={(marker) => {
+            const storm = storms.find((s: StormEvent) => s.id === marker.id);
+            if (storm) setSelectedStorm(storm);
+          }}
+        />
       </div>
 
       {/* Storm Feed */}
@@ -333,6 +356,12 @@ function StormMapPanel() {
             {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse rounded-lg bg-[#1E293B] h-20" />
             ))}
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500/50 mb-3" />
+            <p className="text-sm text-red-400">{error}</p>
+            <button onClick={fetchStorms} className="mt-3 text-xs text-[#A78BFA] hover:underline">Try Again</button>
           </div>
         ) : storms.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -391,7 +420,7 @@ function StormMapPanel() {
 // OPPORTUNITIES PANEL
 // ============================================================================
 
-function OpportunitiesPanel() {
+function OpportunitiesPanel({ userLocation }: { userLocation: { lat: number; lng: number } }) {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [topProperties, setTopProperties] = useState<OpportunityProperty[]>([]);
   const [loading, setLoading] = useState(true);
@@ -400,7 +429,11 @@ function OpportunitiesPanel() {
   useEffect(() => {
     const fetchOpportunities = async () => {
       try {
-        const res = await fetch('/api/opportunities');
+        const params = new URLSearchParams({
+          lat: String(userLocation.lat),
+          lng: String(userLocation.lng),
+        });
+        const res = await fetch(`/api/opportunities?${params}`);
         if (res.ok) {
           const data = await res.json();
           const storms = data.storms || [];
@@ -703,27 +736,42 @@ function PropertyLookupPanel() {
 // LEAD SCORING PANEL
 // ============================================================================
 
-function LeadScoringPanel() {
+function LeadScoringPanel({ userLocation }: { userLocation: { lat: number; lng: number } }) {
   const [leads, setLeads] = useState<ScoredLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'ranked' | 'neighborhoods'>('ranked');
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchLeads = async () => {
       try {
-        const res = await fetch('/api/leads/score');
+        setApiError(null);
+        const params = new URLSearchParams({
+          lat: String(userLocation.lat),
+          lng: String(userLocation.lng),
+          radius: '25',
+          limit: '50',
+        });
+        const res = await fetch(`/api/leads/score?${params}`);
         if (res.ok) {
           const data = await res.json();
-          setLeads(data.leads || data.data || []);
+          setLeads(data.leads || []);
+          if (data.errors?.storm || data.errors?.property) {
+            setApiError(data.errors.property || data.errors.storm);
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          setApiError(errData.message || errData.error || 'Failed to fetch leads');
         }
       } catch (error) {
         console.error('Error:', error);
+        setApiError('Network error');
       } finally {
         setLoading(false);
       }
     };
     fetchLeads();
-  }, []);
+  }, [userLocation]);
 
   if (loading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
@@ -798,11 +846,18 @@ function LeadScoringPanel() {
           </div>
         </div>
 
-        {leads.length === 0 ? (
+        {apiError && leads.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <AlertTriangle className="h-12 w-12 text-amber-500/50 mb-3" />
+            <p className="text-sm text-amber-400">Unable to load leads</p>
+            <p className="text-xs text-slate-500 mt-1">{apiError}</p>
+            <p className="text-xs text-slate-600 mt-2">Searching near {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}</p>
+          </div>
+        ) : leads.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <Target className="h-12 w-12 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400">No scored leads yet</p>
-            <p className="text-xs text-slate-500 mt-1">Leads are scored based on storm data and property characteristics</p>
+            <p className="text-sm text-slate-400">No scored leads in this area</p>
+            <p className="text-xs text-slate-500 mt-1">No recent storms or properties found near your location</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -867,18 +922,25 @@ function LeadScoringPanel() {
 // KNOCK LIST PANEL
 // ============================================================================
 
-function KnockListPanel() {
+function KnockListPanel({ userLocation }: { userLocation: { lat: number; lng: number } }) {
   const [items, setItems] = useState<KnockListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchKnockList = async () => {
       try {
-        const res = await fetch('/api/knock-list/properties');
+        const params = new URLSearchParams({
+          lat: String(userLocation.lat),
+          lng: String(userLocation.lng),
+          radius: '5',
+        });
+        const res = await fetch(`/api/knock-list/properties?${params}`);
         if (res.ok) {
           const data = await res.json();
-          setItems(data.properties || data.data || []);
+          setItems(data.properties || []);
+          if (data.message) setMessage(data.message);
         }
       } catch (error) {
         console.error('Error:', error);
@@ -887,7 +949,7 @@ function KnockListPanel() {
       }
     };
     fetchKnockList();
-  }, []);
+  }, [userLocation]);
 
   if (loading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
@@ -920,8 +982,8 @@ function KnockListPanel() {
         {filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <ClipboardList className="h-12 w-12 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400">No properties in knock list</p>
-            <p className="text-xs text-slate-500 mt-1">Add properties from Lead Scoring or Opportunities</p>
+            <p className="text-sm text-slate-400">{message || 'No properties in knock list'}</p>
+            <p className="text-xs text-slate-500 mt-1">Searching near your location ({userLocation.lat.toFixed(2)}, {userLocation.lng.toFixed(2)})</p>
           </div>
         ) : (
           <div className="divide-y divide-[#1F2937]/50">
@@ -1138,8 +1200,9 @@ function KnockTrackerPanel() {
   const [knocks, setKnocks] = useState<DoorKnock[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLogForm, setShowLogForm] = useState(false);
-  const [newKnock, setNewKnock] = useState({ property_address: '', outcome: 'no_answer', notes: '' });
+  const [newKnock, setNewKnock] = useState({ property_address: '', outcome: 'not_home', notes: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchKnocks = async () => {
@@ -1147,10 +1210,14 @@ function KnockTrackerPanel() {
         const res = await fetch('/api/door-knocks');
         if (res.ok) {
           const data = await res.json();
-          setKnocks(data.knocks || data.data || []);
+          setKnocks(data.knocks || []);
+        } else {
+          // Table might not exist yet — that's OK
+          setFetchError('Door knocks feature requires database setup. You can still log knocks locally.');
         }
       } catch (error) {
         console.error('Error:', error);
+        setFetchError('Could not connect to server');
       } finally {
         setLoading(false);
       }
@@ -1170,7 +1237,7 @@ function KnockTrackerPanel() {
       if (res.ok) {
         const data = await res.json();
         setKnocks([data.knock || data, ...knocks]);
-        setNewKnock({ property_address: '', outcome: 'no_answer', notes: '' });
+        setNewKnock({ property_address: '', outcome: 'not_home', notes: '' });
         setShowLogForm(false);
       }
     } catch (error) {
@@ -1181,10 +1248,11 @@ function KnockTrackerPanel() {
   };
 
   const outcomeIcons: Record<string, { icon: React.ElementType; color: string; label: string }> = {
-    appointment: { icon: Calendar, color: 'text-emerald-400', label: 'Appointment Set' },
+    appointment_set: { icon: Calendar, color: 'text-emerald-400', label: 'Appointment Set' },
     interested: { icon: Star, color: 'text-amber-400', label: 'Interested' },
     not_interested: { icon: XCircle, color: 'text-red-400', label: 'Not Interested' },
-    no_answer: { icon: DoorOpen, color: 'text-slate-400', label: 'No Answer' },
+    not_home: { icon: DoorOpen, color: 'text-slate-400', label: 'Not Home' },
+    no_answer: { icon: DoorOpen, color: 'text-slate-500', label: 'No Answer' },
     callback: { icon: Phone, color: 'text-blue-400', label: 'Call Back' },
   };
 
@@ -1206,7 +1274,7 @@ function KnockTrackerPanel() {
           <p className="text-xs text-slate-400">Today&apos;s Knocks</p>
         </div>
         <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-400">{todayKnocks.filter((k) => k.outcome === 'appointment').length}</p>
+          <p className="text-2xl font-bold text-emerald-400">{todayKnocks.filter((k) => k.outcome === 'appointment_set').length}</p>
           <p className="text-xs text-slate-400">Appointments</p>
         </div>
         <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
@@ -1216,7 +1284,7 @@ function KnockTrackerPanel() {
         <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
           <p className="text-2xl font-bold text-slate-400">
             {todayKnocks.length > 0
-              ? `${Math.round((todayKnocks.filter((k) => ['appointment', 'interested'].includes(k.outcome)).length / todayKnocks.length) * 100)}%`
+              ? `${Math.round((todayKnocks.filter((k) => ['appointment_set', 'interested'].includes(k.outcome)).length / todayKnocks.length) * 100)}%`
               : '0%'}
           </p>
           <p className="text-xs text-slate-400">Contact Rate</p>
@@ -1293,12 +1361,13 @@ function KnockTrackerPanel() {
         {knocks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <DoorOpen className="h-12 w-12 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400">No door knocks logged yet</p>
+            <p className="text-sm text-slate-400">{fetchError || 'No door knocks logged yet'}</p>
+            <p className="text-xs text-slate-500 mt-1">Use the button above to log your first door knock</p>
           </div>
         ) : (
           <div className="divide-y divide-[#1F2937]/50">
             {knocks.slice(0, 20).map((knock) => {
-              const info = outcomeIcons[knock.outcome] || outcomeIcons.no_answer;
+              const info = outcomeIcons[knock.outcome] || outcomeIcons.not_home;
               const Icon = info.icon;
               return (
                 <div key={knock.id} className="flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors">

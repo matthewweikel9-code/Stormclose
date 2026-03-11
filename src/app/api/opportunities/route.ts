@@ -16,23 +16,32 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const timeframe = searchParams.get("timeframe") || "7d";
 
-  // Get user location from settings or default
-  let lat = 35.0;
-  let lng = -98.0;
+  // Get user location from query params, user settings, or defaults
+  let lat = parseFloat(searchParams.get("lat") || "0");
+  let lng = parseFloat(searchParams.get("lng") || "0");
 
-  try {
-    const { data: settings } = await supabase
-      .from("user_settings")
-      .select("default_latitude, default_longitude")
-      .eq("user_id", user.id)
-      .single() as { data: { default_latitude: number; default_longitude: number } | null };
+  if (lat === 0 && lng === 0) {
+    // Try user settings
+    try {
+      const { data: settings } = await supabase
+        .from("user_settings")
+        .select("default_latitude, default_longitude")
+        .eq("user_id", user.id)
+        .single() as { data: { default_latitude: number; default_longitude: number } | null };
 
-    if (settings?.default_latitude && settings?.default_longitude) {
-      lat = settings.default_latitude;
-      lng = settings.default_longitude;
+      if (settings?.default_latitude && settings?.default_longitude) {
+        lat = settings.default_latitude;
+        lng = settings.default_longitude;
+      }
+    } catch (e) {
+      // Use defaults
     }
-  } catch (e) {
-    // Use defaults
+
+    // Fallback defaults
+    if (lat === 0 && lng === 0) {
+      lat = 35.0;
+      lng = -98.0;
+    }
   }
 
   // Calculate days based on timeframe
