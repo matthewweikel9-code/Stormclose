@@ -731,10 +731,9 @@ function XactimatePanel() {
 
   const analyzeEstimate = async (id: string) => {
     try {
-      const res = await fetch('/api/xactimate/analyze', {
+      const res = await fetch(`/api/xactimate/${id}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estimateId: id }),
       });
       if (res.ok) {
         const data = await res.json();

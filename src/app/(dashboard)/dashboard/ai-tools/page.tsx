@@ -118,14 +118,17 @@ function ObjectionPanel() {
     setError(null);
 
     try {
-      const res = await fetch('/api/ai/objection', {
+      const res = await fetch('/api/generate-objection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          keyBenefits: ['Storm damage repair', 'Insurance claim assistance', 'Free inspection'],
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to generate response');
-      setResult(data.response || data.content);
+      setResult(data.content);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {

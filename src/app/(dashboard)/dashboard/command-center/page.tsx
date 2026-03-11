@@ -49,62 +49,85 @@ interface StormEvent {
   id: string;
   type: string;
   severity: string;
-  location: string;
-  coordinates: { lat: number; lng: number };
-  hail_size?: number;
-  wind_speed?: number;
-  timestamp: string;
-  affected_properties?: number;
+  location?: string;
+  lat: number;
+  lng: number;
+  hailSize?: number;
+  windSpeed?: number;
+  startTime: string;
+  damageScore?: number;
+  radius?: number;
+  isActive?: boolean;
+  county?: string;
+  state?: string;
+  comments?: string;
+  path?: { lat: number; lng: number }[];
 }
 
 interface Property {
+  address: string;
+  lat?: number;
+  lng?: number;
+  owner?: { name: string; firstName?: string; lastName?: string; mailingAddress?: string; absenteeOwner?: boolean };
+  property?: { value: number; yearBuilt: number; squareFootage: number; lotSize: number; buildingType: string; bedrooms: number; bathrooms: number; stories: number };
+  roof?: { type: string; material: string; age: number; complexity: string; condition: string; squareFootage: number; pitch: number };
+  parcel?: { id: string; attomId?: number; fips?: string };
+  assessment?: { assessedValue: number; marketValue: number; landValue: number; improvementValue: number; taxAmount: number; taxYear: number };
+  sale?: { lastSaleDate: string; lastSaleAmount: number; pricePerSqft: number } | null;
+  claimEstimate?: { roofReplacement: number; siding: number; gutters: number; total: number; confidence: string };
+  stormExposure?: { hailEvents: number; maxHailSize: number; windEvents: number; maxWindSpeed: number; lastStormDate: string; summary: string } | null;
+  neighborhood?: { avgHomeValue: number; avgRoofAge: number; claimLikelihood: number };
+  source?: string;
+}
+
+// Lead from /api/leads/score
+interface ScoredLead {
   id: string;
   address: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  owner_name?: string;
-  phone?: string;
-  email?: string;
-  property_value?: number;
-  year_built?: number;
-  roof_age?: number;
-  roof_type?: string;
-  roof_sqft?: number;
-  stories?: number;
-  damage_score?: number;
-  lead_score?: number;
-  score_tier?: string;
-  status?: string;
-  last_contact?: string;
-  latitude?: number;
-  longitude?: number;
-  distance_miles?: number;
+  city: string;
+  state: string;
+  zip: string;
+  lat: number;
+  lng: number;
+  damageScore: number;
+  opportunityScore: number;
+  overallRank: number;
+  tags: string[];
+  estimatedJobValue: number;
+  claimProbability: number;
+  ownerName?: string;
+  yearBuilt?: number;
+  squareFeet?: number;
+  nearestStorm?: { type: string; hailSize: number; windSpeed: number; date: string; distance: number; location: string };
 }
 
 interface KnockListItem {
   id: string;
   address: string;
-  city?: string;
-  state?: string;
-  priority: string;
-  score: number;
-  status: string;
-  notes?: string;
-  attempts: number;
-  last_attempt?: string;
-  latitude?: number;
-  longitude?: number;
+  lat: number;
+  lng: number;
+  damageScore: number;
+  roofAge: number;
+  roofSize: number;
+  propertyValue: number;
+  stormSeverity: number;
+  estimatedJobValue: number;
+  distance: number;
+  selected: boolean;
+  ownerName?: string;
+  yearBuilt?: number;
+  sqft?: number;
 }
 
 interface DoorKnock {
   id: string;
-  address: string;
+  property_address: string;
   outcome: string;
   notes?: string;
   latitude?: number;
   longitude?: number;
-  created_at: string;
+  knocked_at: string;
+  created_at?: string;
 }
 
 interface RouteStop {
@@ -116,13 +139,32 @@ interface RouteStop {
 
 interface Opportunity {
   id: string;
+  name: string;
+  date: string;
+  location: string;
+  coordinates: { lat: number; lng: number };
+  severity: string;
+  hailSize: number;
+  windSpeed: number;
+  affectedProperties: number;
+  estimatedDamage: number;
+  daysAgo: number;
+  opportunityScore: number;
+}
+
+interface OpportunityProperty {
+  id: string;
   address: string;
-  city?: string;
-  state?: string;
-  damage_score: number;
-  estimated_value: number;
-  storm_date?: string;
-  status: string;
+  city: string;
+  state: string;
+  damageScore: number;
+  opportunityValue: number;
+  roofAge: number;
+  roofSquares: number;
+  lastStorm: string;
+  owner: string;
+  tags: string[];
+  priority: string;
 }
 
 type ActiveTab = 'storm-map' | 'opportunities' | 'property-lookup' | 'lead-scoring' | 'knock-list' | 'smart-route' | 'knock-tracker';
@@ -256,11 +298,11 @@ function StormMapPanel() {
             showUserLocation
             markers={storms.map((s: StormEvent) => ({
               id: s.id,
-              lat: s.coordinates.lat,
-              lng: s.coordinates.lng,
+              lat: s.lat,
+              lng: s.lng,
               type: (s.type === 'hail' ? 'hail' : s.type === 'tornado' ? 'tornado' : s.type === 'wind' ? 'wind' : 'storm') as MapMarker['type'],
               severity: (s.severity === 'severe' ? 'severe' : s.severity === 'moderate' ? 'moderate' : 'minor') as MapMarker['severity'],
-              popup: `${s.type} - ${s.location}`,
+              popup: `${s.type} - ${s.location || ''}`,
             }))}
             onMarkerClick={(marker) => {
               const storm = storms.find((s: StormEvent) => s.id === marker.id);
@@ -314,26 +356,26 @@ function StormMapPanel() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className={`h-2 w-2 rounded-full ${
-                        storm.severity === 'severe' ? 'bg-red-500 animate-pulse' :
-                        storm.severity === 'significant' ? 'bg-amber-500' : 'bg-yellow-500'
+                        storm.severity === 'severe' || storm.severity === 'extreme' ? 'bg-red-500 animate-pulse' :
+                        storm.severity === 'moderate' ? 'bg-amber-500' : 'bg-yellow-500'
                       }`} />
                       <span className="text-sm font-medium text-white">{storm.type}</span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-400">{storm.location}</p>
+                    <p className="mt-1 text-xs text-slate-400">{storm.location || storm.state || ''}</p>
                   </div>
                   <div className="text-right">
-                    {storm.hail_size && (
-                      <span className="text-xs text-amber-400 font-semibold">{storm.hail_size}&quot; hail</span>
+                    {storm.hailSize != null && storm.hailSize > 0 && (
+                      <span className="text-xs text-amber-400 font-semibold">{storm.hailSize}&quot; hail</span>
                     )}
-                    {storm.wind_speed && (
-                      <span className="block text-xs text-slate-500">{storm.wind_speed} mph</span>
+                    {storm.windSpeed != null && storm.windSpeed > 0 && (
+                      <span className="block text-xs text-slate-500">{storm.windSpeed} mph</span>
                     )}
                   </div>
                 </div>
-                {storm.affected_properties && (
+                {storm.damageScore != null && storm.damageScore > 0 && (
                   <div className="mt-2 flex items-center gap-1 text-xs text-emerald-400">
                     <Home className="h-3 w-3" />
-                    {storm.affected_properties.toLocaleString()} properties affected
+                    Damage score: {storm.damageScore}
                   </div>
                 )}
               </button>
@@ -351,6 +393,7 @@ function StormMapPanel() {
 
 function OpportunitiesPanel() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [topProperties, setTopProperties] = useState<OpportunityProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, totalValue: 0, avgScore: 0 });
 
@@ -360,13 +403,16 @@ function OpportunitiesPanel() {
         const res = await fetch('/api/opportunities');
         if (res.ok) {
           const data = await res.json();
-          const opps = data.opportunities || data.data || [];
-          setOpportunities(opps);
-          setStats({
-            total: opps.length,
-            totalValue: opps.reduce((sum: number, o: Opportunity) => sum + (o.estimated_value || 0), 0),
-            avgScore: opps.length > 0 ? Math.round(opps.reduce((sum: number, o: Opportunity) => sum + (o.damage_score || 0), 0) / opps.length) : 0,
-          });
+          const storms = data.storms || [];
+          setOpportunities(storms);
+          setTopProperties(data.topProperties || []);
+          if (data.stats) {
+            setStats({
+              total: storms.length,
+              totalValue: data.stats.totalOpportunityValue || 0,
+              avgScore: storms.length > 0 ? Math.round(storms.reduce((sum: number, o: Opportunity) => sum + (o.opportunityScore || 0), 0) / storms.length) : 0,
+            });
+          }
         }
       } catch (error) {
         console.error('Error:', error);
@@ -436,10 +482,10 @@ function OpportunitiesPanel() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#1F2937] text-left text-xs text-slate-500 uppercase tracking-wider">
-                  <th className="px-4 py-3">Address</th>
-                  <th className="px-4 py-3">Damage Score</th>
-                  <th className="px-4 py-3">Est. Value</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Storm Event</th>
+                  <th className="px-4 py-3">Opp Score</th>
+                  <th className="px-4 py-3">Est. Damage</th>
+                  <th className="px-4 py-3">Severity</th>
                   <th className="px-4 py-3">Storm Date</th>
                 </tr>
               </thead>
@@ -447,40 +493,40 @@ function OpportunitiesPanel() {
                 {opportunities.slice(0, 20).map((opp) => (
                   <tr key={opp.id} className="border-b border-[#1F2937]/50 hover:bg-[#1E293B]/50 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="text-sm text-white">{opp.address}</p>
-                      {(opp.city || opp.state) && (
-                        <p className="text-xs text-slate-500">{opp.city}, {opp.state}</p>
-                      )}
+                      <p className="text-sm text-white">{opp.name}</p>
+                      <p className="text-xs text-slate-500">{opp.location}</p>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-16 rounded-full bg-[#1E293B] overflow-hidden">
                           <div
                             className={`h-full rounded-full ${
-                              opp.damage_score >= 80 ? 'bg-red-500' :
-                              opp.damage_score >= 60 ? 'bg-amber-500' : 'bg-emerald-500'
+                              opp.opportunityScore >= 80 ? 'bg-red-500' :
+                              opp.opportunityScore >= 60 ? 'bg-amber-500' : 'bg-emerald-500'
                             }`}
-                            style={{ width: `${opp.damage_score}%` }}
+                            style={{ width: `${opp.opportunityScore}%` }}
                           />
                         </div>
-                        <span className="text-xs text-slate-400">{opp.damage_score}</span>
+                        <span className="text-xs text-slate-400">{opp.opportunityScore}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-emerald-400 font-medium">
-                      ${opp.estimated_value?.toLocaleString()}
+                      ${opp.estimatedDamage?.toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        opp.status === 'new' ? 'bg-blue-500/10 text-blue-400' :
-                        opp.status === 'contacted' ? 'bg-amber-500/10 text-amber-400' :
-                        opp.status === 'inspection' ? 'bg-emerald-500/10 text-emerald-400' :
+                        opp.severity === 'major' ? 'bg-red-500/10 text-red-400' :
+                        opp.severity === 'moderate' ? 'bg-amber-500/10 text-amber-400' :
                         'bg-slate-700/50 text-slate-400'
                       }`}>
-                        {opp.status}
+                        {opp.severity} {opp.hailSize > 0 ? `· ${opp.hailSize}" hail` : ''}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">
-                      {opp.storm_date ? new Date(opp.storm_date).toLocaleDateString() : '-'}
+                      {opp.date ? new Date(opp.date).toLocaleDateString() : '-'}
+                      {opp.daysAgo <= 3 && (
+                        <span className="ml-1 text-red-400 font-medium">({opp.daysAgo}d ago)</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -510,7 +556,7 @@ function PropertyLookupPanel() {
     setProperty(null);
 
     try {
-      const res = await fetch(`/api/property-lookup?address=${encodeURIComponent(address)}`);
+      const res = await fetch(`/api/property/lookup?address=${encodeURIComponent(address)}`);
       if (res.ok) {
         const data = await res.json();
         setProperty(data.property || data);
@@ -567,13 +613,14 @@ function PropertyLookupPanel() {
             <div className="space-y-3">
               {[
                 { label: 'Address', value: property.address },
-                { label: 'Owner', value: property.owner_name },
-                { label: 'Property Value', value: property.property_value ? `$${property.property_value.toLocaleString()}` : '-' },
-                { label: 'Year Built', value: property.year_built },
-                { label: 'Roof Type', value: property.roof_type },
-                { label: 'Roof Age', value: property.roof_age ? `${property.roof_age} years` : '-' },
-                { label: 'Roof Sqft', value: property.roof_sqft ? property.roof_sqft.toLocaleString() : '-' },
-                { label: 'Stories', value: property.stories },
+                { label: 'Owner', value: property.owner?.name },
+                { label: 'Property Value', value: property.property?.value ? `$${property.property.value.toLocaleString()}` : '-' },
+                { label: 'Year Built', value: property.property?.yearBuilt },
+                { label: 'Roof Type', value: property.roof?.type },
+                { label: 'Roof Material', value: property.roof?.material },
+                { label: 'Roof Age', value: property.roof?.age ? `${property.roof.age} years` : '-' },
+                { label: 'Roof Sqft', value: property.roof?.squareFootage ? property.roof.squareFootage.toLocaleString() : '-' },
+                { label: 'Sq Ft', value: property.property?.squareFootage ? property.property.squareFootage.toLocaleString() : '-' },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between py-2 border-b border-[#1F2937]/50 last:border-0">
                   <span className="text-sm text-slate-400">{item.label}</span>
@@ -586,40 +633,63 @@ function PropertyLookupPanel() {
           {/* Damage Assessment */}
           <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
             <h3 className="text-lg font-semibold text-white mb-4">Storm Damage Assessment</h3>
-            {property.damage_score !== undefined && (
-              <div className="text-center py-6">
-                <div className="relative mx-auto h-32 w-32">
-                  <svg className="h-32 w-32 -rotate-90" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r="50" fill="none" stroke="#1E293B" strokeWidth="10" />
-                    <circle
-                      cx="60" cy="60" r="50" fill="none"
-                      stroke={property.damage_score >= 80 ? '#EF4444' : property.damage_score >= 60 ? '#F59E0B' : '#10B981'}
-                      strokeWidth="10"
-                      strokeDasharray={`${(property.damage_score / 100) * 314} 314`}
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-bold text-white">{property.damage_score}</span>
-                    <span className="text-xs text-slate-400">Score</span>
+            {property.stormExposure ? (
+              <div className="space-y-4">
+                <div className="text-center py-4">
+                  <div className="relative mx-auto h-32 w-32">
+                    <svg className="h-32 w-32 -rotate-90" viewBox="0 0 120 120">
+                      <circle cx="60" cy="60" r="50" fill="none" stroke="#1E293B" strokeWidth="10" />
+                      <circle
+                        cx="60" cy="60" r="50" fill="none"
+                        stroke={
+                          (property.neighborhood?.claimLikelihood || 0) >= 80 ? '#EF4444' :
+                          (property.neighborhood?.claimLikelihood || 0) >= 60 ? '#F59E0B' : '#10B981'
+                        }
+                        strokeWidth="10"
+                        strokeDasharray={`${((property.neighborhood?.claimLikelihood || 0) / 100) * 314} 314`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold text-white">{property.neighborhood?.claimLikelihood || 0}%</span>
+                      <span className="text-xs text-slate-400">Claim Likelihood</span>
+                    </div>
                   </div>
                 </div>
-                <p className={`mt-4 text-sm font-semibold ${
-                  property.damage_score >= 80 ? 'text-red-400' :
-                  property.damage_score >= 60 ? 'text-amber-400' : 'text-emerald-400'
-                }`}>
-                  {property.damage_score >= 80 ? 'High Damage Likelihood' :
-                   property.damage_score >= 60 ? 'Moderate Damage Risk' : 'Low Damage Risk'}
-                </p>
+                <div className="space-y-2">
+                  <div className="flex justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <span className="text-sm text-slate-400">Hail Events</span>
+                    <span className="text-sm font-bold text-white">{property.stormExposure.hailEvents}</span>
+                  </div>
+                  <div className="flex justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <span className="text-sm text-slate-400">Max Hail Size</span>
+                    <span className="text-sm font-bold text-amber-400">{property.stormExposure.maxHailSize}&quot;</span>
+                  </div>
+                  {property.stormExposure.lastStormDate && (
+                    <div className="flex justify-between rounded-lg bg-[#0B0F1A] p-3">
+                      <span className="text-sm text-slate-400">Last Storm</span>
+                      <span className="text-sm font-bold text-white">{new Date(property.stormExposure.lastStormDate).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Cloud className="h-10 w-10 text-slate-600 mb-3" />
+                <p className="text-sm text-slate-400">No recent storm exposure data</p>
               </div>
             )}
-            {property.lead_score !== undefined && (
-              <div className="mt-4 flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
-                <span className="text-sm text-slate-400">Lead Score</span>
-                <span className={`text-lg font-bold ${
-                  property.lead_score >= 80 ? 'text-emerald-400' :
-                  property.lead_score >= 60 ? 'text-amber-400' : 'text-slate-400'
-                }`}>{property.lead_score}/100</span>
+            {property.claimEstimate && (
+              <div className="mt-4 space-y-2 border-t border-[#1F2937] pt-4">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Claim Estimate</p>
+                <div className="flex justify-between rounded-lg bg-[#0B0F1A] p-3">
+                  <span className="text-sm text-slate-400">Roof Replacement</span>
+                  <span className="text-sm font-bold text-emerald-400">${property.claimEstimate.roofReplacement?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between rounded-lg bg-[#0B0F1A] p-3">
+                  <span className="text-sm text-slate-400">Total Estimate</span>
+                  <span className="text-sm font-bold text-white">${property.claimEstimate.total?.toLocaleString()}</span>
+                </div>
               </div>
             )}
           </div>
@@ -634,7 +704,7 @@ function PropertyLookupPanel() {
 // ============================================================================
 
 function LeadScoringPanel() {
-  const [leads, setLeads] = useState<Property[]>([]);
+  const [leads, setLeads] = useState<ScoredLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'ranked' | 'neighborhoods'>('ranked');
 
@@ -659,9 +729,9 @@ function LeadScoringPanel() {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
   }
 
-  const hotLeads = leads.filter((l) => (l.lead_score || l.damage_score || 0) >= 80);
+  const hotLeads = leads.filter((l) => (l.damageScore || 0) >= 80);
   const warmLeads = leads.filter((l) => {
-    const score = l.lead_score || l.damage_score || 0;
+    const score = l.damageScore || 0;
     return score >= 50 && score < 80;
   });
 
@@ -749,12 +819,12 @@ function LeadScoringPanel() {
               </thead>
               <tbody>
                 {leads
-                  .sort((a, b) => (b.lead_score || b.damage_score || 0) - (a.lead_score || a.damage_score || 0))
+                  .sort((a, b) => (b.damageScore || 0) - (a.damageScore || 0))
                   .slice(0, 25)
                   .map((lead, idx) => {
-                    const score = lead.lead_score || lead.damage_score || 0;
+                    const score = lead.damageScore || 0;
                     return (
-                      <tr key={lead.id} className="border-b border-[#1F2937]/50 hover:bg-[#1E293B]/50 transition-colors">
+                      <tr key={lead.id || idx} className="border-b border-[#1F2937]/50 hover:bg-[#1E293B]/50 transition-colors">
                         <td className="px-4 py-3 text-sm text-slate-500">{idx + 1}</td>
                         <td className="px-4 py-3">
                           <p className="text-sm text-white">{lead.address}</p>
@@ -775,9 +845,11 @@ function LeadScoringPanel() {
                             {score >= 80 ? '🔥 Hot' : score >= 60 ? '⚡ Warm' : 'Cold'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-400">{lead.status || 'New'}</td>
                         <td className="px-4 py-3 text-xs text-slate-400">
-                          {lead.distance_miles ? `${lead.distance_miles.toFixed(1)} mi` : '-'}
+                          {lead.tags?.join(', ') || 'New'}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-400">
+                          {lead.nearestStorm?.distance ? `${lead.nearestStorm.distance.toFixed(1)} mi` : '-'}
                         </td>
                       </tr>
                     );
@@ -821,13 +893,14 @@ function KnockListPanel() {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
   }
 
-  const filteredItems = filter === 'all' ? items : items.filter((i) => i.status === filter);
+  const getPriority = (score: number) => score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low';
+  const filteredItems = filter === 'all' ? items : items.filter((i) => getPriority(i.damageScore) === filter);
 
   return (
     <div className="space-y-6">
       {/* Filter Bar */}
       <div className="flex items-center gap-3">
-        {['all', 'pending', 'contacted', 'appointment', 'not-interested'].map((f) => (
+        {['all', 'high', 'medium', 'low'].map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -837,7 +910,7 @@ function KnockListPanel() {
                 : 'bg-[#111827] text-slate-400 hover:bg-[#1E293B] hover:text-white border border-[#1F2937]'
             }`}
           >
-            {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1).replace('-', ' ')} ({f === 'all' ? items.length : items.filter((i) => i.status === f).length})
+            {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1) + ' Priority'} ({f === 'all' ? items.length : items.filter((i) => getPriority(i.damageScore) === f).length})
           </button>
         ))}
       </div>
@@ -852,36 +925,37 @@ function KnockListPanel() {
           </div>
         ) : (
           <div className="divide-y divide-[#1F2937]/50">
-            {filteredItems.map((item) => (
-              <div key={item.id} className="flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                  item.priority === 'high' ? 'bg-red-500/10 text-red-400' :
-                  item.priority === 'medium' ? 'bg-amber-500/10 text-amber-400' :
-                  'bg-slate-700/50 text-slate-400'
-                }`}>
-                  <span className="text-sm font-bold">{item.score}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{item.address}</p>
-                  <p className="text-xs text-slate-500">
-                    {item.city}, {item.state} · {item.attempts} attempt{item.attempts !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  item.status === 'appointment' ? 'bg-emerald-500/10 text-emerald-400' :
-                  item.status === 'contacted' ? 'bg-blue-500/10 text-blue-400' :
-                  item.status === 'not-interested' ? 'bg-red-500/10 text-red-400' :
-                  'bg-slate-700/50 text-slate-400'
-                }`}>
-                  {item.status}
-                </span>
-                {item.last_attempt && (
-                  <span className="text-xs text-slate-500 hidden md:block">
-                    {new Date(item.last_attempt).toLocaleDateString()}
+            {filteredItems.map((item) => {
+              const priority = getPriority(item.damageScore);
+              return (
+                <div key={item.id} className="flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                    priority === 'high' ? 'bg-red-500/10 text-red-400' :
+                    priority === 'medium' ? 'bg-amber-500/10 text-amber-400' :
+                    'bg-slate-700/50 text-slate-400'
+                  }`}>
+                    <span className="text-sm font-bold">{item.damageScore}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{item.address}</p>
+                    <p className="text-xs text-slate-500">
+                      {item.ownerName ? `${item.ownerName} · ` : ''}Est. ${item.estimatedJobValue?.toLocaleString() || '-'}
+                    </p>
+                  </div>
+                  <div className="text-right hidden md:block">
+                    <p className="text-xs text-slate-400">Roof Age: {item.roofAge || '-'} yrs</p>
+                    <p className="text-xs text-slate-500">{item.distance ? `${item.distance.toFixed(1)} mi` : ''}</p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    priority === 'high' ? 'bg-red-500/10 text-red-400' :
+                    priority === 'medium' ? 'bg-amber-500/10 text-amber-400' :
+                    'bg-slate-700/50 text-slate-400'
+                  }`}>
+                    {priority === 'high' ? '🔥 Hot' : priority === 'medium' ? '⚡ Warm' : 'Cold'}
                   </span>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1064,7 +1138,7 @@ function KnockTrackerPanel() {
   const [knocks, setKnocks] = useState<DoorKnock[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLogForm, setShowLogForm] = useState(false);
-  const [newKnock, setNewKnock] = useState({ address: '', outcome: 'no_answer', notes: '' });
+  const [newKnock, setNewKnock] = useState({ property_address: '', outcome: 'no_answer', notes: '' });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -1085,7 +1159,7 @@ function KnockTrackerPanel() {
   }, []);
 
   const logKnock = async () => {
-    if (!newKnock.address.trim()) return;
+    if (!newKnock.property_address.trim()) return;
     setSubmitting(true);
     try {
       const res = await fetch('/api/door-knocks', {
@@ -1096,7 +1170,7 @@ function KnockTrackerPanel() {
       if (res.ok) {
         const data = await res.json();
         setKnocks([data.knock || data, ...knocks]);
-        setNewKnock({ address: '', outcome: 'no_answer', notes: '' });
+        setNewKnock({ property_address: '', outcome: 'no_answer', notes: '' });
         setShowLogForm(false);
       }
     } catch (error) {
@@ -1119,7 +1193,7 @@ function KnockTrackerPanel() {
   }
 
   const todayKnocks = knocks.filter((k) => {
-    const knockDate = new Date(k.created_at).toDateString();
+    const knockDate = new Date(k.knocked_at).toDateString();
     return knockDate === new Date().toDateString();
   });
 
@@ -1163,8 +1237,8 @@ function KnockTrackerPanel() {
           <div className="space-y-4">
             <input
               type="text"
-              value={newKnock.address}
-              onChange={(e) => setNewKnock({ ...newKnock, address: e.target.value })}
+              value={newKnock.property_address}
+              onChange={(e) => setNewKnock({ ...newKnock, property_address: e.target.value })}
               placeholder="Property address"
               className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF]"
             />
@@ -1194,7 +1268,7 @@ function KnockTrackerPanel() {
             <div className="flex gap-3">
               <button
                 onClick={logKnock}
-                disabled={!newKnock.address.trim() || submitting}
+                disabled={!newKnock.property_address.trim() || submitting}
                 className="flex items-center gap-2 rounded-lg bg-[#6D5CFF] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#5B4AE8] disabled:opacity-50 transition-all"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
@@ -1230,14 +1304,14 @@ function KnockTrackerPanel() {
                 <div key={knock.id} className="flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors">
                   <Icon className={`h-5 w-5 ${info.color}`} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{knock.address}</p>
+                    <p className="text-sm text-white truncate">{knock.property_address}</p>
                     {knock.notes && <p className="text-xs text-slate-500 truncate">{knock.notes}</p>}
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${info.color}`}>
                     {info.label}
                   </span>
                   <span className="text-xs text-slate-500 hidden md:block">
-                    {new Date(knock.created_at).toLocaleString()}
+                    {new Date(knock.knocked_at).toLocaleString()}
                   </span>
                 </div>
               );
