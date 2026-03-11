@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useGeolocation } from "@/hooks/useGeolocation";
 
 interface KnockListProperty {
   id: string;
@@ -48,6 +49,27 @@ export default function KnockListPage() {
     address: "Dallas, TX",
   });
   const [listName, setListName] = useState("Storm Knock List - " + new Date().toLocaleDateString());
+
+  // Geolocation hook - auto-fetch on mount
+  const { 
+    latitude, 
+    longitude, 
+    loading: geoLoading, 
+    error: geoError,
+    getLocation,
+    hasLocation 
+  } = useGeolocation({ autoFetch: true });
+
+  // Update center location when geolocation completes
+  useEffect(() => {
+    if (hasLocation && latitude && longitude) {
+      setCenterLocation({
+        lat: latitude,
+        lng: longitude,
+        address: "Your Location",
+      });
+    }
+  }, [hasLocation, latitude, longitude]);
 
   const fetchProperties = useCallback(async () => {
     setLoading(true);

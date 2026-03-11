@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useGeolocation } from "@/hooks/useGeolocation";
 
 interface PropertyData {
   address: string;
@@ -58,6 +59,47 @@ export default function PropertyLookupPage() {
   const [recentSearches, setRecentSearches] = useState<PropertyData[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "roof" | "history" | "neighborhood">("overview");
+  const [dataSource, setDataSource] = useState<string>("");
+
+  // Geolocation hook
+  const { 
+    latitude, 
+    longitude, 
+    loading: geoLoading, 
+    error: geoError,
+    getLocation,
+    hasLocation 
+  } = useGeolocation();
+
+  // Search by current location
+  const searchByLocation = useCallback(async () => {
+    if (!hasLocation) {
+      getLocation();
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/property/lookup?lat=${latitude}&lng=${longitude}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedProperty(data);
+        setDataSource(data.source || "unknown");
+        setRecentSearches(prev => [data, ...prev.filter(p => p.address !== data.address)].slice(0, 10));
+      }
+    } catch (error) {
+      console.error("Error searching by location:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [hasLocation, latitude, longitude, getLocation]);
+
+  // Trigger location search when geolocation completes
+  useEffect(() => {
+    if (hasLocation && geoLoading === false && !selectedProperty) {
+      // Don't auto-search, just enable the button
+    }
+  }, [hasLocation, geoLoading, selectedProperty]);
 
   const searchProperty = useCallback(async (query: string) => {
     if (!query.trim()) return;
@@ -68,6 +110,7 @@ export default function PropertyLookupPage() {
       if (response.ok) {
         const data = await response.json();
         setSelectedProperty(data);
+        setDataSource(data.source || "unknown");
         setRecentSearches(prev => [data, ...prev.filter(p => p.address !== data.address)].slice(0, 10));
       } else {
         // Demo data
@@ -183,13 +226,32 @@ export default function PropertyLookupPage() {
         <div className="p-4 border-b border-zinc-800">
           <h3 className="text-sm font-medium text-zinc-400 mb-2">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-2">
-            <button className="p-2 bg-zinc-800 rounded-lg text-xs hover:bg-zinc-700 transition-colors flex items-center gap-2">
-              <span>📍</span> Current Location
+            <button 
+              onClick={searchByLocation}
+              disabled={geoLoading}
+              className={`p-2 rounded-lg text-xs transition-colors flex items-center gap-2 ${
+                hasLocation ? "bg-green-600/20 text-green-400 hover:bg-green-600/30" : "bg-zinc-800 hover:bg-zinc-700"
+              }`}
+            >
+              {geoLoading ? (
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span>📍</span>
+              )}
+              {hasLocation ? "Search Here" : "My Location"}
             </button>
             <button className="p-2 bg-zinc-800 rounded-lg text-xs hover:bg-zinc-700 transition-colors flex items-center gap-2">
               <span>🗺️</span> Click on Map
             </button>
           </div>
+          {geoError && (
+            <div className="mt-2 text-xs text-yellow-500">{geoError}</div>
+          )}
+          {hasLocation && (
+            <div className="mt-2 text-xs text-zinc-500">
+              📍 {latitude?.toFixed(4)}, {longitude?.toFixed(4)}
+            </div>
+          )}
         </div>
 
         {/* Recent Searches */}
