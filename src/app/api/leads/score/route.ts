@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getHailReports, getStormReports, XweatherStormReport } from "@/lib/xweather";
-import { searchPropertiesInArea, calculateRoofAge, estimateClaimValue, ATTOMProperty } from "@/lib/attom";
+import { getPropertyByLocation, calculateRoofAge, estimateClaimValue, ATTOMProperty } from "@/lib/attom";
 
 const ATTOM_API_KEY = process.env.ATTOM_API_KEY;
 
@@ -67,6 +67,8 @@ export async function GET(request: NextRequest) {
   const minScore = parseInt(searchParams.get("minScore") || "0");
 
   try {
+    console.log("[LeadScore] Starting search at", lat, lng, "radius", radius);
+    
     // Step 1: Get real storm data from Xweather
     let stormReports: XweatherStormReport[] = [];
     let maxHailSize = 0;
@@ -80,6 +82,20 @@ export async function GET(request: NextRequest) {
       
       stormReports = [...hailReports, ...allReports];
       
+      // Deduplicate storms by location
+      const uniqueStorms: XweatherStormReport[] = [];
+      const seen = new Set<string>();
+      stormReports.forEach(report => {
+        const key = `${report.loc.lat.toFixed(3)},${report.loc.long.toFixed(3)}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueStorms.push(report);
+        }
+      });
+      stormReports = uniqueStorms;
+      
+      console.log("[LeadScore] Found", stormReports.length, "unique storm reports");
+      
       // Find max hail and wind from real reports
       stormReports.forEach(report => {
         if (report.report.detail.hailIN && report.report.detail.hailIN > maxHailSize) {
@@ -90,34 +106,67 @@ export async function GET(request: NextRequest) {
         }
       });
     } catch (e) {
-      console.log("Xweather not available, using fallback data");
+      console.log("[LeadScore] Xweather error:", e);
     }
 
-    // Step 2: Get real properties from ATTOM
-    let properties: ATTOMProperty[] = [];
+    // Step 2: Get real properties from ATTOM using multiple search points
+    let allProperties: ATTOMProperty[] = [];
     
     if (ATTOM_API_KEY) {
       try {
-        properties = await searchPropertiesInArea(lat, lng, Math.min(radius, 5), {
-          propertyType: "SFR",
+        // Search at user's location and around storm locations
+        const searchPoints: { lat: number; lng: number }[] = [
+          { lat, lng }, // User's location
+        ];
+        
+        // Add storm locations as search points
+        stormReports.slice(0, 5).forEach(storm => {
+          searchPoints.push({ lat: storm.loc.lat, lng: storm.loc.long });
         });
+        
+        // Search for properties at each point (ATTOM has a small radius limit)
+        const propertySearches = searchPoints.map(point =>
+          getPropertyByLocation(point.lat, point.lng, "1").catch(() => [])
+        );
+        
+        const propertyResults = await Promise.all(propertySearches);
+        
+        // Combine and deduplicate by ATTOM ID
+        const seen = new Set<number>();
+        propertyResults.flat().forEach(prop => {
+          if (prop.identifier?.attomId && !seen.has(prop.identifier.attomId)) {
+            seen.add(prop.identifier.attomId);
+            allProperties.push(prop);
+          }
+        });
+        
+        console.log("[LeadScore] Found", allProperties.length, "unique properties from ATTOM");
       } catch (e) {
-        console.log("ATTOM not available, using generated data");
+        console.log("[LeadScore] ATTOM error:", e);
       }
+    } else {
+      console.log("[LeadScore] No ATTOM API key configured");
     }
 
     // Step 3: Score the leads
     let leads: ScoredLead[];
+    let dataSource = { storms: "none", properties: "none" };
     
-    if (properties.length > 0 && stormReports.length > 0) {
-      // Real data path: use ATTOM properties + Xweather storms
-      leads = scoreRealProperties(properties, stormReports, lat, lng, limit);
+    if (allProperties.length > 0) {
+      // We have real property data
+      dataSource.properties = "attom";
+      dataSource.storms = stormReports.length > 0 ? "xweather" : "estimated";
+      leads = scoreRealProperties(allProperties, stormReports, lat, lng, limit);
     } else if (stormReports.length > 0) {
-      // Storm data but no properties: generate properties in storm zones
+      // Storm data but no properties - this shouldn't happen often
+      dataSource.storms = "xweather";
+      dataSource.properties = "generated";
       leads = generateLeadsFromStorms(stormReports, lat, lng, limit);
     } else {
-      // Fallback: generate demo data
-      leads = generateFallbackLeads(lat, lng, limit, minScore);
+      // Fallback: demo mode
+      dataSource.storms = "demo";
+      dataSource.properties = "demo";
+      leads = generateDemoLeads(lat, lng, limit);
     }
 
     // Filter by minimum score
@@ -135,10 +184,8 @@ export async function GET(request: NextRequest) {
         maxWindSpeed,
         searchRadius: radius,
       },
-      source: {
-        storms: stormReports.length > 0 ? "xweather" : "generated",
-        properties: properties.length > 0 ? "attom" : "generated",
-      },
+      source: dataSource,
+      propertyCount: allProperties.length,
       location: { lat, lng },
       generated_at: new Date().toISOString(),
     });
@@ -285,49 +332,66 @@ function generateLeadsFromStorms(
   return leads.slice(0, limit);
 }
 
-// Fallback when no real data available
-function generateFallbackLeads(lat: number, lng: number, limit: number, minScore: number): ScoredLead[] {
+// Demo mode when no real data available - uses realistic varied data
+function generateDemoLeads(lat: number, lng: number, limit: number): ScoredLead[] {
   const leads: ScoredLead[] = [];
-  const streets = ["Oak", "Maple", "Cedar", "Pine", "Elm", "Main", "Park", "Lake", "Ridge", "Valley"];
-  const types = ["St", "Ave", "Dr", "Blvd", "Ln", "Way"];
+  
+  // Create varied realistic demo addresses
+  const demoProperties = [
+    { street: "2847 Oak Ridge Dr", city: "Highland Park", yearBuilt: 1998, sqft: 2800, value: 425000 },
+    { street: "1523 Maple Valley Ln", city: "University Park", yearBuilt: 2005, sqft: 3200, value: 520000 },
+    { street: "4201 Cedar Creek Blvd", city: "Preston Hollow", yearBuilt: 1992, sqft: 2400, value: 385000 },
+    { street: "876 Pine Hill Way", city: "Lake Highlands", yearBuilt: 2010, sqft: 2650, value: 445000 },
+    { street: "3159 Elm Grove St", city: "Lakewood", yearBuilt: 1985, sqft: 2100, value: 295000 },
+    { street: "5502 Willow Park Ave", city: "East Dallas", yearBuilt: 2001, sqft: 2900, value: 475000 },
+    { street: "1089 Birch Lane Ct", city: "Richardson", yearBuilt: 1995, sqft: 2300, value: 355000 },
+    { street: "7734 Magnolia Heights Dr", city: "Plano", yearBuilt: 2008, sqft: 3400, value: 585000 },
+    { street: "2201 Aspen Ridge Rd", city: "Frisco", yearBuilt: 2015, sqft: 3100, value: 550000 },
+    { street: "445 Sycamore Valley Blvd", city: "McKinney", yearBuilt: 2003, sqft: 2750, value: 465000 },
+    { street: "6612 Hickory Woods Ln", city: "Allen", yearBuilt: 1999, sqft: 2500, value: 405000 },
+    { street: "3378 Walnut Creek Dr", city: "Carrollton", yearBuilt: 1988, sqft: 2200, value: 325000 },
+    { street: "9901 Pecan Grove Ave", city: "Irving", yearBuilt: 2007, sqft: 2850, value: 485000 },
+    { street: "1847 Redwood Terrace", city: "Garland", yearBuilt: 1994, sqft: 2050, value: 275000 },
+    { street: "5523 Cypress Point Way", city: "Mesquite", yearBuilt: 2000, sqft: 2350, value: 315000 },
+  ];
 
-  for (let i = 0; i < limit; i++) {
-    const seed = Date.now() + i;
-    const roofAge = 5 + Math.floor(Math.random() * 25);
-    const roofSize = 15 + Math.floor(Math.random() * 40);
-    const propertyValue = 150000 + Math.floor(Math.random() * 600000);
-    const hailSize = Math.round((0.5 + Math.random() * 2.5) * 10) / 10;
+  const currentYear = new Date().getFullYear();
+
+  for (let i = 0; i < Math.min(limit, demoProperties.length); i++) {
+    const prop = demoProperties[i];
+    const roofAge = currentYear - prop.yearBuilt;
+    const roofSize = Math.round(prop.sqft * 1.15 / 100); // Convert to roofing squares
+    const hailSize = Math.round((1.0 + Math.random() * 1.5) * 10) / 10;
 
     const factors: LeadFactors = {
       hailSize,
-      windSpeed: 40 + Math.floor(Math.random() * 50),
+      windSpeed: 55 + Math.floor(Math.random() * 30),
       roofAge,
       roofType: "Asphalt Shingle",
-      propertyValue,
-      stormProximity: 1 + Math.random() * 10,
+      propertyValue: prop.value,
+      stormProximity: 2 + Math.random() * 8,
       roofSize,
-      neighborhoodValue: propertyValue * 0.95,
-      insuranceLikelihood: 50 + Math.floor(Math.random() * 45),
+      neighborhoodValue: prop.value * 0.95,
+      insuranceLikelihood: 65 + Math.floor(Math.random() * 30),
     };
 
     const damageScore = calculateDamageScore(factors);
     const opportunityScore = calculateOpportunityScore(factors);
 
-    if (damageScore >= minScore) {
-      leads.push({
-        id: `fallback-${seed}`,
-        address: `${1000 + (seed % 9000)} ${streets[seed % streets.length]} ${types[seed % types.length]}, Your Area`,
-        lat: lat + (Math.random() - 0.5) * 0.1,
-        lng: lng + (Math.random() - 0.5) * 0.1,
-        damageScore,
-        opportunityScore,
-        overallRank: 0,
-        factors,
-        tags: generateLeadTags(factors, damageScore),
-        estimatedJobValue: roofSize * 400 + (damageScore * 50),
-        claimProbability: calculateClaimProbability(factors, damageScore),
-      });
-    }
+    leads.push({
+      id: `demo-${i + 1}`,
+      address: `${prop.street}, ${prop.city}, TX`,
+      lat: lat + (Math.random() - 0.5) * 0.08,
+      lng: lng + (Math.random() - 0.5) * 0.08,
+      damageScore,
+      opportunityScore,
+      overallRank: 0,
+      factors,
+      tags: generateLeadTags(factors, damageScore),
+      estimatedJobValue: roofSize * 450, // $450 per square average
+      claimProbability: calculateClaimProbability(factors, damageScore),
+      yearBuilt: prop.yearBuilt,
+    });
   }
 
   leads.sort((a, b) => (b.damageScore * 0.6 + b.opportunityScore * 0.4) - (a.damageScore * 0.6 + a.opportunityScore * 0.4));
