@@ -39,15 +39,15 @@ export async function GET(request: NextRequest) {
 
     // Fetch historical storms from database
     if (!live) {
-      const { data: historicalStorms } = await supabase
-        .from("storm_events")
+      const stormEventsTable = supabase.from("storm_events") as any;
+      const { data: historicalStorms } = await stormEventsTable
         .select("*")
         .gte("start_time", `${date}T00:00:00`)
         .lte("start_time", `${date}T23:59:59`)
         .order("start_time", { ascending: false });
 
       if (historicalStorms) {
-        storms = historicalStorms.map(s => ({
+        storms = historicalStorms.map((s: any) => ({
           id: s.id,
           type: s.type,
           severity: s.severity,
@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
 
     // Cache storm data
     if (storms.length > 0) {
-      await supabase.from("storm_cache").upsert({
+      const stormCacheTable = supabase.from("storm_cache") as any;
+      await stormCacheTable.upsert({
         cache_key: `storms_${date}_${live}`,
         data: { storms, impactedProperties },
         expires_at: new Date(Date.now() + (live ? 300000 : 3600000)).toISOString(), // 5 min live, 1 hr historical

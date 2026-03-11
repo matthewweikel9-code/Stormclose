@@ -16,7 +16,7 @@ export async function GET() {
       .from('team_members')
       .select('team_id')
       .eq('user_id', user.id)
-      .single();
+      .single() as { data: { team_id: string } | null };
 
     // Get team locations with user info and today's performance
     const today = new Date().toISOString().split('T')[0];
@@ -102,11 +102,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's team
-    const { data: teamMember } = await supabase
+    const { data: teamMember2 } = await supabase
       .from('team_members')
       .select('team_id')
       .eq('user_id', user.id)
-      .single();
+      .single() as { data: { team_id: string } | null };
 
     // Determine activity based on speed
     let activity = 'idle';
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     const { error } = await (supabase.from('team_locations') as any)
       .upsert({
         user_id: user.id,
-        team_id: teamMember?.team_id || null,
+        team_id: teamMember2?.team_id || null,
         latitude,
         longitude,
         accuracy: accuracy || null,

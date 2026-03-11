@@ -54,7 +54,8 @@ export async function GET(request: NextRequest) {
     const neighborhoods = await generateNeighborhoodScores();
 
     // Cache results
-    await supabase.from("lead_score_cache").upsert({
+    const cacheTable = supabase.from("lead_score_cache") as any;
+    await cacheTable.upsert({
       user_id: user.id,
       cache_key: `leads_${stormId || "all"}_${neighborhood || "all"}`,
       leads,

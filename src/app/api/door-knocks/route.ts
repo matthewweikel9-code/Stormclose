@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+interface DoorKnock {
+  id: string;
+  user_id: string;
+  address: string;
+  lat: number;
+  lng: number;
+  knocked_at: string;
+  outcome: string;
+  notes?: string;
+  lead_id?: string;
+  created_at: string;
+}
+
 // GET: Fetch door knocks with filters
 export async function GET(request: NextRequest) {
   try {
@@ -45,7 +58,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('outcome', outcome);
     }
 
-    const { data: knocks, error } = await query;
+    const { data: knocks, error } = await query as { data: DoorKnock[] | null; error: any };
 
     if (error) {
       console.error('Error fetching knocks:', error);
@@ -126,7 +139,7 @@ export async function POST(request: NextRequest) {
       .from('team_members')
       .select('team_id')
       .eq('user_id', user.id)
-      .single();
+      .single() as { data: { team_id: string } | null };
 
     // Insert door knock
     const { data: knock, error } = await supabase
@@ -143,7 +156,7 @@ export async function POST(request: NextRequest) {
         owner_name: owner_name || null,
         duration_seconds: duration_seconds || null,
         knocked_at: new Date().toISOString(),
-      })
+      } as any)
       .select()
       .single();
 
@@ -162,8 +175,8 @@ export async function POST(request: NextRequest) {
       };
 
       if (statusMap[outcome]) {
-        await supabase
-          .from('leads')
+        const leadsTable = supabase.from('leads') as any;
+        await leadsTable
           .update({ status: statusMap[outcome] })
           .eq('id', lead_id);
       }

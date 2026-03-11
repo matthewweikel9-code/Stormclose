@@ -84,8 +84,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, properties, centerLocation, filters } = body;
 
-    const { data, error } = await supabase
-      .from("knock_lists")
+    const knockListsTable = supabase.from("knock_lists") as any;
+    const { data, error } = await knockListsTable
       .insert({
         user_id: user.id,
         name,

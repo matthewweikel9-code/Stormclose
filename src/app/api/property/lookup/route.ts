@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
 
     // Check cache first
     const cacheKey = address || parcelId || `${lat},${lng}`;
-    const { data: cached } = await supabase
-      .from("property_cache")
+    const propertyCacheTable = supabase.from("property_cache") as any;
+    const { data: cached } = await propertyCacheTable
       .select("*")
       .eq("cache_key", cacheKey)
       .gt("expires_at", new Date().toISOString())
@@ -54,14 +54,15 @@ export async function GET(request: NextRequest) {
     const propertyData = await fetchPropertyData(address || "", coords);
 
     // Cache the result
-    await supabase.from("property_cache").upsert({
+    await propertyCacheTable.upsert({
       cache_key: cacheKey,
       data: propertyData,
       expires_at: new Date(Date.now() + 86400000).toISOString(), // 24 hours
     });
 
     // Log the lookup
-    await supabase.from("property_lookups").insert({
+    const lookupsTable = supabase.from("property_lookups") as any;
+    await lookupsTable.insert({
       user_id: user.id,
       address: propertyData.address,
       lat: coords.lat,

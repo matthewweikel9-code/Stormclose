@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         .from('user_settings')
         .select('default_latitude, default_longitude')
         .eq('user_id', user.id)
-        .single();
+        .single() as { data: { default_latitude: number; default_longitude: number } | null };
 
       if (!settings?.default_latitude || !settings?.default_longitude) {
         return NextResponse.json({ 
