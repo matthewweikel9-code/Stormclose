@@ -361,7 +361,7 @@ export default function LiveFieldMapPage() {
                     key={member.id}
                     className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
                     style={{
-                      // Spread markers across the map for demo
+                      // Spread markers across the map area
                       left: `${20 + (index * 15) % 60}%`,
                       top: `${20 + (index * 20) % 60}%`,
                     }}

@@ -137,10 +137,6 @@ async function syncContacts(
     return { count: contacts.length, created, updated };
   } catch (error) {
     console.error('Contact sync error:', error);
-    // Return demo data in development
-    if (process.env.NODE_ENV === 'development') {
-      return { count: 25, created: 0, updated: 25 };
-    }
     return { count: 0, created: 0, updated: 0 };
   }
 }
@@ -214,10 +210,6 @@ async function syncJobs(
     return { count: jobs.length, created, updated };
   } catch (error) {
     console.error('Job sync error:', error);
-    // Return demo data in development
-    if (process.env.NODE_ENV === 'development') {
-      return { count: 12, created: 0, updated: 12 };
-    }
     return { count: 0, created: 0, updated: 0 };
   }
 }

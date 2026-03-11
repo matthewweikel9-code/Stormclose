@@ -36,8 +36,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Get team members and their performance
-    // In production, this would query actual performance tables
-    // For now, generate realistic demo data
     const members = await getTeamPerformance(supabase, user.id, startDate);
 
     // Calculate team stats
@@ -135,65 +133,10 @@ async function getTeamPerformance(
       return members;
     }
 
-    // Return demo data if no records
-    return generateDemoTeamData();
+    // Return empty data if no records
+    return [];
   } catch (error) {
     console.error('Error fetching team performance:', error);
-    return generateDemoTeamData();
+    return [];
   }
-}
-
-function generateDemoTeamData(): any[] {
-  const names = [
-    { name: 'Jake Wilson', role: 'Senior Sales Rep' },
-    { name: 'Sarah Martinez', role: 'Sales Rep' },
-    { name: 'Mike Thompson', role: 'Sales Rep' },
-    { name: 'Emily Chen', role: 'Junior Sales Rep' },
-    { name: 'David Brown', role: 'Sales Rep' },
-    { name: 'Lisa Anderson', role: 'Team Lead' },
-  ];
-
-  const achievements = [
-    ['Top Closer', 'Revenue King'],
-    ['Door Warrior', 'Hot Streak'],
-    ['Appointment Pro'],
-    ['Quick Starter'],
-    ['Team Player'],
-    ['Perfect Week', 'Top Closer'],
-  ];
-
-  return names.map((person, index) => {
-    const doorsKnocked = Math.floor(Math.random() * 150) + 50;
-    const appointments = Math.floor(doorsKnocked * (0.08 + Math.random() * 0.12));
-    const leads = Math.floor(appointments * (0.5 + Math.random() * 0.3));
-    const closed = Math.floor(leads * (0.3 + Math.random() * 0.4));
-    const revenue = closed * (8000 + Math.floor(Math.random() * 12000));
-
-    return {
-      id: `demo-${index + 1}`,
-      name: person.name,
-      role: person.role,
-      stats: {
-        doorsKnocked,
-        appointments,
-        leads,
-        closed,
-        revenue,
-        conversionRate: doorsKnocked > 0 ? (appointments / doorsKnocked) * 100 : 0,
-        avgDealSize: closed > 0 ? revenue / closed : 0,
-        streak: Math.floor(Math.random() * 10),
-      },
-      change: {
-        doorsKnocked: Math.floor(Math.random() * 30) - 15,
-        appointments: Math.floor(Math.random() * 10) - 5,
-        leads: Math.floor(Math.random() * 8) - 4,
-        closed: Math.floor(Math.random() * 4) - 2,
-        revenue: Math.floor(Math.random() * 20000) - 10000,
-      },
-      rank: index + 1,
-      previousRank: Math.min(index + 1 + Math.floor(Math.random() * 3 - 1), names.length),
-      achievements: achievements[index] || [],
-      isOnline: Math.random() > 0.5,
-    };
-  }).sort((a, b) => b.stats.revenue - a.stats.revenue).map((m, i) => ({ ...m, rank: i + 1 }));
 }

@@ -118,10 +118,6 @@ async function validateJobNimbusApiKey(apiKey: string): Promise<{
     return { valid: false };
   } catch (error) {
     console.error('JobNimbus validation error:', error);
-    // For development/demo, allow any key
-    if (process.env.NODE_ENV === 'development') {
-      return { valid: true, companyName: 'Demo Company' };
-    }
     return { valid: false };
   }
 }

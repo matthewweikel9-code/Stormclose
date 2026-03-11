@@ -113,66 +113,8 @@ export default function PropertyLookupPage() {
         setDataSource(data.source || "unknown");
         setRecentSearches(prev => [data, ...prev.filter(p => p.address !== data.address)].slice(0, 10));
       } else {
-        // Demo data
-        const demoProperty: PropertyData = {
-          address: query || "1234 Oak Street, Dallas TX 75201",
-          lat: 32.7767,
-          lng: -96.7970,
-          owner: {
-            name: "John Smith",
-            mailingAddress: "1234 Oak Street, Dallas TX 75201",
-          },
-          property: {
-            value: 425000,
-            yearBuilt: 2005,
-            squareFootage: 2850,
-            lotSize: 8500,
-            buildingType: "Single Family",
-            bedrooms: 4,
-            bathrooms: 3,
-          },
-          roof: {
-            type: "Hip",
-            material: "Asphalt Shingle",
-            age: 12,
-            complexity: "moderate",
-            condition: "fair",
-            squareFootage: 3200,
-            pitch: 6,
-          },
-          parcel: {
-            id: "DAL-2024-001234",
-            boundaries: [
-              { lat: 32.7770, lng: -96.7975 },
-              { lat: 32.7770, lng: -96.7965 },
-              { lat: 32.7764, lng: -96.7965 },
-              { lat: 32.7764, lng: -96.7975 },
-            ],
-            dimensions: { width: 75, length: 115 },
-          },
-          history: {
-            lastSale: { date: "2018-06-15", price: 385000 },
-            mortgageEstimate: 285000,
-            permits: [
-              { date: "2019-03-12", type: "HVAC Replacement", value: 8500 },
-              { date: "2021-08-22", type: "Deck Addition", value: 12000 },
-            ],
-          },
-          neighborhood: {
-            avgHomeValue: 398000,
-            avgRoofAge: 14,
-            claimLikelihood: 68,
-          },
-          stormExposure: {
-            hailEvents: 3,
-            maxHailSize: 1.75,
-            windEvents: 5,
-            maxWindSpeed: 72,
-            lastStormDate: "2025-04-15",
-          },
-        };
-        setSelectedProperty(demoProperty);
-        setRecentSearches(prev => [demoProperty, ...prev.filter(p => p.address !== demoProperty.address)].slice(0, 10));
+        console.error("Property lookup failed:", response.statusText);
+        setSelectedProperty(null);
       }
     } catch (error) {
       console.error("Error searching property:", error);
@@ -692,14 +634,6 @@ export default function PropertyLookupPage() {
               <p className="text-zinc-500 text-sm mb-4">
                 Search for any property to view owner information, roof data, storm exposure, and neighborhood insights.
               </p>
-              <div className="flex gap-2 justify-center">
-                <button 
-                  onClick={() => searchProperty("1234 Oak Street, Dallas TX 75201")}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors"
-                >
-                  Try Demo Property
-                </button>
-              </div>
             </div>
           </div>
         )}

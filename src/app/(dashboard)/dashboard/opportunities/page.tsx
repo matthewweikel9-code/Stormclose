@@ -106,252 +106,6 @@ interface WeatherForecast {
 }
 
 // =============================================================================
-// MOCK DATA
-// =============================================================================
-
-const MOCK_STATS: DashboardStats = {
-  totalOpportunityValue: 4250000,
-  activeStorms: 3,
-  hotLeads: 47,
-  scheduledKnocks: 156,
-  weeklyChange: 12.5,
-};
-
-const MOCK_STORMS: StormOpportunity[] = [
-  {
-    id: '1',
-    name: 'North Dallas Hail Storm',
-    date: '2024-05-18',
-    location: 'Plano, TX',
-    coordinates: { lat: 33.0198, lng: -96.6989 },
-    severity: 'major',
-    hailSize: 2.75,
-    windSpeed: 72,
-    affectedProperties: 2847,
-    estimatedDamage: 42000000,
-    daysAgo: 2,
-    opportunityScore: 98,
-  },
-  {
-    id: '2',
-    name: 'Fort Worth Supercell',
-    date: '2024-05-15',
-    location: 'Fort Worth, TX',
-    coordinates: { lat: 32.7555, lng: -97.3308 },
-    severity: 'major',
-    hailSize: 2.25,
-    windSpeed: 65,
-    affectedProperties: 1924,
-    estimatedDamage: 28000000,
-    daysAgo: 5,
-    opportunityScore: 94,
-  },
-  {
-    id: '3',
-    name: 'McKinney Wind Event',
-    date: '2024-05-12',
-    location: 'McKinney, TX',
-    coordinates: { lat: 33.1972, lng: -96.6397 },
-    severity: 'moderate',
-    hailSize: 1.5,
-    windSpeed: 58,
-    affectedProperties: 892,
-    estimatedDamage: 12000000,
-    daysAgo: 8,
-    opportunityScore: 82,
-  },
-  {
-    id: '4',
-    name: 'Arlington Hail',
-    date: '2024-05-08',
-    location: 'Arlington, TX',
-    coordinates: { lat: 32.7357, lng: -97.1081 },
-    severity: 'minor',
-    hailSize: 1.0,
-    windSpeed: 45,
-    affectedProperties: 456,
-    estimatedDamage: 5500000,
-    daysAgo: 12,
-    opportunityScore: 68,
-  },
-];
-
-const MOCK_TOP_PROPERTIES: TopProperty[] = [
-  {
-    id: '1',
-    address: '4521 Stonegate Dr',
-    city: 'Plano',
-    state: 'TX',
-    damageScore: 94,
-    opportunityValue: 42500,
-    roofAge: 18,
-    roofSquares: 38,
-    lastStorm: '2024-05-18',
-    owner: 'Robert Johnson',
-    tags: ['Golf ball hail', 'Old roof', 'Insurance approved'],
-    priority: 'hot',
-  },
-  {
-    id: '2',
-    address: '8734 Willow Creek Blvd',
-    city: 'Plano',
-    state: 'TX',
-    damageScore: 91,
-    opportunityValue: 38000,
-    roofAge: 15,
-    roofSquares: 34,
-    lastStorm: '2024-05-18',
-    owner: 'Sarah Martinez',
-    tags: ['2.5" hail', 'Claim filed'],
-    priority: 'hot',
-  },
-  {
-    id: '3',
-    address: '2156 Oak Hollow Ln',
-    city: 'Fort Worth',
-    state: 'TX',
-    damageScore: 88,
-    opportunityValue: 35500,
-    roofAge: 22,
-    roofSquares: 32,
-    lastStorm: '2024-05-15',
-    owner: 'Michael Chen',
-    tags: ['Visible damage', 'Urgent'],
-    priority: 'hot',
-  },
-  {
-    id: '4',
-    address: '9823 Magnolia Way',
-    city: 'McKinney',
-    state: 'TX',
-    damageScore: 82,
-    opportunityValue: 28000,
-    roofAge: 12,
-    roofSquares: 26,
-    lastStorm: '2024-05-12',
-    owner: 'Jennifer Davis',
-    tags: ['Wind damage', 'Responsive'],
-    priority: 'warm',
-  },
-  {
-    id: '5',
-    address: '5467 Cedar Ridge Ct',
-    city: 'Arlington',
-    state: 'TX',
-    damageScore: 78,
-    opportunityValue: 24500,
-    roofAge: 10,
-    roofSquares: 24,
-    lastStorm: '2024-05-08',
-    owner: 'David Wilson',
-    tags: ['Minor damage', 'Follow-up needed'],
-    priority: 'warm',
-  },
-];
-
-const MOCK_NEIGHBORHOODS: HotNeighborhood[] = [
-  {
-    id: '1',
-    name: 'Stonebriar Heights',
-    city: 'Plano',
-    totalHomes: 847,
-    affectedHomes: 623,
-    averageDamage: 8500,
-    averageRoofAge: 14,
-    opportunityValue: 5295500,
-    saturation: 8,
-    competitorActivity: 'low',
-  },
-  {
-    id: '2',
-    name: 'Ridgewood Estates',
-    city: 'Fort Worth',
-    totalHomes: 562,
-    affectedHomes: 412,
-    averageDamage: 7200,
-    averageRoofAge: 16,
-    opportunityValue: 2966400,
-    saturation: 15,
-    competitorActivity: 'medium',
-  },
-  {
-    id: '3',
-    name: 'Meadow Creek',
-    city: 'McKinney',
-    totalHomes: 398,
-    affectedHomes: 287,
-    averageDamage: 5800,
-    averageRoofAge: 11,
-    opportunityValue: 1664600,
-    saturation: 22,
-    competitorActivity: 'low',
-  },
-  {
-    id: '4',
-    name: 'Lakewood Hills',
-    city: 'Arlington',
-    totalHomes: 523,
-    affectedHomes: 189,
-    averageDamage: 4200,
-    averageRoofAge: 9,
-    opportunityValue: 793800,
-    saturation: 35,
-    competitorActivity: 'high',
-  },
-];
-
-const MOCK_LARGE_ROOFS: RoofOpportunity[] = [
-  {
-    id: '1',
-    address: '12500 Preston Rd - Commercial Plaza',
-    roofSquares: 185,
-    estimatedValue: 245000,
-    roofAge: 20,
-    roofType: 'TPO Membrane',
-    complexity: 'moderate',
-    urgency: 'immediate',
-  },
-  {
-    id: '2',
-    address: '8700 Coit Rd - Church',
-    roofSquares: 124,
-    estimatedValue: 165000,
-    roofAge: 18,
-    roofType: 'Built-Up',
-    complexity: 'complex',
-    urgency: 'soon',
-  },
-  {
-    id: '3',
-    address: '5200 Legacy Dr - Office Building',
-    roofSquares: 98,
-    estimatedValue: 128000,
-    roofAge: 15,
-    roofType: 'EPDM',
-    complexity: 'simple',
-    urgency: 'immediate',
-  },
-  {
-    id: '4',
-    address: '3100 Main St - Restaurant',
-    roofSquares: 45,
-    estimatedValue: 58000,
-    roofAge: 22,
-    roofType: 'Modified Bitumen',
-    complexity: 'moderate',
-    urgency: 'planned',
-  },
-];
-
-const MOCK_FORECAST: WeatherForecast[] = [
-  { date: 'Today', condition: 'Partly Cloudy', high: 85, low: 68, stormChance: 10, icon: 'sun' },
-  { date: 'Tue', condition: 'Sunny', high: 88, low: 70, stormChance: 5, icon: 'sun' },
-  { date: 'Wed', condition: 'Thunderstorms', high: 82, low: 65, stormChance: 75, icon: 'storm' },
-  { date: 'Thu', condition: 'Scattered Storms', high: 79, low: 63, stormChance: 60, icon: 'rain' },
-  { date: 'Fri', condition: 'Partly Cloudy', high: 84, low: 66, stormChance: 20, icon: 'cloud' },
-];
-
-// =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
 
@@ -383,20 +137,51 @@ const getWeatherIcon = (icon: WeatherForecast['icon']) => {
 // =============================================================================
 
 export default function OpportunityDashboard() {
-  const [stats, setStats] = useState<DashboardStats>(MOCK_STATS);
-  const [storms, setStorms] = useState<StormOpportunity[]>(MOCK_STORMS);
-  const [topProperties, setTopProperties] = useState<TopProperty[]>(MOCK_TOP_PROPERTIES);
-  const [neighborhoods, setNeighborhoods] = useState<HotNeighborhood[]>(MOCK_NEIGHBORHOODS);
-  const [largeRoofs, setLargeRoofs] = useState<RoofOpportunity[]>(MOCK_LARGE_ROOFS);
-  const [forecast, setForecast] = useState<WeatherForecast[]>(MOCK_FORECAST);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalOpportunityValue: 0,
+    activeStorms: 0,
+    hotLeads: 0,
+    scheduledKnocks: 0,
+    weeklyChange: 0,
+  });
+  const [storms, setStorms] = useState<StormOpportunity[]>([]);
+  const [topProperties, setTopProperties] = useState<TopProperty[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<HotNeighborhood[]>([]);
+  const [largeRoofs, setLargeRoofs] = useState<RoofOpportunity[]>([]);
+  const [forecast, setForecast] = useState<WeatherForecast[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedTimeframe, setSelectedTimeframe] = useState<'24h' | '7d' | '30d'>('7d');
+
+  // Fetch real data on mount
+  useEffect(() => {
+    fetchOpportunityData();
+  }, [selectedTimeframe]);
+
+  const fetchOpportunityData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/opportunities?timeframe=${selectedTimeframe}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.stats) setStats(data.stats);
+        if (data.storms) setStorms(data.storms);
+        if (data.topProperties) setTopProperties(data.topProperties);
+        if (data.neighborhoods) setNeighborhoods(data.neighborhoods);
+        if (data.largeRoofs) setLargeRoofs(data.largeRoofs);
+        if (data.forecast) setForecast(data.forecast);
+      }
+    } catch (error) {
+      console.error('Error fetching opportunity data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Refresh data
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Simulate API refresh
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await fetchOpportunityData();
     setIsRefreshing(false);
   };
 

@@ -99,12 +99,14 @@ export async function GET(request: NextRequest) {
     const weather = await fetchWeatherData(latitude, longitude);
 
     if (!weather) {
-      // Return mock data if API fails
+      // Return error if weather API is unavailable
       return NextResponse.json({
-        weather: getMockWeather(),
-        routing_recommendations: getMockRecommendations(),
+        error: 'Weather data unavailable',
+        message: 'Could not fetch weather data. Please check your API key configuration.',
+        weather: null,
+        routing_recommendations: null,
         cached: false,
-      });
+      }, { status: 503 });
     }
 
     // Cache the weather data
@@ -269,38 +271,4 @@ function generateRoutingRecommendations(weather: any): {
   }
 
   return recommendations;
-}
-
-function getMockWeather(): WeatherData {
-  return {
-    temperature: 72,
-    feels_like: 74,
-    humidity: 45,
-    wind_speed: 8,
-    wind_direction: 'SW',
-    conditions: 'Partly Cloudy',
-    conditions_icon: '02d',
-    precipitation_chance: 15,
-    precipitation_type: null,
-    hourly_forecast: [
-      { time: '2026-03-10 12:00', hour: 12, temperature: 72, conditions: 'Cloudy', icon: '03d', precipitation_chance: 15, wind_speed: 8 },
-      { time: '2026-03-10 15:00', hour: 15, temperature: 75, conditions: 'Sunny', icon: '01d', precipitation_chance: 10, wind_speed: 10 },
-      { time: '2026-03-10 18:00', hour: 18, temperature: 70, conditions: 'Clear', icon: '01d', precipitation_chance: 5, wind_speed: 6 },
-      { time: '2026-03-10 21:00', hour: 21, temperature: 65, conditions: 'Clear', icon: '01n', precipitation_chance: 5, wind_speed: 4 },
-    ],
-    alerts: [],
-  };
-}
-
-function getMockRecommendations() {
-  return {
-    can_canvas: true,
-    optimal_hours: [15, 16, 17, 18],
-    warnings: [],
-    tips: [
-      'Perfect weather for canvassing today!',
-      'Prime evening hours coming up - homeowners returning from work',
-      'Partly cloudy - no harsh sun, great for being outside',
-    ],
-  };
 }

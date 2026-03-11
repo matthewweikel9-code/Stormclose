@@ -148,9 +148,10 @@ export async function GET(request: NextRequest) {
         
         console.log("[LeadScore] Searching", searchPoints.length, "locations for properties");
         
-        // Search each point with ATTOM
+        // Search each point with ATTOM - use radius 5 to find enough residential properties
+        // (downtown areas are mostly commercial, need wider radius to reach neighborhoods)
         const propertySearches = searchPoints.map(point =>
-          getPropertyByLocation(point.lat, point.lng, "2").catch((e) => {
+          getPropertyByLocation(point.lat, point.lng, "5").catch((e) => {
             console.log("[LeadScore] ATTOM search error at", point.lat, point.lng, ":", e.message);
             return [];
           })

@@ -355,16 +355,11 @@ export default function LeadsPage() {
   };
 
   const openPropertyDetail = (property: Property) => {
-    // Use actual API data, only generate contact info as mock
+    // Use actual API data - contact details not available from ATTOM
     const detail: PropertyDetail = {
       ...property,
-      // Generate mock contact details (API doesn't provide these)
-      ownerPhone: `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-      ownerEmail: property.owner && property.owner !== 'Unknown'
-        ? `${property.owner.toLowerCase().replace(/\s+/g, '.').substring(0, 20)}@email.com`
-        : 'unknown@email.com',
-      // Use actual property data from API (already included in property object)
-      // These are passed through from the transformation
+      ownerPhone: 'Not available',
+      ownerEmail: 'Not available',
     };
     setSelectedProperty(detail);
     setShowModal(true);

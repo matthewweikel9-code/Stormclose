@@ -170,74 +170,6 @@ const REPORT_TYPES: ReportType[] = [
 ];
 
 // =============================================================================
-// MOCK DATA
-// =============================================================================
-
-const MOCK_PROPERTY_DATA: PropertyReportData = {
-  address: '123 Storm Lane, Dallas, TX 75201',
-  owner: 'John Smith',
-  propertyValue: 425000,
-  yearBuilt: 1998,
-  roofAge: 12,
-  roofType: '3-Tab Shingle',
-  roofSquares: 28,
-  lotSize: 8500,
-  stormHistory: [
-    { date: '2024-04-15', type: 'Hail', severity: 'Major' },
-    { date: '2023-06-22', type: 'Wind', severity: 'Moderate' },
-    { date: '2022-03-08', type: 'Hail', severity: 'Minor' },
-  ],
-  damageScore: 78,
-  lastInspection: '2024-01-15',
-};
-
-const MOCK_STORM_DATA: StormReportData = {
-  stormDate: '2024-04-15',
-  stormType: 'Severe Hail Storm',
-  maxHailSize: 2.5,
-  maxWindSpeed: 65,
-  affectedProperties: 1247,
-  damageEstimate: 18500000,
-  impactRadius: 8.5,
-  coordinates: { lat: 32.7767, lng: -96.797 },
-};
-
-const MOCK_MEASUREMENT_DATA: MeasurementReportData = {
-  address: '123 Storm Lane, Dallas, TX 75201',
-  totalSquares: 28.5,
-  roofPitch: '6/12',
-  segments: [
-    { name: 'Main Roof', sqft: 1850 },
-    { name: 'Garage', sqft: 450 },
-    { name: 'Porch Overhang', sqft: 150 },
-  ],
-  materials: [
-    { item: 'Architectural Shingles', quantity: 86, unit: 'bundles' },
-    { item: 'Synthetic Underlayment', quantity: 3, unit: 'rolls' },
-    { item: 'Ridge Caps', quantity: 4, unit: 'bundles' },
-    { item: 'Drip Edge', quantity: 200, unit: 'linear ft' },
-    { item: 'Ice & Water Shield', quantity: 2, unit: 'rolls' },
-  ],
-  wasteFactor: 12,
-  measurementDate: '2024-05-20',
-};
-
-const MOCK_ROUTE_DATA: RouteReportData = {
-  routeName: 'North Dallas Morning Route',
-  totalStops: 12,
-  totalDistance: 18.5,
-  estimatedTime: 4.5,
-  stops: [
-    { address: '123 Oak St, Dallas, TX', priority: 'High', notes: 'Recent hail damage reported' },
-    { address: '456 Maple Ave, Dallas, TX', priority: 'High', notes: '15-year old roof, good candidate' },
-    { address: '789 Pine Rd, Dallas, TX', priority: 'Medium', notes: 'Neighbor had roof replaced' },
-    { address: '321 Cedar Ln, Dallas, TX', priority: 'Medium', notes: 'Insurance claim filed' },
-    { address: '654 Elm Dr, Dallas, TX', priority: 'Low', notes: 'Follow-up visit' },
-  ],
-  optimized: true,
-};
-
-// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
@@ -274,34 +206,50 @@ export default function ReportsPage() {
 
     setGenerating(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      // Fetch real data from API based on report type
+      const reportData = await fetchReportData(selectedType.id);
 
-    const report: GeneratedReport = {
-      id: Date.now().toString(),
-      type: selectedType.id,
-      name: `${selectedType.name} - ${new Date().toLocaleDateString()}`,
-      generatedAt: new Date().toISOString(),
-      data: getMockData(selectedType.id),
-    };
+      const report: GeneratedReport = {
+        id: Date.now().toString(),
+        type: selectedType.id,
+        name: `${selectedType.name} - ${new Date().toLocaleDateString()}`,
+        generatedAt: new Date().toISOString(),
+        data: reportData,
+      };
 
-    setGeneratedReport(report);
-    setRecentReports(prev => [report, ...prev.slice(0, 4)]);
-    setGenerating(false);
-    setShowPreview(true);
+      setGeneratedReport(report);
+      setRecentReports(prev => [report, ...prev.slice(0, 4)]);
+      setShowPreview(true);
+    } catch (error) {
+      console.error('Error generating report:', error);
+    } finally {
+      setGenerating(false);
+    }
   };
 
-  // Get mock data based on type
-  const getMockData = (type: string) => {
+  // Fetch real data from APIs based on report type
+  const fetchReportData = async (type: string) => {
+    try {
+      const response = await fetch(`/api/reports/generate?type=${type}`);
+      if (response.ok) {
+        const data = await response.json();
+        return data;
+      }
+    } catch (e) {
+      console.error('Report API error:', e);
+    }
+    
+    // Return empty structure if API not available yet
     switch (type) {
       case 'property':
-        return MOCK_PROPERTY_DATA;
+        return { address: 'No property selected', owner: 'N/A', propertyValue: 0, yearBuilt: 0, roofAge: 0, roofType: 'N/A', roofSquares: 0, lotSize: 0, stormHistory: [], damageScore: 0 };
       case 'storm':
-        return MOCK_STORM_DATA;
+        return { stormDate: 'N/A', stormType: 'No storms found', maxHailSize: 0, maxWindSpeed: 0, affectedProperties: 0, damageEstimate: 0, impactRadius: 0, coordinates: { lat: 0, lng: 0 } };
       case 'measurement':
-        return MOCK_MEASUREMENT_DATA;
+        return { address: 'No property selected', totalSquares: 0, roofPitch: 'N/A', segments: [], materials: [], wasteFactor: 0, measurementDate: 'N/A' };
       case 'route':
-        return MOCK_ROUTE_DATA;
+        return { routeName: 'No route created', totalStops: 0, totalDistance: 0, estimatedTime: 0, stops: [], optimized: false };
       default:
         return null;
     }

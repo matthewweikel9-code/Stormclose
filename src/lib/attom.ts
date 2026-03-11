@@ -211,10 +211,37 @@ export async function getPropertyByLocation(
         longitude: lng.toString(),
         radius,
         orderby: "distance",
+        pagesize: "100", // Request more so we have enough after filtering
       }
     );
 
-    return result.property || [];
+    const allProperties = result.property || [];
+    
+    // CRITICAL: Filter to ONLY residential properties with valid addresses
+    // ATTOM snapshot returns ALL property types (commercial, tax-exempt, vacant land)
+    // propIndicator: "10" = residential SFR, "11" = residential condo, "22" = residential duplex
+    // propclass: "Residential" for residential properties
+    const residentialProperties = allProperties.filter(prop => {
+      // Must have a street address (line1) - many ATTOM results have empty line1
+      const hasAddress = prop.address?.line1 && prop.address.line1.trim().length > 0;
+      if (!hasAddress) return false;
+      
+      // Must be residential - check propIndicator first (most reliable)
+      const propIndicator = prop.summary?.propIndicator;
+      const propClass = prop.summary?.propclass?.toLowerCase() || "";
+      
+      const isResidential = 
+        propIndicator === "10" || // SFR
+        propIndicator === "11" || // Condo
+        propIndicator === "22" || // Duplex/Multi-family residential
+        propClass.includes("residential");
+      
+      return isResidential;
+    });
+    
+    console.log(`[ATTOM] Filtered ${allProperties.length} → ${residentialProperties.length} residential properties with valid addresses`);
+
+    return residentialProperties;
   } catch (error) {
     console.error("[ATTOM] getPropertyByLocation error:", error);
     return [];
@@ -240,7 +267,7 @@ export async function searchPropertiesInArea(
       longitude: lng.toString(),
       radius: radiusMiles.toString(),
       orderby: "distance",
-      pagesize: "50",
+      pagesize: "100",
     };
 
     if (filters?.minYearBuilt) {
@@ -258,7 +285,27 @@ export async function searchPropertiesInArea(
       params
     );
 
-    return result.property || [];
+    const allProperties = result.property || [];
+    
+    // Filter to residential properties with valid addresses
+    const residentialProperties = allProperties.filter(prop => {
+      const hasAddress = prop.address?.line1 && prop.address.line1.trim().length > 0;
+      if (!hasAddress) return false;
+      
+      const propIndicator = prop.summary?.propIndicator;
+      const propClass = prop.summary?.propclass?.toLowerCase() || "";
+      
+      return (
+        propIndicator === "10" ||
+        propIndicator === "11" ||
+        propIndicator === "22" ||
+        propClass.includes("residential")
+      );
+    });
+    
+    console.log(`[ATTOM] Area search: ${allProperties.length} → ${residentialProperties.length} residential`);
+
+    return residentialProperties;
   } catch (error) {
     console.error("[ATTOM] searchPropertiesInArea error:", error);
     return [];

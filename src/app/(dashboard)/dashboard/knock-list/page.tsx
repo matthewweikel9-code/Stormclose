@@ -79,22 +79,8 @@ export default function KnockListPage() {
         const data = await response.json();
         setProperties(data.properties || []);
       } else {
-        // Demo data
-        const demoProperties: KnockListProperty[] = Array.from({ length: 100 }, (_, i) => ({
-          id: `prop-${i + 1}`,
-          address: `${1000 + i * 50} ${["Oak", "Maple", "Cedar", "Pine", "Elm", "Main", "Park"][i % 7]} ${["St", "Ave", "Dr", "Blvd"][i % 4]}, ${["Dallas", "Plano", "Frisco"][i % 3]} TX`,
-          lat: centerLocation.lat + (Math.random() - 0.5) * 0.1,
-          lng: centerLocation.lng + (Math.random() - 0.5) * 0.1,
-          damageScore: Math.round(40 + Math.random() * 60),
-          roofAge: Math.round(5 + Math.random() * 25),
-          roofSize: Math.round(15 + Math.random() * 40),
-          propertyValue: Math.round(150000 + Math.random() * 850000),
-          stormSeverity: Math.round(30 + Math.random() * 70),
-          estimatedJobValue: Math.round(8000 + Math.random() * 20000),
-          distance: Math.round(Math.random() * filters.maxDistance * 10) / 10,
-          selected: false,
-        }));
-        setProperties(demoProperties);
+        console.error("Failed to fetch properties:", response.statusText);
+        setProperties([]);
       }
     } catch (error) {
       console.error("Error fetching properties:", error);
