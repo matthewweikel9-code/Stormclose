@@ -29,7 +29,7 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 
 	const navItems = [
 		{
-			label: "Dashboard",
+			label: "Revenue Hub",
 			href: "/dashboard",
 			exact: true,
 			icon: (
@@ -39,7 +39,7 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 			),
 		},
 		{
-			label: "Command Center",
+			label: "Storm Ops",
 			href: "/dashboard/command-center",
 			icon: (
 				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -50,7 +50,7 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 			badgeVariant: "live" as const,
 		},
 		{
-			label: "AI Tools",
+			label: "AI Assistant",
 			href: "/dashboard/ai-tools",
 			icon: (
 				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -61,7 +61,7 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 			badgeVariant: "purple" as const,
 		},
 		{
-			label: "Documents",
+			label: "Deal Desk",
 			href: "/dashboard/documents",
 			icon: (
 				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

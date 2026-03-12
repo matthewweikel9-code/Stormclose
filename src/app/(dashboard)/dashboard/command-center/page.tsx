@@ -216,9 +216,9 @@ export default function CommandCenterPage() {
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-storm-purple to-storm-glow shadow-lg shadow-storm-purple/20">
             <Crosshair className="h-5 w-5 text-white" />
           </span>
-          Command Center
+          Storm Operations Center
         </h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-storm-muted">
           Storm intelligence → Property targeting → Optimized routing
         </p>
       </div>
@@ -267,7 +267,7 @@ export default function CommandCenterPage() {
         {locationLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-storm-purple mb-3" />
-            <p className="text-sm text-slate-400">Getting your location...</p>
+            <p className="text-sm text-storm-muted">Getting your location...</p>
           </div>
         ) : (
           <>
