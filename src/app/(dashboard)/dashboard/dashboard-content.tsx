@@ -92,16 +92,20 @@ interface Lead {
 
 interface ForecastDay {
   date: string;
-  day: string;
-  tempHigh: number;
-  tempLow: number;
+  dayOfWeek: string;
+  highF: number;
+  lowF: number;
   conditions: string;
   icon: string;
   precipChance: number;
-  windSpeed: number;
-  windGust: number;
+  windSpeedMph: number;
+  windGustMph: number;
   humidity: number;
-  severeRisk: 'high' | 'moderate' | 'low';
+  severeRisk: 'none' | 'low' | 'moderate' | 'high' | 'extreme';
+  hailRisk: boolean;
+  tornadoRisk: boolean;
+  windRisk: boolean;
+  summary: string;
 }
 
 interface DailyBriefing {
@@ -300,6 +304,7 @@ export function DashboardContent({
 
   const getSevereIcon = (risk: string) => {
     switch (risk) {
+      case 'extreme':
       case 'high': return <CloudLightning className="w-4 h-4 text-red-400" />;
       case 'moderate': return <CloudRain className="w-4 h-4 text-amber-400" />;
       default: return <Sun className="w-4 h-4 text-emerald-400" />;
@@ -308,6 +313,7 @@ export function DashboardContent({
 
   const getSevereColor = (risk: string) => {
     switch (risk) {
+      case 'extreme':
       case 'high': return 'border-red-500/30 bg-red-500/5';
       case 'moderate': return 'border-amber-500/30 bg-amber-500/5';
       default: return 'border-storm-border bg-storm-z1/30';
@@ -320,7 +326,7 @@ export function DashboardContent({
 
   const hailAlerts = stats?.data?.hailAlerts?.events || [];
   const kpis = stats?.data?.kpis;
-  const severeCount = forecast.filter(d => d.severeRisk !== 'low').length;
+  const severeCount = forecast.filter(d => d.severeRisk !== 'none' && d.severeRisk !== 'low').length;
 
   return (
     <div className="space-y-6 pb-8">
@@ -420,29 +426,29 @@ export function DashboardContent({
                 className={`p-3 text-center transition-colors hover:bg-storm-z2/30 ${getSevereColor(day.severeRisk)} ${i === 0 ? 'bg-storm-z1/50' : ''}`}
               >
                 <p className="text-2xs font-medium text-storm-subtle uppercase tracking-wider">
-                  {i === 0 ? 'Today' : day.day.slice(0, 3)}
+                  {i === 0 ? 'Today' : (day.dayOfWeek || '').slice(0, 3)}
                 </p>
                 <div className="my-2 flex justify-center">
                   {getSevereIcon(day.severeRisk)}
                 </div>
-                <p className="text-sm font-bold text-white">{Math.round(day.tempHigh)}°</p>
-                <p className="text-2xs text-storm-subtle">{Math.round(day.tempLow)}°</p>
+                <p className="text-sm font-bold text-white">{Math.round(day.highF)}°</p>
+                <p className="text-2xs text-storm-subtle">{Math.round(day.lowF)}°</p>
                 {day.precipChance > 0 && (
                   <div className="mt-1.5 flex items-center justify-center gap-0.5">
                     <Droplets className="w-2.5 h-2.5 text-blue-400" />
                     <span className="text-2xs text-blue-400">{day.precipChance}%</span>
                   </div>
                 )}
-                {day.windGust > 30 && (
+                {day.windGustMph > 30 && (
                   <div className="mt-0.5 flex items-center justify-center gap-0.5">
                     <Wind className="w-2.5 h-2.5 text-amber-400" />
-                    <span className="text-2xs text-amber-400">{Math.round(day.windGust)}mph</span>
+                    <span className="text-2xs text-amber-400">{Math.round(day.windGustMph)}mph</span>
                   </div>
                 )}
-                {day.severeRisk !== 'low' && (
+                {day.severeRisk !== 'none' && day.severeRisk !== 'low' && (
                   <div className="mt-1.5">
-                    <Badge variant={day.severeRisk === 'high' ? 'danger' : 'warning'} className="text-[9px] px-1.5">
-                      {day.severeRisk === 'high' ? 'SEVERE' : 'WATCH'}
+                    <Badge variant={day.severeRisk === 'high' || day.severeRisk === 'extreme' ? 'danger' : 'warning'} className="text-[9px] px-1.5">
+                      {day.severeRisk === 'high' || day.severeRisk === 'extreme' ? 'SEVERE' : 'WATCH'}
                     </Badge>
                   </div>
                 )}
