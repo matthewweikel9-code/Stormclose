@@ -139,7 +139,7 @@ export default function AILeadScoringPage() {
         <div>
           <h1 className="text-2xl font-bold">AI Lead Scoring</h1>
           <p className="text-zinc-400 text-sm mt-1">
-            Real-time property data from ATTOM + Xweather storm reports
+            Real-time property data from CoreLogic + Xweather storm reports
             {latitude && longitude && (
               <span className="ml-2 text-green-400">
                 📍 {latitude.toFixed(4)}, {longitude.toFixed(4)}
@@ -266,7 +266,7 @@ export default function AILeadScoringPage() {
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             <span className="text-sm text-zinc-400">
-              {geoLoading ? "Getting your location..." : "Loading real property data from ATTOM..."}
+              {geoLoading ? "Getting your location..." : "Loading real property data from CoreLogic..."}
             </span>
           </div>
         </div>
@@ -296,7 +296,7 @@ export default function AILeadScoringPage() {
             <h3 className="text-xl font-semibold">No Properties Found</h3>
             <p className="text-zinc-400">
               No properties were found in your area. This could mean there are no recent storms nearby, 
-              or ATTOM doesn&apos;t have coverage in this location.
+              or CoreLogic doesn&apos;t have coverage in this location.
             </p>
             <button
               onClick={() => fetchScoredLeads(latitude ?? undefined, longitude ?? undefined)}

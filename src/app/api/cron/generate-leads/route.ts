@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { searchPropertiesInArea, CoreLogicProperty } from "@/lib/corelogic";
 
 // Initialize Supabase admin client
 const supabaseAdmin = createClient(
@@ -7,87 +8,39 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// ATTOM API Configuration
-const ATTOM_API_KEY = process.env.ATTOM_API_KEY;
-const ATTOM_BASE_URL = "https://api.gateway.attomdata.com";
-
-// Helper function to make ATTOM API requests
-async function attomRequest(endpoint: string, params?: Record<string, string>): Promise<any> {
-  const url = new URL(`${ATTOM_BASE_URL}${endpoint}`);
-  
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.append(key, value);
-    });
-  }
-  
-  const response = await fetch(url.toString(), {
-    headers: {
-      "Accept": "application/json",
-      "APIKey": ATTOM_API_KEY || ""
-    }
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`ATTOM API error (${response.status}):`, errorText);
-    throw new Error(`ATTOM API error: ${response.status}`);
-  }
-  
-  return response.json();
-}
-
-// Search properties in a geographic area using ATTOM Property Detail API
+// Search properties in a geographic area using CoreLogic
 async function searchPropertiesByLocation(
   latitude: number, 
   longitude: number, 
   radiusMiles: number = 2
 ): Promise<any[]> {
   try {
-    // ATTOM supports up to 20 mile radius
-    const radius = Math.min(radiusMiles, 20);
-    
-    // Use detailowner endpoint for complete property data including owner info
-    const data = await attomRequest("/propertyapi/v1.0.0/property/detailowner", {
-      latitude: latitude.toString(),
-      longitude: longitude.toString(),
-      radius: radius.toString(),
-      pagesize: "50",
-      // Include all residential property types useful for roofing
-      propertytype: "SFR|CONDO|TOWNHOUSE|MOBILE|DUPLEX|TRIPLEX|QUADPLEX"
+    const properties = await searchPropertiesInArea(latitude, longitude, radiusMiles, {
+      propertyType: "SFR",
     });
     
-    const properties = data.property || [];
-    console.log(`Found ${properties.length} ATTOM properties near ${latitude}, ${longitude}`);
+    console.log(`Found ${properties.length} CoreLogic properties near ${latitude}, ${longitude}`);
     
-    // Transform to common format - use lowercase field names from ATTOM
-    return properties.map((prop: any) => {
-      const owner = prop.owner || {};
-      const ownerName = owner.owner1?.fullname || owner.owner1?.fullName || 
-                        owner.owner1?.lastname || owner.owner1?.lastName || 
-                        "Unknown";
-      
-      return {
-        address: {
-          street: prop.address?.line1 || prop.address?.oneLine || "",
-          city: prop.address?.locality || "",
-          state: prop.address?.countrySubd || "",
-          zip: prop.address?.postal1 || ""
-        },
-        owner: ownerName,
-        ownerMailingAddress: owner.mailingaddressoneline || owner.mailingAddressOneLine || null,
-        yearBuilt: prop.summary?.yearbuilt || prop.summary?.yearBuilt || prop.building?.construction?.constructionYear,
-        assessedValue: prop.assessment?.assessed?.assdTtlValue || prop.assessment?.market?.mktTtlValue,
-        squareFeet: prop.building?.size?.livingsize || prop.building?.size?.livingSize || prop.building?.size?.universalsize || prop.building?.size?.universalSize,
-        latitude: prop.location?.latitude || latitude,
-        longitude: prop.location?.longitude || longitude,
-        propertyType: prop.summary?.proptype || prop.summary?.propType || "R",
-        salePrice: prop.sale?.amount?.saleamt || prop.sale?.amount?.saleAmt || null,
-        saleDate: prop.sale?.saleTransDate || prop.sale?.salesearchdate || null
-      };
-    }).filter((p: any) => p.address.street); // Only include properties with addresses
+    // Transform to common format for lead generation
+    return properties.map((prop: CoreLogicProperty) => ({
+      address: {
+        street: prop.address || "",
+        city: prop.city || "",
+        state: prop.state || "",
+        zip: prop.zip || "",
+      },
+      owner: prop.owner || "Unknown",
+      yearBuilt: prop.yearBuilt || undefined,
+      assessedValue: prop.marketValue || prop.assessedValue || undefined,
+      squareFeet: prop.squareFootage || undefined,
+      latitude: prop.lat || latitude,
+      longitude: prop.lng || longitude,
+      propertyType: prop.propertyType || "Residential",
+      salePrice: prop.salePrice || null,
+      saleDate: prop.saleDate || null,
+    })).filter((p: any) => p.address.street);
   } catch (error) {
-    console.error("ATTOM property search error:", error);
+    console.error("CoreLogic property search error:", error);
     return [];
   }
 }
@@ -222,7 +175,7 @@ async function generateLeadsFromHailEvents(): Promise<{
         continue;
       }
 
-      // Process each property from ATTOM (limit to top 10 per event for speed)
+      // Process each property from CoreLogic (limit to top 10 per event for speed)
       for (const prop of properties.slice(0, 10)) {
         try {
           // Extract property data (already transformed in searchPropertiesByLocation)

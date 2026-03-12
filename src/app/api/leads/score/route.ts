@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getHailReports, getStormReports, XweatherStormReport } from "@/lib/xweather";
-import { getPropertyByLocation, calculateRoofAge, estimateClaimValue, ATTOMProperty } from "@/lib/attom";
-
-const ATTOM_API_KEY = process.env.ATTOM_API_KEY;
+import { getPropertyByLocation, calculateRoofAge, estimateClaimValue, CoreLogicProperty } from "@/lib/corelogic";
 
 interface LeadFactors {
   hailSize: number;
@@ -129,57 +127,50 @@ export async function GET(request: NextRequest) {
       console.error("[LeadScore] Xweather error:", e);
     }
 
-    // Step 2: Get REAL properties from ATTOM
-    let allProperties: ATTOMProperty[] = [];
+    // Step 2: Get REAL properties from CoreLogic
+    let allProperties: CoreLogicProperty[] = [];
     let propertyError: string | null = null;
     
-    if (!ATTOM_API_KEY) {
-      propertyError = "ATTOM API key not configured";
-      console.error("[LeadScore] No ATTOM API key");
-    } else {
-      try {
-        // Build search points: user location + storm locations
-        const searchPoints: { lat: number; lng: number }[] = [{ lat, lng }];
-        
-        // Add storm locations as additional search points for better coverage
-        stormReports.slice(0, 5).forEach(storm => {
-          searchPoints.push({ lat: storm.loc.lat, lng: storm.loc.long });
-        });
-        
-        console.log("[LeadScore] Searching", searchPoints.length, "locations for properties");
-        
-        // Search each point with ATTOM - use radius 5 to find enough residential properties
-        // (downtown areas are mostly commercial, need wider radius to reach neighborhoods)
-        const propertySearches = searchPoints.map(point =>
-          getPropertyByLocation(point.lat, point.lng, "5").catch((e) => {
-            console.log("[LeadScore] ATTOM search error at", point.lat, point.lng, ":", e.message);
-            return [];
-          })
-        );
-        
-        const propertyResults = await Promise.all(propertySearches);
-        
-        // Combine and deduplicate by ATTOM ID
-        const seenIds = new Set<number>();
-        propertyResults.flat().forEach(prop => {
-          // Only include properties with valid addresses
-          if (prop.identifier?.attomId && 
-              prop.address?.oneLine && 
-              !seenIds.has(prop.identifier.attomId)) {
-            seenIds.add(prop.identifier.attomId);
-            allProperties.push(prop);
-          }
-        });
-        
-        console.log("[LeadScore] Found", allProperties.length, "unique properties from ATTOM");
-        
-        if (allProperties.length === 0) {
-          propertyError = "No properties found in this area from ATTOM";
+    try {
+      // Build search points: user location + storm locations
+      const searchPoints: { lat: number; lng: number }[] = [{ lat, lng }];
+      
+      // Add storm locations as additional search points for better coverage
+      stormReports.slice(0, 5).forEach(storm => {
+        searchPoints.push({ lat: storm.loc.lat, lng: storm.loc.long });
+      });
+      
+      console.log("[LeadScore] Searching", searchPoints.length, "locations for properties");
+      
+      // Search each point with CoreLogic
+      const propertySearches = searchPoints.map(point =>
+        getPropertyByLocation(point.lat, point.lng, "0.5").catch((e: any) => {
+          console.log("[LeadScore] CoreLogic search error at", point.lat, point.lng, ":", e.message);
+          return [];
+        })
+      );
+      
+      const propertyResults = await Promise.all(propertySearches);
+      
+      // Combine and deduplicate by ID
+      const seenIds = new Set<string>();
+      propertyResults.flat().forEach(prop => {
+        if (prop.id && 
+            prop.address && 
+            !seenIds.has(prop.id)) {
+          seenIds.add(prop.id);
+          allProperties.push(prop);
         }
-      } catch (e: any) {
-        propertyError = e.message || "Failed to fetch property data";
-        console.error("[LeadScore] ATTOM error:", e);
+      });
+      
+      console.log("[LeadScore] Found", allProperties.length, "unique properties from CoreLogic");
+      
+      if (allProperties.length === 0) {
+        propertyError = "No properties found in this area";
       }
+    } catch (e: any) {
+      propertyError = e.message || "Failed to fetch property data";
+      console.error("[LeadScore] CoreLogic error:", e);
     }
 
     // Step 3: Score ONLY real properties - NO fallback/demo data
@@ -224,9 +215,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Score REAL ATTOM properties with REAL Xweather storm data
+// Score REAL CoreLogic properties with REAL Xweather storm data
 function scoreRealProperties(
-  properties: ATTOMProperty[],
+  properties: CoreLogicProperty[],
   storms: XweatherStormReport[],
   centerLat: number,
   centerLng: number,
@@ -235,11 +226,11 @@ function scoreRealProperties(
   const leads: ScoredLead[] = [];
 
   properties.slice(0, limit).forEach((prop) => {
-    const propLat = parseFloat(prop.location?.latitude) || centerLat;
-    const propLng = parseFloat(prop.location?.longitude) || centerLng;
+    const propLat = prop.lat || centerLat;
+    const propLng = prop.lng || centerLng;
     
     // Skip properties without valid address
-    if (!prop.address?.oneLine || prop.address.oneLine.trim() === "") {
+    if (!prop.address || prop.address.trim() === "") {
       return;
     }
     
@@ -249,19 +240,17 @@ function scoreRealProperties(
     const claimEstimate = estimateClaimValue(prop);
     
     // Calculate roof size from building data (in roofing squares)
-    const livingSize = prop.building?.size?.livingSize || prop.building?.size?.universalSize || 0;
+    const livingSize = prop.squareFootage || 0;
     const roofSize = Math.round(livingSize * 1.15 / 100); // 15% pitch factor, convert to squares
     
     // Get property value from assessment
-    const propertyValue = prop.assessment?.market?.mktTtlValue || 
-                          prop.assessment?.assessed?.assdTtlValue || 
-                          0;
+    const propertyValue = prop.marketValue || prop.assessedValue || 0;
 
     const factors: LeadFactors = {
       hailSize: nearestStorm?.hailSize || 0,
       windSpeed: nearestStorm?.windSpeed || 0,
       roofAge,
-      roofType: prop.building?.construction?.roofCover || "Unknown",
+      roofType: prop.roofType || "Unknown",
       propertyValue,
       stormProximity: nearestStorm?.distance || 999,
       roofSize: roofSize || 0,
@@ -274,11 +263,11 @@ function scoreRealProperties(
     const tags = generateLeadTags(factors, damageScore);
 
     leads.push({
-      id: prop.identifier?.attomId?.toString() || `prop-${leads.length}`,
-      address: prop.address.line1 || prop.address.oneLine,
-      city: prop.address.locality || "",
-      state: prop.address.countrySubd || "",
-      zip: prop.address.postal1 || "",
+      id: prop.id || `prop-${leads.length}`,
+      address: prop.address,
+      city: prop.city || "",
+      state: prop.state || "",
+      zip: prop.zip || "",
       lat: propLat,
       lng: propLng,
       damageScore,
@@ -288,12 +277,12 @@ function scoreRealProperties(
       tags,
       estimatedJobValue: claimEstimate.roofReplacement,
       claimProbability: calculateClaimProbability(factors, damageScore),
-      ownerName: prop.owner?.owner1?.fullName,
-      yearBuilt: prop.summary?.yearbuilt,
-      squareFeet: livingSize,
-      bedrooms: prop.building?.rooms?.beds,
-      bathrooms: prop.building?.rooms?.bathsTotal,
-      lotSize: prop.lot?.lotSize1,
+      ownerName: prop.owner,
+      yearBuilt: prop.yearBuilt || undefined,
+      squareFeet: livingSize || undefined,
+      bedrooms: prop.bedrooms || undefined,
+      bathrooms: prop.bathrooms || undefined,
+      lotSize: prop.lotSize || undefined,
       nearestStorm: nearestStorm ? {
         type: nearestStorm.type,
         hailSize: nearestStorm.hailSize,
@@ -356,10 +345,10 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 // Calculate insurance claim likelihood based on real property data
-function calculateInsuranceLikelihood(prop: ATTOMProperty, storm: any): number {
+function calculateInsuranceLikelihood(prop: CoreLogicProperty, storm: any): number {
   let likelihood = 50;
   
-  const value = prop.assessment?.market?.mktTtlValue || 0;
+  const value = prop.marketValue || prop.assessedValue || 0;
   if (value > 500000) likelihood += 20;
   else if (value > 300000) likelihood += 15;
   else if (value > 200000) likelihood += 10;

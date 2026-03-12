@@ -16,7 +16,7 @@ CAPABILITIES:
 
 CONTEXT YOU MAY RECEIVE:
 - Current location (lat/lng)
-- Property data (from ATTOM API)
+- Property data (from CoreLogic API)
 - Storm data (from Xweather API)
 - Lead information
 - Conversation history

@@ -5,11 +5,9 @@ import {
   getPropertyByLocation,
   calculateRoofAge,
   estimateClaimValue,
-  ATTOMProperty,
-} from "@/lib/attom";
+  CoreLogicProperty,
+} from "@/lib/corelogic";
 import { verifyHailAtLocation } from "@/lib/xweather";
-
-const ATTOM_API_KEY = process.env.ATTOM_API_KEY;
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -29,39 +27,30 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    let attomProperty: ATTOMProperty | null = null;
+    let property: CoreLogicProperty | null = null;
     let coords = { lat: parseFloat(lat || "0"), lng: parseFloat(lng || "0") };
 
-    // Try ATTOM API first
-    if (ATTOM_API_KEY) {
-      if (address) {
-        // Parse address into components
-        const parts = address.split(",").map(s => s.trim());
-        const address1 = parts[0] || "";
-        const address2 = parts.slice(1).join(", ") || "";
-        
-        attomProperty = await getPropertyByAddress(address1, address2);
-        
-        if (attomProperty?.location) {
-          coords = {
-            lat: parseFloat(attomProperty.location.latitude),
-            lng: parseFloat(attomProperty.location.longitude),
-          };
-        }
-      } else if (lat && lng) {
-        const properties = await getPropertyByLocation(parseFloat(lat), parseFloat(lng));
-        attomProperty = properties[0] || null;
+    // CoreLogic property lookup
+    if (address) {
+      const parts = address.split(",").map(s => s.trim());
+      const address1 = parts[0] || "";
+      const address2 = parts.slice(1).join(", ") || "";
+      
+      property = await getPropertyByAddress(address1, address2);
+      
+      if (property) {
+        coords = { lat: property.lat, lng: property.lng };
       }
+    } else if (lat && lng) {
+      const properties = await getPropertyByLocation(parseFloat(lat), parseFloat(lng));
+      property = properties[0] || null;
     }
 
     // If no address provided, geocode from coords
     if (!address && lat && lng) {
-      const geocoded = await reverseGeocode(parseFloat(lat), parseFloat(lng));
-      if (geocoded) {
-        coords = { lat: parseFloat(lat), lng: parseFloat(lng) };
-      }
+      await reverseGeocode(parseFloat(lat), parseFloat(lng));
+      coords = { lat: parseFloat(lat), lng: parseFloat(lng) };
     } else if (address && !lat) {
-      // Geocode address
       const geocoded = await geocodeAddress(address);
       if (geocoded) {
         coords = geocoded;
@@ -76,7 +65,7 @@ export async function GET(request: NextRequest) {
         stormExposure = {
           hailEvents: hailData.reports.length,
           maxHailSize: hailData.maxHailSize || 0,
-          windEvents: 0, // Would need separate wind query
+          windEvents: 0,
           maxWindSpeed: 0,
           lastStormDate: hailData.reports[0]?.report.dateTimeISO.split("T")[0],
           summary: hailData.summary,
@@ -86,13 +75,11 @@ export async function GET(request: NextRequest) {
       console.log("Xweather storm data not available");
     }
 
-    // Format response - ATTOM data only
-    if (!attomProperty) {
+    // Format response — CoreLogic data only
+    if (!property) {
       return NextResponse.json({
         error: "Property not found",
-        message: ATTOM_API_KEY
-          ? "No property found at this location. Try a different address or coordinates."
-          : "Property data requires ATTOM API key. Contact your administrator.",
+        message: "No property found at this location. Try a different address or coordinates.",
         address: address || `${coords.lat}, ${coords.lng}`,
         lat: coords.lat,
         lng: coords.lng,
@@ -100,11 +87,11 @@ export async function GET(request: NextRequest) {
       }, { status: 404 });
     }
 
-    const propertyData = formatATTOMProperty(attomProperty, stormExposure);
+    const propertyData = formatPropertyResponse(property, stormExposure);
 
     return NextResponse.json({
       ...propertyData,
-      source: "attom",
+      source: "corelogic",
     });
   } catch (error) {
     console.error("Error looking up property:", error);
@@ -150,61 +137,59 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   return null;
 }
 
-// Format ATTOM property to our response format
-function formatATTOMProperty(property: ATTOMProperty, stormExposure: any) {
+// Format CoreLogic property to our response format (matches existing frontend interface)
+function formatPropertyResponse(property: CoreLogicProperty, stormExposure: any) {
   const roofAge = calculateRoofAge(property);
   const claimEstimate = estimateClaimValue(property);
-  const yearBuilt = property.summary?.yearbuilt || 2000;
   const conditionIndex = roofAge < 10 ? 0 : roofAge < 15 ? 1 : roofAge < 20 ? 2 : 3;
   const conditions: ("excellent" | "good" | "fair" | "poor")[] = ["excellent", "good", "fair", "poor"];
 
   return {
-    address: property.address?.oneLine || "Unknown Address",
-    lat: parseFloat(property.location?.latitude) || 0,
-    lng: parseFloat(property.location?.longitude) || 0,
+    address: property.address,
+    lat: property.lat,
+    lng: property.lng,
     owner: {
-      name: property.owner?.owner1?.fullName || "Unknown Owner",
-      firstName: property.owner?.owner1?.firstName || "",
-      lastName: property.owner?.owner1?.lastName || "",
-      mailingAddress: property.owner?.mailingAddressOneLine || "",
-      absenteeOwner: property.owner?.absenteeInd === "Y",
+      name: property.owner,
+      mailingAddress: "",
+      absenteeOwner: false,
     },
     property: {
-      value: property.assessment?.market?.mktTtlValue || property.assessment?.assessed?.assdTtlValue || 0,
-      yearBuilt,
-      squareFootage: property.building?.size?.livingSize || property.building?.size?.bldgSize || 0,
-      lotSize: property.lot?.lotSize1 || 0,
-      buildingType: property.summary?.proptype || "Residential",
-      bedrooms: property.building?.rooms?.beds || 0,
-      bathrooms: property.building?.rooms?.bathsTotal || 0,
-      stories: 1,
+      value: property.marketValue || property.assessedValue || 0,
+      yearBuilt: property.yearBuilt,
+      squareFootage: property.squareFootage,
+      lotSize: property.lotSize,
+      buildingType: property.propertyType,
+      bedrooms: property.bedrooms,
+      bathrooms: property.bathrooms,
+      stories: property.stories,
     },
     roof: {
-      type: property.building?.construction?.roofShape || "Unknown",
-      material: property.building?.construction?.roofCover || "Asphalt Shingle",
+      type: property.roofType,
+      material: property.roofMaterial,
       age: roofAge,
       complexity: roofAge > 20 ? "complex" : roofAge > 10 ? "moderate" : "simple",
       condition: conditions[conditionIndex],
-      squareFootage: Math.round((property.building?.size?.livingSize || 2000) * 1.15),
+      squareFootage: Math.round((property.squareFootage || 2000) * 1.15),
       pitch: 6,
     },
     parcel: {
-      id: property.identifier?.apn || property.identifier?.attomId?.toString() || "Unknown",
-      attomId: property.identifier?.attomId,
-      fips: property.identifier?.fips,
+      id: property.apn || property.id,
+      fips: "",
     },
     assessment: {
-      assessedValue: property.assessment?.assessed?.assdTtlValue || 0,
-      marketValue: property.assessment?.market?.mktTtlValue || 0,
-      landValue: property.assessment?.assessed?.assdLandValue || 0,
-      improvementValue: property.assessment?.assessed?.assdImprValue || 0,
-      taxAmount: property.assessment?.tax?.taxAmt || 0,
-      taxYear: property.assessment?.tax?.taxYear || new Date().getFullYear(),
+      assessedValue: property.assessedValue,
+      marketValue: property.marketValue,
+      landValue: 0,
+      improvementValue: 0,
+      taxAmount: 0,
+      taxYear: new Date().getFullYear(),
     },
-    sale: property.sale ? {
-      lastSaleDate: property.sale.saleTransDate,
-      lastSaleAmount: property.sale.amount?.saleAmt || 0,
-      pricePerSqft: property.sale.calculation?.pricePerSizeUnit || 0,
+    sale: property.saleDate ? {
+      lastSaleDate: property.saleDate,
+      lastSaleAmount: property.salePrice || 0,
+      pricePerSqft: property.salePrice && property.squareFootage 
+        ? Math.round(property.salePrice / property.squareFootage) 
+        : 0,
     } : null,
     claimEstimate: {
       roofReplacement: claimEstimate.roofReplacement,
@@ -215,11 +200,9 @@ function formatATTOMProperty(property: ATTOMProperty, stormExposure: any) {
     },
     stormExposure,
     neighborhood: {
-      avgHomeValue: property.assessment?.market?.mktTtlValue || 0,
+      avgHomeValue: property.marketValue || property.assessedValue || 0,
       avgRoofAge: roofAge + 2,
       claimLikelihood: stormExposure ? Math.min(95, 50 + stormExposure.hailEvents * 10) : 40,
     },
   };
 }
-
-// end of file

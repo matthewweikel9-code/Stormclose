@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Generate impacted properties (in production, use ATTOM API)
+    // Generate impacted properties (in production, use CoreLogic API)
     const impactedProperties = generateImpactedProperties(storms);
 
     return NextResponse.json({

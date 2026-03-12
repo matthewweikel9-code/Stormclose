@@ -5,11 +5,9 @@ import {
   calculateRoofAge,
   estimateClaimValue,
   formatPropertyToLead,
-  ATTOMProperty,
-} from "@/lib/attom";
+  CoreLogicProperty,
+} from "@/lib/corelogic";
 import { getHailReports } from "@/lib/xweather";
-
-const ATTOM_API_KEY = process.env.ATTOM_API_KEY;
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -43,37 +41,33 @@ export async function GET(request: NextRequest) {
       console.log("Xweather not available, using generated storm data");
     }
 
-    // Try ATTOM API for real property data
-    if (ATTOM_API_KEY) {
-      try {
-        const attomProperties = await searchPropertiesInArea(lat, lng, radius, {
-          propertyType: "SFR", // Single Family Residential
-        });
+    // CoreLogic property search
+    try {
+      const clProperties = await searchPropertiesInArea(lat, lng, radius, {
+        propertyType: "SFR",
+      });
 
-        properties = attomProperties.slice(0, 50).map((prop, i) => 
-          formatATTOMToKnockList(prop, i, lat, lng, stormData)
-        );
-      } catch (e) {
-        console.log("ATTOM not available, using generated data");
-      }
+      properties = clProperties.slice(0, 50).map((prop, i) => 
+        formatToKnockList(prop, i, lat, lng, stormData)
+      );
+    } catch (e) {
+      console.log("CoreLogic not available:", e);
     }
 
-    // If no ATTOM data, return empty result
+    // If no data, return empty result
     if (properties.length === 0) {
       return NextResponse.json({ 
         properties: [],
         source: "none",
         stormData,
         location: { lat, lng, radius },
-        message: ATTOM_API_KEY 
-          ? "No residential properties found in this area. Try a different location or larger radius."
-          : "Property data requires ATTOM API key. Contact your administrator.",
+        message: "No residential properties found in this area. Try a different location or larger radius.",
       });
     }
 
     return NextResponse.json({ 
       properties,
-      source: properties.length > 0 && ATTOM_API_KEY ? "attom" : "generated",
+      source: "corelogic",
       stormData,
       location: { lat, lng, radius },
     });
@@ -101,9 +95,9 @@ interface KnockListProperty {
   sqft?: number;
 }
 
-// Format ATTOM property to knock list format
-function formatATTOMToKnockList(
-  prop: ATTOMProperty,
+// Format CoreLogic property to knock list format
+function formatToKnockList(
+  prop: CoreLogicProperty,
   index: number,
   centerLat: number,
   centerLng: number,
@@ -111,11 +105,9 @@ function formatATTOMToKnockList(
 ): KnockListProperty {
   const roofAge = calculateRoofAge(prop);
   const claimEstimate = estimateClaimValue(prop);
-  const propLat = parseFloat(prop.location?.latitude) || centerLat;
-  const propLng = parseFloat(prop.location?.longitude) || centerLng;
   
   // Calculate distance from center
-  const distance = calculateDistance(centerLat, centerLng, propLat, propLng);
+  const distance = calculateDistance(centerLat, centerLng, prop.lat, prop.lng);
   
   // Calculate storm damage score
   const baseScore = stormData ? 50 + Math.min(40, stormData.hailEvents * 10) : 40;
@@ -128,21 +120,21 @@ function formatATTOMToKnockList(
     : Math.round(30 + Math.random() * 40);
 
   return {
-    id: prop.identifier?.attomId?.toString() || `prop-${index}`,
-    address: prop.address?.oneLine || "Unknown Address",
-    lat: propLat,
-    lng: propLng,
+    id: prop.id || `prop-${index}`,
+    address: prop.address || "Unknown Address",
+    lat: prop.lat,
+    lng: prop.lng,
     damageScore,
     roofAge,
-    roofSize: Math.round((prop.building?.size?.livingSize || 2000) * 1.15 / 100), // squares
-    propertyValue: prop.assessment?.market?.mktTtlValue || prop.assessment?.assessed?.assdTtlValue || 0,
+    roofSize: Math.round((prop.squareFootage || 2000) * 1.15 / 100),
+    propertyValue: prop.marketValue || prop.assessedValue || 0,
     stormSeverity,
     estimatedJobValue: claimEstimate.roofReplacement,
     distance: Math.round(distance * 10) / 10,
     selected: false,
-    ownerName: prop.owner?.owner1?.fullName || "Unknown",
-    yearBuilt: prop.summary?.yearbuilt,
-    sqft: prop.building?.size?.livingSize,
+    ownerName: prop.owner || "Unknown",
+    yearBuilt: prop.yearBuilt || undefined,
+    sqft: prop.squareFootage || undefined,
   };
 }
 

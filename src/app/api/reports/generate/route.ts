@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getHailReports, getStormReports } from "@/lib/xweather";
-import { getPropertyByAddress, calculateRoofAge, estimateClaimValue } from "@/lib/attom";
+import { getPropertyByAddress, calculateRoofAge, estimateClaimValue } from "@/lib/corelogic";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -53,7 +53,7 @@ async function generatePropertyReport(address: string | null, lat: number, lng: 
     };
   }
 
-  // Look up property from ATTOM
+  // Look up property from CoreLogic
   const parts = address.split(",").map((s) => s.trim());
   const address1 = parts[0] || "";
   const address2 = parts.slice(1).join(", ") || "";
@@ -78,8 +78,8 @@ async function generatePropertyReport(address: string | null, lat: number, lng: 
 
   const roofAge = calculateRoofAge(property);
   const claimEstimate = estimateClaimValue(property);
-  const propLat = parseFloat(property.location?.latitude) || lat;
-  const propLng = parseFloat(property.location?.longitude) || lng;
+  const propLat = property.lat || lat;
+  const propLng = property.lng || lng;
 
   // Get storm history for the property location
   let stormHistory: any[] = [];
@@ -102,14 +102,14 @@ async function generatePropertyReport(address: string | null, lat: number, lng: 
   ));
 
   return {
-    address: property.address?.oneLine || address,
-    owner: property.owner?.owner1?.fullName || "Unknown",
-    propertyValue: property.assessment?.market?.mktTtlValue || 0,
-    yearBuilt: property.summary?.yearbuilt || 0,
+    address: property.address || address,
+    owner: property.owner || "Unknown",
+    propertyValue: property.marketValue || property.assessedValue || 0,
+    yearBuilt: property.yearBuilt || 0,
     roofAge,
-    roofType: property.building?.construction?.roofCover || "Unknown",
-    roofSquares: Math.round((property.building?.size?.livingSize || 2000) * 1.15 / 100),
-    lotSize: property.lot?.lotSize1 || 0,
+    roofType: property.roofType || "Unknown",
+    roofSquares: Math.round((property.squareFootage || 2000) * 1.15 / 100),
+    lotSize: property.lotSize || 0,
     stormHistory,
     damageScore,
     estimatedClaimValue: claimEstimate.total,

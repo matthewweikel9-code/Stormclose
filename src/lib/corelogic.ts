@@ -1,7 +1,8 @@
 /**
- * CoreLogic Spatial Tile API Client
- * Provides parcel boundary data with owner & property info
+ * CoreLogic Property Data API Client
+ * Primary property data provider for StormClose
  * 
+ * Provides: parcel boundaries, owner info, property search, and lead formatting
  * Auth: OAuth2 Client Credentials (Bearer token)
  * Base: https://api-prod.corelogic.com
  */
@@ -33,6 +34,53 @@ export interface CoreLogicParcel {
   owner: string;
   typeCode: string;
   geometry: string; // WKT POLYGON string
+  // Additional fields that may be returned
+  yearBuilt?: number;
+  sqFt?: number;
+  lotSizeSqFt?: number;
+  assessedValue?: number;
+  marketValue?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  stories?: number;
+  roofType?: string;
+  roofMaterial?: string;
+  constructionType?: string;
+  saleDate?: string;
+  salePrice?: number;
+  [key: string]: any; // Allow additional fields from API
+}
+
+/**
+ * Normalized property interface used throughout the app.
+ * Maps CoreLogic parcel data to a consistent shape for all consumers.
+ */
+export interface CoreLogicProperty {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  lat: number;
+  lng: number;
+  owner: string;
+  apn: string;
+  propertyType: string;
+  typeCode: string;
+  yearBuilt: number;
+  squareFootage: number;
+  lotSize: number;
+  bedrooms: number;
+  bathrooms: number;
+  stories: number;
+  roofType: string;
+  roofMaterial: string;
+  roofAge: number;
+  assessedValue: number;
+  marketValue: number;
+  saleDate: string | null;
+  salePrice: number | null;
+  geometry: string;
 }
 
 export interface CoreLogicPageInfo {
@@ -161,6 +209,269 @@ export async function searchParcelsByAddress(
   });
 }
 
+// ─── Property Lookup ───────────────────────────────────────────────────────
+
+/**
+ * Normalize a CoreLogic parcel into our standard property format.
+ * Normalizes a CoreLogic parcel into our standard property format.
+ */
+function parcelToProperty(parcel: CoreLogicParcel, lat?: number, lng?: number): CoreLogicProperty {
+  const centroid = getParcelCentroid(parcel);
+  const currentYear = new Date().getFullYear();
+  const yearBuilt = parcel.yearBuilt || 0;
+  const roofAge = yearBuilt > 0 ? Math.min(currentYear - yearBuilt, 50) : 15; // Default 15 if unknown
+
+  return {
+    id: parcel.apn || parcel.parcelId?.toString() || `cl-${Date.now()}`,
+    address: parcel.stdAddr || parcel.addr || "Unknown Address",
+    city: parcel.stdCity || parcel.city || "",
+    state: parcel.stdState || parcel.stateCode || parcel.state || "",
+    zip: parcel.stdZip || parcel.zip || "",
+    lat: centroid?.lat || lat || 0,
+    lng: centroid?.lng || lng || 0,
+    owner: parcel.owner || "Unknown Owner",
+    apn: parcel.apn || "",
+    propertyType: decodePropertyType(parcel.typeCode),
+    typeCode: parcel.typeCode || "",
+    yearBuilt,
+    squareFootage: parcel.sqFt || 0,
+    lotSize: parcel.lotSizeSqFt || 0,
+    bedrooms: parcel.bedrooms || 0,
+    bathrooms: parcel.bathrooms || 0,
+    stories: parcel.stories || 1,
+    roofType: parcel.roofType || "Unknown",
+    roofMaterial: parcel.roofMaterial || "Asphalt Shingle",
+    roofAge,
+    assessedValue: parcel.assessedValue || 0,
+    marketValue: parcel.marketValue || 0,
+    saleDate: parcel.saleDate || null,
+    salePrice: parcel.salePrice || null,
+    geometry: parcel.geometry || "",
+  };
+}
+
+/**
+ * Get a single property by address — equivalent to old getPropertyByAddress
+ */
+export async function getPropertyByAddress(
+  address1: string,
+  address2?: string
+): Promise<CoreLogicProperty | null> {
+  try {
+    const fullAddress = address2 ? `${address1}, ${address2}` : address1;
+    const result = await searchParcelsByAddress(fullAddress, 1);
+    
+    if (!result.parcels || result.parcels.length === 0) {
+      console.log("[CoreLogic] No property found for address:", fullAddress);
+      return null;
+    }
+
+    return parcelToProperty(result.parcels[0]);
+  } catch (error) {
+    console.error("[CoreLogic] getPropertyByAddress error:", error);
+    return null;
+  }
+}
+
+/**
+ * Get properties by coordinates — equivalent to old getPropertyByLocation
+ */
+export async function getPropertyByLocation(
+  lat: number,
+  lng: number,
+  radiusMiles: string = "0.25"
+): Promise<CoreLogicProperty[]> {
+  try {
+    const radius = parseFloat(radiusMiles);
+    const result = await searchParcelsByLocation(lat, lng, radius, 50);
+    
+    if (!result.parcels || result.parcels.length === 0) {
+      console.log("[CoreLogic] No properties found near:", lat, lng);
+      return [];
+    }
+
+    // Filter to residential properties only
+    const residentialTypes = new Set(["SFR", "MFR", "CON", "TH", "MOB"]);
+    const residentialParcels = result.parcels.filter(p => {
+      if (!p.typeCode) return true; // Include if type unknown
+      return residentialTypes.has(p.typeCode);
+    });
+
+    console.log(`[CoreLogic] Filtered ${result.parcels.length} → ${residentialParcels.length} residential properties`);
+
+    return residentialParcels.map(p => parcelToProperty(p, lat, lng));
+  } catch (error) {
+    console.error("[CoreLogic] getPropertyByLocation error:", error);
+    return [];
+  }
+}
+
+/**
+ * Search properties within an area — equivalent to old searchPropertiesInArea
+ */
+export async function searchPropertiesInArea(
+  lat: number,
+  lng: number,
+  radiusMiles: number = 1,
+  filters?: {
+    minYearBuilt?: number;
+    maxYearBuilt?: number;
+    propertyType?: string;
+  }
+): Promise<CoreLogicProperty[]> {
+  try {
+    const pageSize = 50;
+    const result = await searchParcelsByLocation(lat, lng, radiusMiles, pageSize);
+
+    if (!result.parcels || result.parcels.length === 0) {
+      return [];
+    }
+
+    // Filter to residential types
+    const residentialTypes = new Set(["SFR", "MFR", "CON", "TH", "MOB"]);
+    let filtered = result.parcels.filter(p => {
+      // Type filter
+      if (filters?.propertyType) {
+        return p.typeCode === filters.propertyType || 
+               decodePropertyType(p.typeCode).toLowerCase().includes(filters.propertyType.toLowerCase());
+      }
+      if (!p.typeCode) return true;
+      return residentialTypes.has(p.typeCode);
+    });
+
+    // Year built filters (if data available)
+    if (filters?.minYearBuilt) {
+      filtered = filtered.filter(p => !p.yearBuilt || p.yearBuilt >= filters.minYearBuilt!);
+    }
+    if (filters?.maxYearBuilt) {
+      filtered = filtered.filter(p => !p.yearBuilt || p.yearBuilt <= filters.maxYearBuilt!);
+    }
+
+    // Must have a valid address
+    filtered = filtered.filter(p => {
+      const addr = p.stdAddr || p.addr;
+      return addr && addr.trim().length > 0;
+    });
+
+    console.log(`[CoreLogic] Area search: ${result.parcels.length} → ${filtered.length} filtered properties`);
+
+    return filtered.map(p => parcelToProperty(p, lat, lng));
+  } catch (error) {
+    console.error("[CoreLogic] searchPropertiesInArea error:", error);
+    return [];
+  }
+}
+
+/**
+ * Get properties with older roofs (good for storm damage leads)
+ */
+export async function getOlderRoofProperties(
+  lat: number,
+  lng: number,
+  radiusMiles: number = 2,
+  maxYearBuilt: number = 2010
+): Promise<CoreLogicProperty[]> {
+  return searchPropertiesInArea(lat, lng, radiusMiles, {
+    maxYearBuilt,
+    propertyType: "SFR",
+  });
+}
+
+// ─── Scoring & Estimation ──────────────────────────────────────────────────
+
+/**
+ * Calculate estimated roof age from property data
+ */
+export function calculateRoofAge(property: CoreLogicProperty): number {
+  if (!property.yearBuilt || property.yearBuilt === 0) return 15; // Default assumption
+  
+  const currentYear = new Date().getFullYear();
+  const buildingAge = currentYear - property.yearBuilt;
+  
+  // Roofs are typically replaced every 20-25 years
+  if (buildingAge > 25) {
+    return buildingAge % 25;
+  }
+  
+  return buildingAge;
+}
+
+/**
+ * Estimate potential claim value based on property characteristics
+ */
+export function estimateClaimValue(property: CoreLogicProperty): {
+  roofReplacement: number;
+  siding: number;
+  gutters: number;
+  total: number;
+  confidence: "low" | "medium" | "high";
+} {
+  const sqft = property.squareFootage || 1500;
+  
+  // Industry averages for storm damage claims
+  const roofCostPerSqft = 8.50;
+  const sidingEstimate = sqft * 0.4 * 6;
+  const guttersEstimate = Math.sqrt(sqft) * 4 * 12;
+  
+  const roofReplacement = Math.round(sqft * roofCostPerSqft);
+  const siding = Math.round(sidingEstimate);
+  const gutters = Math.round(guttersEstimate);
+  
+  // Confidence based on data quality
+  let confidence: "low" | "medium" | "high" = "medium";
+  if (property.squareFootage > 0 && property.roofType !== "Unknown") {
+    confidence = "high";
+  } else if (property.squareFootage === 0) {
+    confidence = "low";
+  }
+  
+  return {
+    roofReplacement,
+    siding,
+    gutters,
+    total: roofReplacement + siding + gutters,
+    confidence,
+  };
+}
+
+/**
+ * Format CoreLogic property to our standard PropertyLead format
+ */
+export function formatPropertyToLead(property: CoreLogicProperty, stormScore: number = 0) {
+  const roofAge = calculateRoofAge(property);
+  const claimEstimate = estimateClaimValue(property);
+  
+  return {
+    id: property.id,
+    address: property.address,
+    city: property.city,
+    state: property.state,
+    zip: property.zip,
+    lat: property.lat,
+    lng: property.lng,
+    
+    // Owner info
+    ownerName: property.owner,
+    
+    // Property details
+    yearBuilt: property.yearBuilt || null,
+    sqft: property.squareFootage || null,
+    bedrooms: property.bedrooms || null,
+    bathrooms: property.bathrooms || null,
+    propertyType: property.propertyType,
+    roofType: property.roofType,
+    
+    // Calculated fields
+    roofAge,
+    estimatedClaimValue: claimEstimate.total,
+    stormScore,
+    
+    // Source
+    source: "corelogic" as const,
+    parcelId: property.id,
+  };
+}
+
 // ─── Geometry Parsing ──────────────────────────────────────────────────────
 
 /**
@@ -172,7 +483,6 @@ export function parseWKTPolygon(wkt: string): ParsedPolygon | null {
   if (!wkt || !wkt.startsWith("POLYGON")) return null;
 
   try {
-    // Extract coordinates string between innermost parens
     const match = wkt.match(/\(\((.+?)\)\)/);
     if (!match) return null;
 

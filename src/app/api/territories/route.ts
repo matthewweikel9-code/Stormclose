@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Note: Lead generation happens via the /api/cron/generate-leads endpoint
-		// which uses ATTOM to get real property data. We don't auto-generate
+		// which uses CoreLogic to get real property data. We don't auto-generate
 		// placeholder leads here to avoid polluting the database with fake addresses.
 
 		return NextResponse.json({

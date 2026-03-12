@@ -123,13 +123,16 @@ interface PropertyIntel {
   address: string;
   lat: number;
   lng: number;
-  owner?: string;
+  owner?: string | { name?: string; firstName?: string; lastName?: string; mailingAddress?: string; absenteeOwner?: boolean };
+  property?: { yearBuilt?: number; squareFootage?: number; value?: number; buildingType?: string; bedrooms?: number; bathrooms?: number };
+  roof?: { age?: number; squareFootage?: number; type?: string; material?: string; condition?: string };
+  // Flat fields (for backward compat)
   yearBuilt?: number;
   squareFeet?: number;
   roofAge?: number;
   roofSquares?: number;
   estimatedValue?: number;
-  claimEstimate?: { roofReplacement: number; gutters: number; total: number };
+  claimEstimate?: { roofReplacement: number; gutters: number; siding?: number; total: number; confidence?: string };
   stormExposure?: {
     hailEvents: number;
     maxHailSize: number;
@@ -137,6 +140,7 @@ interface PropertyIntel {
     summary: string;
   };
   source: string;
+  [key: string]: any; // allow extra fields from API
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────
@@ -831,44 +835,62 @@ export default function StormOperationsCenter() {
                       Property Intelligence
                     </h3>
                     <div className="bg-storm-z1 rounded-lg p-3 border border-storm-border space-y-3">
-                      <div>
-                        <div className="text-sm text-white font-semibold">{propertyIntel.address}</div>
-                        {propertyIntel.owner && (
-                          <div className="text-xs text-storm-muted mt-0.5">Owner: {propertyIntel.owner}</div>
-                        )}
-                      </div>
+                      {(() => {
+                        // Safely extract values from potentially nested API response
+                        const ownerName = typeof propertyIntel.owner === 'string'
+                          ? propertyIntel.owner
+                          : propertyIntel.owner?.name || [propertyIntel.owner?.firstName, propertyIntel.owner?.lastName].filter(Boolean).join(' ') || null;
+                        const yearBuilt = propertyIntel.yearBuilt || propertyIntel.property?.yearBuilt;
+                        const sqFt = propertyIntel.squareFeet || propertyIntel.property?.squareFootage;
+                        const roofAge = propertyIntel.roofAge ?? propertyIntel.roof?.age;
+                        const roofSqFt = propertyIntel.roofSquares || (propertyIntel.roof?.squareFootage ? Math.round(propertyIntel.roof.squareFootage / 100) : null);
 
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        {propertyIntel.yearBuilt && (
-                          <div>
-                            <span className="text-storm-muted">Year Built</span>
-                            <div className="text-white">{propertyIntel.yearBuilt}</div>
-                          </div>
-                        )}
-                        {propertyIntel.squareFeet && (
-                          <div>
-                            <span className="text-storm-muted">Sq Ft</span>
-                            <div className="text-white">{propertyIntel.squareFeet.toLocaleString()}</div>
-                          </div>
-                        )}
-                        {propertyIntel.roofAge !== undefined && propertyIntel.roofAge !== null && (
-                          <div>
-                            <span className="text-storm-muted">Roof Age</span>
-                            <div className={`font-medium ${
-                              (propertyIntel.roofAge || 0) >= 15 ? "text-red-400" :
-                              (propertyIntel.roofAge || 0) >= 10 ? "text-yellow-400" : "text-emerald-400"
-                            }`}>
-                              {propertyIntel.roofAge} years
+                        return (
+                          <>
+                            <div>
+                              <div className="text-sm text-white font-semibold">{propertyIntel.address}</div>
+                              {ownerName && (
+                                <div className="text-xs text-storm-muted mt-0.5">Owner: {ownerName}</div>
+                              )}
+                              {typeof propertyIntel.owner === 'object' && propertyIntel.owner?.absenteeOwner && (
+                                <div className="text-[10px] text-orange-400 mt-0.5">⚡ Absentee Owner</div>
+                              )}
                             </div>
-                          </div>
-                        )}
-                        {propertyIntel.roofSquares && (
-                          <div>
-                            <span className="text-storm-muted">Roof Squares</span>
-                            <div className="text-white">{propertyIntel.roofSquares}</div>
-                          </div>
-                        )}
-                      </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              {yearBuilt ? (
+                                <div>
+                                  <span className="text-storm-muted">Year Built</span>
+                                  <div className="text-white">{yearBuilt}</div>
+                                </div>
+                              ) : null}
+                              {sqFt ? (
+                                <div>
+                                  <span className="text-storm-muted">Sq Ft</span>
+                                  <div className="text-white">{sqFt.toLocaleString()}</div>
+                                </div>
+                              ) : null}
+                              {roofAge != null ? (
+                                <div>
+                                  <span className="text-storm-muted">Roof Age</span>
+                                  <div className={`font-medium ${
+                                    roofAge >= 15 ? "text-red-400" :
+                                    roofAge >= 10 ? "text-yellow-400" : "text-emerald-400"
+                                  }`}>
+                                    {roofAge} years
+                                  </div>
+                                </div>
+                              ) : null}
+                              {roofSqFt ? (
+                                <div>
+                                  <span className="text-storm-muted">Roof Squares</span>
+                                  <div className="text-white">{roofSqFt}</div>
+                                </div>
+                              ) : null}
+                            </div>
+                          </>
+                        );
+                      })()}
 
                       {propertyIntel.claimEstimate && (
                         <div className="bg-storm-purple/10 rounded-lg p-2 border border-storm-purple/20">

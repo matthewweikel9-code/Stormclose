@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getHailReports, getStormReports, getActiveAlerts } from "@/lib/xweather";
-import { searchPropertiesInArea, calculateRoofAge, estimateClaimValue, ATTOMProperty } from "@/lib/attom";
-
-const ATTOM_API_KEY = process.env.ATTOM_API_KEY;
+import { searchPropertiesInArea, calculateRoofAge, estimateClaimValue, CoreLogicProperty } from "@/lib/corelogic";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -125,9 +123,9 @@ export async function GET(request: NextRequest) {
     // Sort by opportunity score
     storms.sort((a: any, b: any) => b.opportunityScore - a.opportunityScore);
 
-    // Get top properties from ATTOM if available
+    // Get top properties from CoreLogic if available
     let topProperties: any[] = [];
-    if (ATTOM_API_KEY && storms.length > 0) {
+    if (storms.length > 0) {
       try {
         // Search near the top storm location
         const topStorm = storms[0];
@@ -138,22 +136,22 @@ export async function GET(request: NextRequest) {
           { propertyType: "SFR" }
         );
 
-        topProperties = properties.slice(0, 5).map((prop: ATTOMProperty) => {
+        topProperties = properties.slice(0, 5).map((prop: CoreLogicProperty) => {
           const roofAge = calculateRoofAge(prop);
           const claimEstimate = estimateClaimValue(prop);
           const damageScore = Math.min(100, Math.round(50 + roofAge * 1.5 + (topStorm.hailSize || 0) * 10));
 
           return {
-            id: prop.identifier?.attomId?.toString() || `prop-${Math.random()}`,
-            address: prop.address?.line1 || prop.address?.oneLine || "Unknown",
-            city: prop.address?.locality || "",
-            state: prop.address?.countrySubd || "",
+            id: prop.id || `prop-${Math.random()}`,
+            address: prop.address || "Unknown",
+            city: prop.city || "",
+            state: prop.state || "",
             damageScore,
             opportunityValue: claimEstimate.roofReplacement,
             roofAge,
-            roofSquares: Math.round((prop.building?.size?.livingSize || 2000) * 1.15 / 100),
+            roofSquares: Math.round((prop.squareFootage || 2000) * 1.15 / 100),
             lastStorm: topStorm.date,
-            owner: prop.owner?.owner1?.fullName || "Unknown",
+            owner: prop.owner || "Unknown",
             tags: [
               roofAge >= 15 ? `${roofAge}yr roof` : null,
               topStorm.hailSize >= 1.5 ? `${topStorm.hailSize}" hail` : null,
@@ -163,7 +161,7 @@ export async function GET(request: NextRequest) {
           };
         });
       } catch (e) {
-        console.error("ATTOM property fetch error:", e);
+        console.error("CoreLogic property fetch error:", e);
       }
     }
 

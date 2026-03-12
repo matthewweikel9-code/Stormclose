@@ -355,7 +355,7 @@ export default function LeadsPage() {
   };
 
   const openPropertyDetail = (property: Property) => {
-    // Use actual API data - contact details not available from ATTOM
+    // Use actual API data - contact details not available from CoreLogic
     const detail: PropertyDetail = {
       ...property,
       ownerPhone: 'Not available',

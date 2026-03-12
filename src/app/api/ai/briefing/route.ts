@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
 
 		// Handle single lead case (from Prep Me button)
 		if (lead_id && address) {
-			// Generate briefing directly from provided data (no DB lookup needed for ATTOM-sourced leads)
+			// Generate briefing directly from provided data (no DB lookup needed for CoreLogic-sourced leads)
 			const leadData: Lead = {
 				id: lead_id,
 				address: address,
