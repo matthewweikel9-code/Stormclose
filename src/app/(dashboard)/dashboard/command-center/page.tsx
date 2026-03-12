@@ -2,37 +2,31 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import type { MapMarker } from '@/components/ui/MapboxMap';
+import type { MapMarker, MapCircle } from '@/components/ui/MapboxMap';
 import {
   Cloud,
   MapPin,
-  Target,
-  ClipboardList,
   Navigation,
-  DoorOpen,
   DollarSign,
   Search,
   RefreshCw,
   Loader2,
-  ChevronRight,
-  TrendingUp,
   AlertTriangle,
   Zap,
-  Eye,
   Plus,
-  Filter,
   ArrowRight,
-  Star,
   Home,
-  Phone,
-  Calendar,
-  Clock,
-  CheckCircle,
   XCircle,
-  Users,
   Route,
   Crosshair,
-  BarChart3,
+  ExternalLink,
+  Shield,
+  Building2,
+  User,
+  TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  Map,
 } from 'lucide-react';
 
 // Lazy load the MapboxMap component
@@ -64,6 +58,34 @@ interface StormEvent {
   path?: { lat: number; lng: number }[];
 }
 
+interface StormAlert {
+  id: string;
+  type: string;
+  name: string;
+  severity: string;
+  color: string;
+  body: string;
+  issuedAt: string;
+  expiresAt: string;
+  location: string;
+  emergency: boolean;
+}
+
+interface StormCell {
+  id: string;
+  lat: number;
+  lng: number;
+  hailProb: number;
+  hailProbSevere: number;
+  maxHailSize: number;
+  tornadoProb: number;
+  isRotating: boolean;
+  isSevere: boolean;
+  speedMph: number;
+  direction: number;
+  location: string;
+}
+
 interface Property {
   address: string;
   lat?: number;
@@ -78,63 +100,6 @@ interface Property {
   stormExposure?: { hailEvents: number; maxHailSize: number; windEvents: number; maxWindSpeed: number; lastStormDate: string; summary: string } | null;
   neighborhood?: { avgHomeValue: number; avgRoofAge: number; claimLikelihood: number };
   source?: string;
-}
-
-// Lead from /api/leads/score
-interface ScoredLead {
-  id: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  lat: number;
-  lng: number;
-  damageScore: number;
-  opportunityScore: number;
-  overallRank: number;
-  tags: string[];
-  estimatedJobValue: number;
-  claimProbability: number;
-  ownerName?: string;
-  yearBuilt?: number;
-  squareFeet?: number;
-  nearestStorm?: { type: string; hailSize: number; windSpeed: number; date: string; distance: number; location: string };
-}
-
-interface KnockListItem {
-  id: string;
-  address: string;
-  lat: number;
-  lng: number;
-  damageScore: number;
-  roofAge: number;
-  roofSize: number;
-  propertyValue: number;
-  stormSeverity: number;
-  estimatedJobValue: number;
-  distance: number;
-  selected: boolean;
-  ownerName?: string;
-  yearBuilt?: number;
-  sqft?: number;
-}
-
-interface DoorKnock {
-  id: string;
-  property_address: string;
-  outcome: string;
-  notes?: string;
-  latitude?: number;
-  longitude?: number;
-  knocked_at: string;
-  created_at?: string;
-}
-
-interface RouteStop {
-  address: string;
-  lat?: number;
-  lng?: number;
-  priority?: string;
 }
 
 interface Opportunity {
@@ -167,24 +132,37 @@ interface OpportunityProperty {
   priority: string;
 }
 
-type ActiveTab = 'storm-map' | 'opportunities' | 'property-lookup' | 'lead-scoring' | 'knock-list' | 'smart-route' | 'knock-tracker';
+interface RouteStop {
+  id: string;
+  address: string;
+  lat?: number;
+  lng?: number;
+  source?: string;
+}
+
+interface OptimizedRoute {
+  totalDistance: string;
+  totalDuration: string;
+  legs: { distance: string; duration: string; startAddress: string; endAddress: string }[];
+  waypointOrder: number[] | null;
+  polyline: string | null;
+}
+
+type ActiveTab = 'storm-map' | 'opportunities' | 'property-lookup' | 'smart-route';
 
 // ============================================================================
-// TAB DEFINITIONS
+// TAB DEFINITIONS (4 panels only — no CRM)
 // ============================================================================
 
 const tabs: { id: ActiveTab; label: string; icon: React.ElementType; badge?: string; badgeColor?: string }[] = [
   { id: 'storm-map', label: 'Storm Map', icon: Cloud, badge: 'LIVE', badgeColor: 'bg-red-500/20 text-red-400' },
   { id: 'opportunities', label: 'Opportunities', icon: DollarSign, badge: 'HOT', badgeColor: 'bg-amber-500/20 text-amber-400' },
   { id: 'property-lookup', label: 'Property Lookup', icon: Search },
-  { id: 'lead-scoring', label: 'Lead Scoring', icon: Target, badge: 'AI', badgeColor: 'bg-[#6D5CFF]/20 text-[#A78BFA]' },
-  { id: 'knock-list', label: 'Knock List', icon: ClipboardList },
   { id: 'smart-route', label: 'Smart Route', icon: Navigation },
-  { id: 'knock-tracker', label: 'Knock Tracker', icon: DoorOpen },
 ];
 
 // ============================================================================
-// MAIN COMPONENT
+// MAIN COMPONENT — shared state for cross-panel workflow
 // ============================================================================
 
 export default function CommandCenterPage() {
@@ -192,7 +170,25 @@ export default function CommandCenterPage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(true);
 
-  // Get user location ONCE at the page level, share with all panels
+  // ── Shared route stops (cross-panel workflow) ──
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
+
+  const addToRoute = useCallback((stop: Omit<RouteStop, 'id'>) => {
+    setRouteStops(prev => {
+      if (prev.some(s => s.address === stop.address)) return prev;
+      return [...prev, { ...stop, id: `stop-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }];
+    });
+  }, []);
+
+  const removeFromRoute = useCallback((id: string) => {
+    setRouteStops(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  const goToRoute = useCallback(() => {
+    setActiveTab('smart-route');
+  }, []);
+
+  // Get user location ONCE at page level, share with all panels
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -201,7 +197,6 @@ export default function CommandCenterPage() {
           setLocationLoading(false);
         },
         () => {
-          // Fallback to Dallas, TX
           setUserLocation({ lat: 32.7767, lng: -96.7970 });
           setLocationLoading(false);
         },
@@ -223,7 +218,9 @@ export default function CommandCenterPage() {
           </span>
           Command Center
         </h1>
-        <p className="mt-1 text-sm text-slate-400">Real-time storm intelligence, lead management, and route optimization</p>
+        <p className="mt-1 text-sm text-slate-400">
+          Storm intelligence → Property targeting → Optimized routing
+        </p>
       </div>
 
       {/* Tab Bar */}
@@ -251,6 +248,18 @@ export default function CommandCenterPage() {
             </button>
           );
         })}
+
+        {/* Route stops indicator */}
+        {routeStops.length > 0 && (
+          <button
+            onClick={goToRoute}
+            className="ml-auto flex items-center gap-2 whitespace-nowrap rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-all"
+          >
+            <Route className="h-3.5 w-3.5" />
+            {routeStops.length} stop{routeStops.length !== 1 ? 's' : ''} in route
+            <ArrowRight className="h-3 w-3" />
+          </button>
+        )}
       </div>
 
       {/* Tab Content */}
@@ -262,13 +271,33 @@ export default function CommandCenterPage() {
           </div>
         ) : (
           <>
-            {activeTab === 'storm-map' && <StormMapPanel userLocation={userLocation!} />}
-            {activeTab === 'opportunities' && <OpportunitiesPanel userLocation={userLocation!} />}
-            {activeTab === 'property-lookup' && <PropertyLookupPanel />}
-            {activeTab === 'lead-scoring' && <LeadScoringPanel userLocation={userLocation!} />}
-            {activeTab === 'knock-list' && <KnockListPanel userLocation={userLocation!} />}
-            {activeTab === 'smart-route' && <SmartRoutePanel />}
-            {activeTab === 'knock-tracker' && <KnockTrackerPanel />}
+            {activeTab === 'storm-map' && (
+              <StormMapPanel
+                userLocation={userLocation!}
+                addToRoute={addToRoute}
+                goToRoute={goToRoute}
+              />
+            )}
+            {activeTab === 'opportunities' && (
+              <OpportunitiesPanel
+                userLocation={userLocation!}
+                addToRoute={addToRoute}
+                goToRoute={goToRoute}
+                routeStops={routeStops}
+              />
+            )}
+            {activeTab === 'property-lookup' && (
+              <PropertyLookupPanel addToRoute={addToRoute} goToRoute={goToRoute} />
+            )}
+            {activeTab === 'smart-route' && (
+              <SmartRoutePanel
+                routeStops={routeStops}
+                addToRoute={addToRoute}
+                removeFromRoute={removeFromRoute}
+                setRouteStops={setRouteStops}
+                userLocation={userLocation!}
+              />
+            )}
           </>
         )}
       </div>
@@ -277,14 +306,29 @@ export default function CommandCenterPage() {
 }
 
 // ============================================================================
-// STORM MAP PANEL
+// STORM MAP PANEL — Live radar, storm markers, click-to-discover properties
 // ============================================================================
 
-function StormMapPanel({ userLocation }: { userLocation: { lat: number; lng: number } }) {
+function StormMapPanel({
+  userLocation,
+  addToRoute,
+  goToRoute,
+}: {
+  userLocation: { lat: number; lng: number };
+  addToRoute: (stop: Omit<RouteStop, 'id'>) => void;
+  goToRoute: () => void;
+}) {
   const [storms, setStorms] = useState<StormEvent[]>([]);
+  const [alerts, setAlerts] = useState<StormAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStorm, setSelectedStorm] = useState<StormEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const refreshRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch properties near a clicked storm
+  const [nearbyProperties, setNearbyProperties] = useState<Property[]>([]);
+  const [propsLoading, setPropsLoading] = useState(false);
 
   const fetchStorms = useCallback(async () => {
     try {
@@ -300,6 +344,8 @@ function StormMapPanel({ userLocation }: { userLocation: { lat: number; lng: num
       if (res.ok) {
         const data = await res.json();
         setStorms(data.storms || []);
+        setAlerts(data.alerts || []);
+        setLastUpdated(data.lastUpdated || new Date().toISOString());
       } else {
         const errData = await res.json().catch(() => ({}));
         setError(errData.error || 'Failed to fetch storm data');
@@ -312,149 +358,311 @@ function StormMapPanel({ userLocation }: { userLocation: { lat: number; lng: num
     }
   }, [userLocation]);
 
+  // Auto-refresh every 60s
   useEffect(() => {
     fetchStorms();
+    refreshRef.current = setInterval(fetchStorms, 60000);
+    return () => {
+      if (refreshRef.current) clearInterval(refreshRef.current);
+    };
   }, [fetchStorms]);
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Map */}
-      <div className="lg:col-span-2 h-[600px] rounded-xl overflow-hidden border border-[#1F2937]">
-        <MapboxMap
-          center={{ lat: userLocation.lat, lng: userLocation.lng }}
-          zoom={8}
-          showUserLocation
-          markers={storms.map((s: StormEvent) => ({
-            id: s.id,
-            lat: s.lat,
-            lng: s.lng,
-            type: (s.type === 'hail' ? 'hail' : s.type === 'tornado' ? 'tornado' : s.type === 'wind' ? 'wind' : 'storm') as MapMarker['type'],
-            severity: (s.severity === 'severe' ? 'severe' : s.severity === 'moderate' ? 'moderate' : 'minor') as MapMarker['severity'],
-            popup: `${s.type} - ${s.location || ''}`,
-          }))}
-          onMarkerClick={(marker) => {
-            const storm = storms.find((s: StormEvent) => s.id === marker.id);
-            if (storm) setSelectedStorm(storm);
-          }}
-        />
-      </div>
+  // When user clicks a storm, fetch nearby properties from ATTOM
+  const handleStormClick = useCallback(async (storm: StormEvent) => {
+    setSelectedStorm(storm);
+    setNearbyProperties([]);
+    setPropsLoading(true);
+    try {
+      const res = await fetch(`/api/knock-list/properties?lat=${storm.lat}&lng=${storm.lng}&radius=5`);
+      if (res.ok) {
+        const data = await res.json();
+        setNearbyProperties((data.properties || []).slice(0, 10).map((p: any) => ({
+          address: p.address,
+          lat: p.lat,
+          lng: p.lng,
+          owner: { name: p.ownerName || 'Unknown' },
+          property: { value: p.propertyValue || 0, yearBuilt: p.yearBuilt || 0, squareFootage: p.sqft || 0 },
+          roof: { age: p.roofAge || 0, squareFootage: p.roofSize || 0 },
+          claimEstimate: { total: p.estimatedJobValue || 0 },
+        } as Property)));
+      }
+    } catch { /* skip */ }
+    setPropsLoading(false);
+  }, []);
 
-      {/* Storm Feed */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Cloud className="h-5 w-5 text-[#A78BFA]" />
-            Live Storm Feed
-          </h3>
-          <button onClick={fetchStorms} className="rounded-lg p-2 text-slate-400 hover:bg-[#1E293B] hover:text-white transition-colors">
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+  // Build map markers
+  const stormMarkers: MapMarker[] = storms.map((s) => ({
+    id: s.id,
+    lat: s.lat,
+    lng: s.lng,
+    type: (s.type === 'hail' ? 'hail' : s.type === 'tornado' ? 'tornado' : s.type === 'wind' ? 'wind' : 'storm') as MapMarker['type'],
+    severity: (s.severity === 'severe' || s.severity === 'extreme' ? 'severe' : s.severity === 'moderate' ? 'moderate' : 'minor') as MapMarker['severity'],
+    popup: `${s.type.toUpperCase()} — ${s.location || ''}${s.hailSize ? ` · ${s.hailSize}" hail` : ''}${s.windSpeed ? ` · ${s.windSpeed} mph` : ''}`,
+  }));
+
+  // Property markers when a storm is selected
+  const propertyMarkers: MapMarker[] = nearbyProperties.map((p, i) => ({
+    id: `prop-${i}`,
+    lat: p.lat || 0,
+    lng: p.lng || 0,
+    type: 'property' as const,
+    popup: `${p.address} — Est. $${(p.claimEstimate?.total || 0).toLocaleString()}`,
+  }));
+
+  // Impact zone circles for storms
+  const impactCircles: MapCircle[] = selectedStorm
+    ? [{
+        id: `circle-${selectedStorm.id}`,
+        center: [selectedStorm.lng, selectedStorm.lat],
+        radiusMiles: selectedStorm.radius || 10,
+        color: selectedStorm.severity === 'extreme' ? '#EF4444' : selectedStorm.severity === 'severe' ? '#F59E0B' : '#6D5CFF',
+        opacity: 0.12,
+      }]
+    : [];
+
+  const activeAlerts = alerts.filter(a => {
+    return !a.expiresAt || new Date(a.expiresAt) > new Date();
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Active Alerts Banner */}
+      {activeAlerts.length > 0 && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 space-y-2">
+          {activeAlerts.slice(0, 3).map((alert) => (
+            <div key={alert.id} className="flex items-start gap-3">
+              <AlertTriangle className={`h-5 w-5 flex-shrink-0 mt-0.5 ${alert.emergency ? 'text-red-400 animate-pulse' : 'text-amber-400'}`} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-white">{alert.name}</p>
+                <p className="text-xs text-slate-400 truncate">{alert.location} · Expires {new Date(alert.expiresAt).toLocaleTimeString()}</p>
+              </div>
+              {alert.emergency && (
+                <span className="rounded bg-red-500/20 px-2 py-0.5 text-[10px] font-bold text-red-400 animate-pulse">EMERGENCY</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Map — 2 cols */}
+        <div className="lg:col-span-2 h-[600px] rounded-xl overflow-hidden border border-[#1F2937] relative">
+          <MapboxMap
+            center={{ lat: userLocation.lat, lng: userLocation.lng }}
+            zoom={8}
+            showUserLocation
+            showRadar
+            darkMode
+            markers={[...stormMarkers, ...propertyMarkers]}
+            circles={impactCircles}
+            onMarkerClick={(marker) => {
+              const storm = storms.find((s) => s.id === marker.id);
+              if (storm) handleStormClick(storm);
+            }}
+            onMapClick={(lat, lng) => {
+              let closest: StormEvent | null = null;
+              let closestDist = Infinity;
+              storms.forEach(s => {
+                const d = Math.sqrt(Math.pow(s.lat - lat, 2) + Math.pow(s.lng - lng, 2));
+                if (d < closestDist) { closest = s; closestDist = d; }
+              });
+              if (closest && closestDist < 0.5) handleStormClick(closest);
+            }}
+          />
+          {/* Last updated overlay */}
+          <div className="absolute bottom-3 left-3 rounded-lg bg-black/70 px-3 py-1.5 text-[10px] text-slate-400 backdrop-blur-sm">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse" />
+            Live Radar · Updated {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : '—'}
+          </div>
         </div>
 
-        {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse rounded-lg bg-[#1E293B] h-20" />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <AlertTriangle className="h-12 w-12 text-red-500/50 mb-3" />
-            <p className="text-sm text-red-400">{error}</p>
-            <button onClick={fetchStorms} className="mt-3 text-xs text-[#A78BFA] hover:underline">Try Again</button>
-          </div>
-        ) : storms.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Cloud className="h-12 w-12 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400">No active storms in your area</p>
-            <p className="text-xs text-slate-500 mt-1">We&apos;ll alert you when storms are detected</p>
-          </div>
-        ) : (
-          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-            {storms.map((storm) => (
-              <button
-                key={storm.id}
-                onClick={() => setSelectedStorm(storm)}
-                className={`w-full text-left rounded-lg border p-3 transition-all ${
-                  selectedStorm?.id === storm.id
-                    ? 'border-[#6D5CFF] bg-[#6D5CFF]/10'
-                    : 'border-[#1F2937] bg-[#0B0F1A] hover:border-[#374151]'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className={`h-2 w-2 rounded-full ${
-                        storm.severity === 'severe' || storm.severity === 'extreme' ? 'bg-red-500 animate-pulse' :
-                        storm.severity === 'moderate' ? 'bg-amber-500' : 'bg-yellow-500'
-                      }`} />
-                      <span className="text-sm font-medium text-white">{storm.type}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-slate-400">{storm.location || storm.state || ''}</p>
-                  </div>
-                  <div className="text-right">
-                    {storm.hailSize != null && storm.hailSize > 0 && (
-                      <span className="text-xs text-amber-400 font-semibold">{storm.hailSize}&quot; hail</span>
-                    )}
-                    {storm.windSpeed != null && storm.windSpeed > 0 && (
-                      <span className="block text-xs text-slate-500">{storm.windSpeed} mph</span>
-                    )}
-                  </div>
-                </div>
-                {storm.damageScore != null && storm.damageScore > 0 && (
-                  <div className="mt-2 flex items-center gap-1 text-xs text-emerald-400">
-                    <Home className="h-3 w-3" />
-                    Damage score: {storm.damageScore}
-                  </div>
-                )}
+        {/* Sidebar */}
+        <div className="space-y-4">
+          {/* Storm Feed */}
+          <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                <Cloud className="h-4 w-4 text-[#A78BFA]" />
+                Storm Feed
+                <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-400 animate-pulse">LIVE</span>
+              </h3>
+              <button onClick={fetchStorms} className="rounded-lg p-2 text-slate-400 hover:bg-[#1E293B] hover:text-white transition-colors">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
-            ))}
+            </div>
+
+            {loading && storms.length === 0 ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse rounded-lg bg-[#1E293B] h-16" />
+                ))}
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <AlertTriangle className="h-10 w-10 text-red-500/50 mb-3" />
+                <p className="text-sm text-red-400">{error}</p>
+                <button onClick={fetchStorms} className="mt-3 text-xs text-[#A78BFA] hover:underline">Try Again</button>
+              </div>
+            ) : storms.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Cloud className="h-10 w-10 text-slate-600 mb-3" />
+                <p className="text-sm text-slate-400">No active storms in your area</p>
+                <p className="text-xs text-slate-500 mt-1">Auto-refreshes every 60 seconds</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {storms.slice(0, 20).map((storm) => (
+                  <button
+                    key={storm.id}
+                    onClick={() => handleStormClick(storm)}
+                    className={`w-full text-left rounded-lg border p-3 transition-all ${
+                      selectedStorm?.id === storm.id
+                        ? 'border-[#6D5CFF] bg-[#6D5CFF]/10'
+                        : 'border-[#1F2937] bg-[#0B0F1A] hover:border-[#374151]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2 w-2 rounded-full ${
+                            storm.severity === 'severe' || storm.severity === 'extreme' ? 'bg-red-500 animate-pulse' :
+                            storm.severity === 'moderate' ? 'bg-amber-500' : 'bg-yellow-500'
+                          }`} />
+                          <span className="text-sm font-medium text-white capitalize">{storm.type}</span>
+                          {storm.isActive && <span className="text-[10px] text-emerald-400 font-bold">ACTIVE</span>}
+                        </div>
+                        <p className="mt-0.5 text-xs text-slate-400">{storm.location || storm.county || ''}</p>
+                      </div>
+                      <div className="text-right">
+                        {storm.hailSize != null && storm.hailSize > 0 && (
+                          <span className="text-xs text-amber-400 font-semibold">{storm.hailSize}&quot; hail</span>
+                        )}
+                        {storm.windSpeed != null && storm.windSpeed > 0 && (
+                          <span className="block text-xs text-slate-500">{storm.windSpeed} mph</span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Nearby Properties — shown when a storm is clicked */}
+          {selectedStorm && (
+            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4">
+              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <Home className="h-4 w-4 text-emerald-400" />
+                Properties Near Storm
+              </h3>
+              {propsLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-[#6D5CFF]" />
+                  <span className="ml-2 text-xs text-slate-400">Searching ATTOM...</span>
+                </div>
+              ) : nearbyProperties.length === 0 ? (
+                <p className="text-xs text-slate-500 py-4 text-center">No properties found near this storm</p>
+              ) : (
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {nearbyProperties.map((prop, i) => (
+                    <div key={i} className="flex items-center justify-between rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-2.5">
+                      <div className="min-w-0 flex-1 mr-2">
+                        <p className="text-xs text-white truncate">{prop.address}</p>
+                        <p className="text-[10px] text-slate-500">
+                          Roof: {prop.roof?.age || '?'}yr · Est. ${(prop.claimEstimate?.total || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => addToRoute({ address: prop.address, lat: prop.lat, lng: prop.lng, source: 'storm-map' })}
+                        className="flex-shrink-0 rounded-md bg-emerald-500/10 p-1.5 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                        title="Add to Route"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={goToRoute}
+                    className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-[#6D5CFF]/10 py-2 text-xs font-medium text-[#A78BFA] hover:bg-[#6D5CFF]/20 transition-colors"
+                  >
+                    <Route className="h-3.5 w-3.5" />
+                    Go to Smart Route
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 // ============================================================================
-// OPPORTUNITIES PANEL
+// OPPORTUNITIES PANEL — Storm events, top properties, "Build Route" action
 // ============================================================================
 
-function OpportunitiesPanel({ userLocation }: { userLocation: { lat: number; lng: number } }) {
+function OpportunitiesPanel({
+  userLocation,
+  addToRoute,
+  goToRoute,
+  routeStops,
+}: {
+  userLocation: { lat: number; lng: number };
+  addToRoute: (stop: Omit<RouteStop, 'id'>) => void;
+  goToRoute: () => void;
+  routeStops: RouteStop[];
+}) {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [topProperties, setTopProperties] = useState<OpportunityProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, totalValue: 0, avgScore: 0 });
+  const [timeframe, setTimeframe] = useState('7d');
+  const [expandedStorm, setExpandedStorm] = useState<string | null>(null);
+
+  const fetchOpportunities = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        lat: String(userLocation.lat),
+        lng: String(userLocation.lng),
+        timeframe,
+      });
+      const res = await fetch(`/api/opportunities?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        const storms = data.storms || [];
+        setOpportunities(storms);
+        setTopProperties(data.topProperties || []);
+        setStats({
+          total: storms.length,
+          totalValue: data.stats?.totalOpportunityValue || 0,
+          avgScore: storms.length > 0
+            ? Math.round(storms.reduce((sum: number, o: Opportunity) => sum + (o.opportunityScore || 0), 0) / storms.length)
+            : 0,
+        });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [userLocation, timeframe]);
 
   useEffect(() => {
-    const fetchOpportunities = async () => {
-      try {
-        const params = new URLSearchParams({
-          lat: String(userLocation.lat),
-          lng: String(userLocation.lng),
-        });
-        const res = await fetch(`/api/opportunities?${params}`);
-        if (res.ok) {
-          const data = await res.json();
-          const storms = data.storms || [];
-          setOpportunities(storms);
-          setTopProperties(data.topProperties || []);
-          if (data.stats) {
-            setStats({
-              total: storms.length,
-              totalValue: data.stats.totalOpportunityValue || 0,
-              avgScore: storms.length > 0 ? Math.round(storms.reduce((sum: number, o: Opportunity) => sum + (o.opportunityScore || 0), 0) / storms.length) : 0,
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchOpportunities();
-  }, []);
+  }, [fetchOpportunities]);
+
+  // "Build Route" from top properties
+  const buildRoute = () => {
+    topProperties.forEach(p => {
+      addToRoute({
+        address: `${p.address}, ${p.city}, ${p.state}`,
+        source: 'opportunities',
+      });
+    });
+    goToRoute();
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
@@ -462,7 +670,7 @@ function OpportunitiesPanel({ userLocation }: { userLocation: { lat: number; lng
 
   return (
     <div className="space-y-6">
-      {/* Stats */}
+      {/* Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-5">
           <div className="flex items-center gap-3">
@@ -471,18 +679,18 @@ function OpportunitiesPanel({ userLocation }: { userLocation: { lat: number; lng
             </span>
             <div>
               <p className="text-2xl font-bold text-white">${(stats.totalValue / 1000).toFixed(0)}K</p>
-              <p className="text-xs text-slate-400">Pipeline Value</p>
+              <p className="text-xs text-slate-400">Est. Opportunity Value</p>
             </div>
           </div>
         </div>
         <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-5">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#6D5CFF]/10">
-              <Target className="h-5 w-5 text-[#A78BFA]" />
+              <Cloud className="h-5 w-5 text-[#A78BFA]" />
             </span>
             <div>
               <p className="text-2xl font-bold text-white">{stats.total}</p>
-              <p className="text-xs text-slate-400">Active Opportunities</p>
+              <p className="text-xs text-slate-400">Storm Events</p>
             </div>
           </div>
         </div>
@@ -493,100 +701,236 @@ function OpportunitiesPanel({ userLocation }: { userLocation: { lat: number; lng
             </span>
             <div>
               <p className="text-2xl font-bold text-white">{stats.avgScore}%</p>
-              <p className="text-xs text-slate-400">Avg Damage Score</p>
+              <p className="text-xs text-slate-400">Avg Opportunity Score</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Opportunities Table */}
+      {/* Timeframe Filter + Build Route */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {(['24h', '7d', '30d'] as const).map((tf) => (
+            <button
+              key={tf}
+              onClick={() => setTimeframe(tf)}
+              className={`rounded-lg px-3.5 py-2 text-xs font-medium transition-all ${
+                timeframe === tf
+                  ? 'bg-[#6D5CFF]/15 text-white'
+                  : 'bg-[#111827] text-slate-400 hover:bg-[#1E293B] hover:text-white border border-[#1F2937]'
+              }`}
+            >
+              {tf === '24h' ? 'Last 24h' : tf === '7d' ? 'Last 7 Days' : 'Last 30 Days'}
+            </button>
+          ))}
+        </div>
+        {topProperties.length > 0 && (
+          <button
+            onClick={buildRoute}
+            className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
+          >
+            <Route className="h-3.5 w-3.5" />
+            Build Route from Top Properties
+          </button>
+        )}
+      </div>
+
+      {/* Storm Events Cards */}
       <div className="rounded-xl border border-[#1F2937] bg-[#111827] overflow-hidden">
         <div className="p-4 border-b border-[#1F2937]">
           <h3 className="text-lg font-semibold text-white">Storm-Generated Opportunities</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Click a storm to see details · Click &quot;Add to Route&quot; to plan your canvass</p>
         </div>
         {opportunities.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <DollarSign className="h-12 w-12 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400">No opportunities yet</p>
-            <p className="text-xs text-slate-500 mt-1">Opportunities are generated when storms hit residential areas</p>
+            <Cloud className="h-12 w-12 text-slate-600 mb-3" />
+            <p className="text-sm text-slate-400">No storm opportunities found in this timeframe</p>
+            <p className="text-xs text-slate-500 mt-1">Try expanding to 30 days</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#1F2937] text-left text-xs text-slate-500 uppercase tracking-wider">
-                  <th className="px-4 py-3">Storm Event</th>
-                  <th className="px-4 py-3">Opp Score</th>
-                  <th className="px-4 py-3">Est. Damage</th>
-                  <th className="px-4 py-3">Severity</th>
-                  <th className="px-4 py-3">Storm Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {opportunities.slice(0, 20).map((opp) => (
-                  <tr key={opp.id} className="border-b border-[#1F2937]/50 hover:bg-[#1E293B]/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="text-sm text-white">{opp.name}</p>
-                      <p className="text-xs text-slate-500">{opp.location}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-16 rounded-full bg-[#1E293B] overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${
-                              opp.opportunityScore >= 80 ? 'bg-red-500' :
-                              opp.opportunityScore >= 60 ? 'bg-amber-500' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${opp.opportunityScore}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-slate-400">{opp.opportunityScore}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-emerald-400 font-medium">
-                      ${opp.estimatedDamage?.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        opp.severity === 'major' ? 'bg-red-500/10 text-red-400' :
-                        opp.severity === 'moderate' ? 'bg-amber-500/10 text-amber-400' :
-                        'bg-slate-700/50 text-slate-400'
-                      }`}>
-                        {opp.severity} {opp.hailSize > 0 ? `· ${opp.hailSize}" hail` : ''}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
+          <div className="divide-y divide-[#1F2937]/50">
+            {opportunities.slice(0, 15).map((opp) => (
+              <div key={opp.id}>
+                <button
+                  onClick={() => setExpandedStorm(expandedStorm === opp.id ? null : opp.id)}
+                  className="w-full flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors text-left"
+                >
+                  {/* Severity Dot */}
+                  <span className={`flex-shrink-0 h-3 w-3 rounded-full ${
+                    opp.severity === 'major' ? 'bg-red-500' :
+                    opp.severity === 'moderate' ? 'bg-amber-500' : 'bg-yellow-500'
+                  }`} />
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{opp.name}</p>
+                    <p className="text-xs text-slate-500">{opp.location}</p>
+                  </div>
+                  {/* Score */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="h-2 w-14 rounded-full bg-[#1E293B] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          opp.opportunityScore >= 80 ? 'bg-red-500' :
+                          opp.opportunityScore >= 60 ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${opp.opportunityScore}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-400 w-6 text-right">{opp.opportunityScore}</span>
+                  </div>
+                  {/* Hail / Wind */}
+                  <div className="hidden md:block text-right flex-shrink-0 w-24">
+                    {opp.hailSize > 0 && <span className="text-xs text-amber-400 font-semibold">{opp.hailSize}&quot; hail</span>}
+                    {opp.windSpeed > 0 && <span className="block text-xs text-slate-500">{opp.windSpeed} mph</span>}
+                  </div>
+                  {/* Date */}
+                  <div className="hidden md:block text-right flex-shrink-0 w-28">
+                    <span className="text-xs text-slate-500">
                       {opp.date ? new Date(opp.date).toLocaleDateString() : '-'}
-                      {opp.daysAgo <= 3 && (
-                        <span className="ml-1 text-red-400 font-medium">({opp.daysAgo}d ago)</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </span>
+                    {opp.daysAgo <= 3 && (
+                      <span className="block text-[10px] font-bold text-red-400">{opp.daysAgo}d ago — ACT NOW</span>
+                    )}
+                  </div>
+                  {/* Chevron */}
+                  {expandedStorm === opp.id
+                    ? <ChevronUp className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                    : <ChevronDown className="h-4 w-4 text-slate-500 flex-shrink-0" />}
+                </button>
+
+                {/* Expanded detail */}
+                {expandedStorm === opp.id && (
+                  <div className="px-4 pb-4 bg-[#0B0F1A]/50">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                      <div className="rounded-lg bg-[#111827] border border-[#1F2937] p-3 text-center">
+                        <p className="text-lg font-bold text-white">${(opp.estimatedDamage / 1000).toFixed(0)}K</p>
+                        <p className="text-[10px] text-slate-500">Est. Damage</p>
+                      </div>
+                      <div className="rounded-lg bg-[#111827] border border-[#1F2937] p-3 text-center">
+                        <p className="text-lg font-bold text-white">{opp.affectedProperties}</p>
+                        <p className="text-[10px] text-slate-500">Properties</p>
+                      </div>
+                      <div className="rounded-lg bg-[#111827] border border-[#1F2937] p-3 text-center">
+                        <p className="text-lg font-bold text-amber-400">{opp.hailSize}&quot;</p>
+                        <p className="text-[10px] text-slate-500">Max Hail</p>
+                      </div>
+                      <div className="rounded-lg bg-[#111827] border border-[#1F2937] p-3 text-center">
+                        <p className="text-lg font-bold text-white">{opp.windSpeed || 0}</p>
+                        <p className="text-[10px] text-slate-500">Max Wind (mph)</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        addToRoute({
+                          address: opp.location,
+                          lat: opp.coordinates.lat,
+                          lng: opp.coordinates.lng,
+                          source: 'opportunities',
+                        });
+                      }}
+                      className="flex items-center gap-2 rounded-lg bg-[#6D5CFF]/10 px-4 py-2 text-xs font-medium text-[#A78BFA] hover:bg-[#6D5CFF]/20 transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add Storm Area to Route
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Top Properties Section */}
+      {topProperties.length > 0 && (
+        <div className="rounded-xl border border-[#1F2937] bg-[#111827] overflow-hidden">
+          <div className="p-4 border-b border-[#1F2937] flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                <Home className="h-4 w-4 text-emerald-400" />
+                Top Target Properties
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">ATTOM property data near highest-scoring storm</p>
+            </div>
+          </div>
+          <div className="divide-y divide-[#1F2937]/50">
+            {topProperties.map((prop) => {
+              const inRoute = routeStops.some(s => s.address.includes(prop.address));
+              return (
+                <div key={prop.id} className="flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0 ${
+                    prop.priority === 'hot' ? 'bg-red-500/10 text-red-400' :
+                    prop.priority === 'warm' ? 'bg-amber-500/10 text-amber-400' :
+                    'bg-slate-700/50 text-slate-400'
+                  }`}>
+                    <span className="text-xs font-bold">{prop.damageScore}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{prop.address}</p>
+                    <p className="text-xs text-slate-500">
+                      {prop.owner} · Roof: {prop.roofAge}yr · {prop.roofSquares} sq
+                    </p>
+                  </div>
+                  <div className="text-right hidden md:block flex-shrink-0">
+                    <p className="text-sm font-semibold text-emerald-400">${prop.opportunityValue?.toLocaleString()}</p>
+                    <div className="flex gap-1 mt-0.5 justify-end">
+                      {prop.tags?.map((t, i) => (
+                        <span key={i} className="rounded bg-[#1E293B] px-1.5 py-0.5 text-[10px] text-slate-400">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!inRoute) {
+                        addToRoute({
+                          address: `${prop.address}, ${prop.city}, ${prop.state}`,
+                          source: 'opportunities',
+                        });
+                      }
+                    }}
+                    disabled={inRoute}
+                    className={`flex-shrink-0 rounded-md p-2 transition-colors ${
+                      inRoute
+                        ? 'bg-emerald-500/20 text-emerald-400 cursor-default'
+                        : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                    }`}
+                    title={inRoute ? 'Already in route' : 'Add to Route'}
+                  >
+                    {inRoute ? <Route className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ============================================================================
-// PROPERTY LOOKUP PANEL
+// PROPERTY LOOKUP PANEL — Full intel card, claim estimate, "Add to Route"
 // ============================================================================
 
-function PropertyLookupPanel() {
+function PropertyLookupPanel({
+  addToRoute,
+  goToRoute,
+}: {
+  addToRoute: (stop: Omit<RouteStop, 'id'>) => void;
+  goToRoute: () => void;
+}) {
   const [address, setAddress] = useState('');
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [addedToRoute, setAddedToRoute] = useState(false);
 
   const lookupProperty = async () => {
     if (!address.trim()) return;
     setLoading(true);
     setError('');
     setProperty(null);
+    setAddedToRoute(false);
 
     try {
       const res = await fetch(`/api/property/lookup?address=${encodeURIComponent(address)}`);
@@ -594,7 +938,7 @@ function PropertyLookupPanel() {
         const data = await res.json();
         setProperty(data.property || data);
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         setError(err.error || 'Property not found');
       }
     } catch {
@@ -602,6 +946,17 @@ function PropertyLookupPanel() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddToRoute = () => {
+    if (!property) return;
+    addToRoute({
+      address: property.address,
+      lat: property.lat,
+      lng: property.lng,
+      source: 'property-lookup',
+    });
+    setAddedToRoute(true);
   };
 
   return (
@@ -639,412 +994,263 @@ function PropertyLookupPanel() {
 
       {/* Results */}
       {property && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Property Details */}
-          <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Property Details</h3>
-            <div className="space-y-3">
-              {[
-                { label: 'Address', value: property.address },
-                { label: 'Owner', value: property.owner?.name },
-                { label: 'Property Value', value: property.property?.value ? `$${property.property.value.toLocaleString()}` : '-' },
-                { label: 'Year Built', value: property.property?.yearBuilt },
-                { label: 'Roof Type', value: property.roof?.type },
-                { label: 'Roof Material', value: property.roof?.material },
-                { label: 'Roof Age', value: property.roof?.age ? `${property.roof.age} years` : '-' },
-                { label: 'Roof Sqft', value: property.roof?.squareFootage ? property.roof.squareFootage.toLocaleString() : '-' },
-                { label: 'Sq Ft', value: property.property?.squareFootage ? property.property.squareFootage.toLocaleString() : '-' },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between py-2 border-b border-[#1F2937]/50 last:border-0">
-                  <span className="text-sm text-slate-400">{item.label}</span>
-                  <span className="text-sm text-white font-medium">{item.value || '-'}</span>
-                </div>
-              ))}
-            </div>
+        <>
+          {/* Action Bar */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleAddToRoute}
+              disabled={addedToRoute}
+              className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition-all ${
+                addedToRoute
+                  ? 'bg-emerald-500/20 text-emerald-400 cursor-default'
+                  : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20'
+              }`}
+            >
+              {addedToRoute ? <Route className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {addedToRoute ? 'Added to Route' : 'Add to Route'}
+            </button>
+            {addedToRoute && (
+              <button
+                onClick={goToRoute}
+                className="flex items-center gap-2 rounded-lg bg-[#6D5CFF]/10 px-4 py-2.5 text-xs font-medium text-[#A78BFA] hover:bg-[#6D5CFF]/20 transition-colors"
+              >
+                <ArrowRight className="h-3.5 w-3.5" />
+                Go to Smart Route
+              </button>
+            )}
           </div>
 
-          {/* Damage Assessment */}
-          <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Storm Damage Assessment</h3>
-            {property.stormExposure ? (
-              <div className="space-y-4">
-                <div className="text-center py-4">
-                  <div className="relative mx-auto h-32 w-32">
-                    <svg className="h-32 w-32 -rotate-90" viewBox="0 0 120 120">
-                      <circle cx="60" cy="60" r="50" fill="none" stroke="#1E293B" strokeWidth="10" />
-                      <circle
-                        cx="60" cy="60" r="50" fill="none"
-                        stroke={
-                          (property.neighborhood?.claimLikelihood || 0) >= 80 ? '#EF4444' :
-                          (property.neighborhood?.claimLikelihood || 0) >= 60 ? '#F59E0B' : '#10B981'
-                        }
-                        strokeWidth="10"
-                        strokeDasharray={`${((property.neighborhood?.claimLikelihood || 0) / 100) * 314} 314`}
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold text-white">{property.neighborhood?.claimLikelihood || 0}%</span>
-                      <span className="text-xs text-slate-400">Claim Likelihood</span>
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* Property Overview */}
+            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+              <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-[#A78BFA]" />
+                Property Details
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { label: 'Address', value: property.address },
+                  { label: 'Value', value: property.property?.value ? `$${property.property.value.toLocaleString()}` : '-' },
+                  { label: 'Year Built', value: property.property?.yearBuilt || '-' },
+                  { label: 'Sq Ft', value: property.property?.squareFootage ? property.property.squareFootage.toLocaleString() : '-' },
+                  { label: 'Lot Size', value: property.property?.lotSize ? `${property.property.lotSize.toLocaleString()} sqft` : '-' },
+                  { label: 'Type', value: property.property?.buildingType || '-' },
+                  { label: 'Bed / Bath', value: property.property?.bedrooms ? `${property.property.bedrooms} / ${property.property.bathrooms}` : '-' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-[#1F2937]/50 last:border-0">
+                    <span className="text-xs text-slate-400">{item.label}</span>
+                    <span className="text-xs text-white font-medium">{item.value}</span>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between rounded-lg bg-[#0B0F1A] p-3">
-                    <span className="text-sm text-slate-400">Hail Events</span>
+                ))}
+              </div>
+            </div>
+
+            {/* Owner Info */}
+            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+              <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                <User className="h-4 w-4 text-[#A78BFA]" />
+                Owner Information
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { label: 'Name', value: property.owner?.name },
+                  { label: 'Mailing Address', value: property.owner?.mailingAddress || '-' },
+                  { label: 'Absentee Owner', value: property.owner?.absenteeOwner ? 'Yes' : 'No' },
+                  { label: 'Last Sale', value: property.sale?.lastSaleDate ? new Date(property.sale.lastSaleDate).toLocaleDateString() : '-' },
+                  { label: 'Last Sale Amount', value: property.sale?.lastSaleAmount ? `$${property.sale.lastSaleAmount.toLocaleString()}` : '-' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-[#1F2937]/50 last:border-0">
+                    <span className="text-xs text-slate-400">{item.label}</span>
+                    <span className="text-xs text-white font-medium">{item.value || '-'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Roof Intel */}
+            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+              <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-amber-400" />
+                Roof Intelligence
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { label: 'Roof Age', value: property.roof?.age ? `${property.roof.age} years` : '-', highlight: property.roof?.age != null && property.roof.age >= 15 },
+                  { label: 'Material', value: property.roof?.material || '-' },
+                  { label: 'Type / Shape', value: property.roof?.type || '-' },
+                  { label: 'Condition', value: property.roof?.condition || '-' },
+                  { label: 'Roof Sqft', value: property.roof?.squareFootage ? property.roof.squareFootage.toLocaleString() : '-' },
+                  { label: 'Complexity', value: property.roof?.complexity || '-' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-[#1F2937]/50 last:border-0">
+                    <span className="text-xs text-slate-400">{item.label}</span>
+                    <span className={`text-xs font-medium ${item.highlight ? 'text-amber-400' : 'text-white'}`}>
+                      {item.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Storm Exposure */}
+            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+              <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                <Cloud className="h-4 w-4 text-red-400" />
+                Storm Exposure
+              </h3>
+              {property.stormExposure ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <span className="text-xs text-slate-400">Hail Events</span>
                     <span className="text-sm font-bold text-white">{property.stormExposure.hailEvents}</span>
                   </div>
-                  <div className="flex justify-between rounded-lg bg-[#0B0F1A] p-3">
-                    <span className="text-sm text-slate-400">Max Hail Size</span>
+                  <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <span className="text-xs text-slate-400">Max Hail Size</span>
                     <span className="text-sm font-bold text-amber-400">{property.stormExposure.maxHailSize}&quot;</span>
                   </div>
                   {property.stormExposure.lastStormDate && (
-                    <div className="flex justify-between rounded-lg bg-[#0B0F1A] p-3">
-                      <span className="text-sm text-slate-400">Last Storm</span>
+                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                      <span className="text-xs text-slate-400">Last Storm</span>
                       <span className="text-sm font-bold text-white">{new Date(property.stormExposure.lastStormDate).toLocaleDateString()}</span>
                     </div>
                   )}
+                  {property.stormExposure.summary && (
+                    <p className="text-xs text-slate-500 italic mt-2">&quot;{property.stormExposure.summary}&quot;</p>
+                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Cloud className="h-10 w-10 text-slate-600 mb-3" />
-                <p className="text-sm text-slate-400">No recent storm exposure data</p>
-              </div>
-            )}
-            {property.claimEstimate && (
-              <div className="mt-4 space-y-2 border-t border-[#1F2937] pt-4">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Claim Estimate</p>
-                <div className="flex justify-between rounded-lg bg-[#0B0F1A] p-3">
-                  <span className="text-sm text-slate-400">Roof Replacement</span>
-                  <span className="text-sm font-bold text-emerald-400">${property.claimEstimate.roofReplacement?.toLocaleString()}</span>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <Cloud className="h-8 w-8 text-slate-600 mb-2" />
+                  <p className="text-xs text-slate-400">No recent storm exposure data</p>
                 </div>
-                <div className="flex justify-between rounded-lg bg-[#0B0F1A] p-3">
-                  <span className="text-sm text-slate-400">Total Estimate</span>
-                  <span className="text-sm font-bold text-white">${property.claimEstimate.total?.toLocaleString()}</span>
+              )}
+            </div>
+
+            {/* Claim Estimate */}
+            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+              <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-emerald-400" />
+                Claim Estimate
+              </h3>
+              {property.claimEstimate ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <span className="text-xs text-slate-400">Roof Replacement</span>
+                    <span className="text-sm font-bold text-emerald-400">${property.claimEstimate.roofReplacement?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <span className="text-xs text-slate-400">Siding</span>
+                    <span className="text-sm font-bold text-white">${property.claimEstimate.siding?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <span className="text-xs text-slate-400">Gutters</span>
+                    <span className="text-sm font-bold text-white">${property.claimEstimate.gutters?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-3 mt-2">
+                    <span className="text-sm font-semibold text-white">Total Estimate</span>
+                    <span className="text-lg font-bold text-emerald-400">${property.claimEstimate.total?.toLocaleString()}</span>
+                  </div>
+                  <div className="text-center">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      property.claimEstimate.confidence === 'high' ? 'bg-emerald-500/10 text-emerald-400' :
+                      property.claimEstimate.confidence === 'medium' ? 'bg-amber-500/10 text-amber-400' :
+                      'bg-slate-700/50 text-slate-400'
+                    }`}>
+                      {property.claimEstimate.confidence} confidence
+                    </span>
+                  </div>
                 </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <DollarSign className="h-8 w-8 text-slate-600 mb-2" />
+                  <p className="text-xs text-slate-400">Insufficient data for claim estimate</p>
+                </div>
+              )}
+            </div>
+
+            {/* Neighborhood / Assessment */}
+            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+              <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                <Map className="h-4 w-4 text-[#A78BFA]" />
+                Neighborhood Intel
+              </h3>
+              <div className="space-y-3">
+                {property.neighborhood && (
+                  <>
+                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                      <span className="text-xs text-slate-400">Avg Home Value</span>
+                      <span className="text-sm font-bold text-white">${property.neighborhood.avgHomeValue?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                      <span className="text-xs text-slate-400">Avg Roof Age</span>
+                      <span className="text-sm font-bold text-white">{property.neighborhood.avgRoofAge} yrs</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                      <span className="text-xs text-slate-400">Claim Likelihood</span>
+                      <span className={`text-sm font-bold ${
+                        (property.neighborhood.claimLikelihood || 0) >= 70 ? 'text-red-400' :
+                        (property.neighborhood.claimLikelihood || 0) >= 50 ? 'text-amber-400' : 'text-slate-400'
+                      }`}>{property.neighborhood.claimLikelihood}%</span>
+                    </div>
+                  </>
+                )}
+                {property.assessment && (
+                  <>
+                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                      <span className="text-xs text-slate-400">Assessed Value</span>
+                      <span className="text-sm font-bold text-white">${property.assessment.assessedValue?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                      <span className="text-xs text-slate-400">Market Value</span>
+                      <span className="text-sm font-bold text-white">${property.assessment.marketValue?.toLocaleString()}</span>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
 }
 
 // ============================================================================
-// LEAD SCORING PANEL
+// SMART ROUTE PANEL — Real routing, map display, Google Maps link
 // ============================================================================
 
-function LeadScoringPanel({ userLocation }: { userLocation: { lat: number; lng: number } }) {
-  const [leads, setLeads] = useState<ScoredLead[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'ranked' | 'neighborhoods'>('ranked');
-  const [apiError, setApiError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchLeads = async () => {
-      try {
-        setApiError(null);
-        const params = new URLSearchParams({
-          lat: String(userLocation.lat),
-          lng: String(userLocation.lng),
-          radius: '25',
-          limit: '50',
-        });
-        const res = await fetch(`/api/leads/score?${params}`);
-        if (res.ok) {
-          const data = await res.json();
-          setLeads(data.leads || []);
-          if (data.errors?.storm || data.errors?.property) {
-            setApiError(data.errors.property || data.errors.storm);
-          }
-        } else {
-          const errData = await res.json().catch(() => ({}));
-          setApiError(errData.message || errData.error || 'Failed to fetch leads');
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        setApiError('Network error');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchLeads();
-  }, [userLocation]);
-
-  if (loading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
-  }
-
-  const hotLeads = leads.filter((l) => (l.damageScore || 0) >= 80);
-  const warmLeads = leads.filter((l) => {
-    const score = l.damageScore || 0;
-    return score >= 50 && score < 80;
-  });
-
-  return (
-    <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10">
-              <Zap className="h-5 w-5 text-red-400" />
-            </span>
-            <div>
-              <p className="text-2xl font-bold text-white">{hotLeads.length}</p>
-              <p className="text-xs text-slate-400">Hot Leads (80+)</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
-              <Star className="h-5 w-5 text-amber-400" />
-            </span>
-            <div>
-              <p className="text-2xl font-bold text-white">{warmLeads.length}</p>
-              <p className="text-xs text-slate-400">Warm Leads (50-79)</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#6D5CFF]/10">
-              <Target className="h-5 w-5 text-[#A78BFA]" />
-            </span>
-            <div>
-              <p className="text-2xl font-bold text-white">{leads.length}</p>
-              <p className="text-xs text-slate-400">Total Scored Leads</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Leads Table */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-[#1F2937]">
-          <h3 className="text-lg font-semibold text-white">AI-Scored Leads</h3>
-          <div className="flex items-center gap-1 rounded-lg bg-[#0B0F1A] p-1">
-            <button
-              onClick={() => setView('ranked')}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-                view === 'ranked' ? 'bg-[#6D5CFF]/15 text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Ranked
-            </button>
-            <button
-              onClick={() => setView('neighborhoods')}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-                view === 'neighborhoods' ? 'bg-[#6D5CFF]/15 text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Neighborhoods
-            </button>
-          </div>
-        </div>
-
-        {apiError && leads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <AlertTriangle className="h-12 w-12 text-amber-500/50 mb-3" />
-            <p className="text-sm text-amber-400">Unable to load leads</p>
-            <p className="text-xs text-slate-500 mt-1">{apiError}</p>
-            <p className="text-xs text-slate-600 mt-2">Searching near {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}</p>
-          </div>
-        ) : leads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Target className="h-12 w-12 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400">No scored leads in this area</p>
-            <p className="text-xs text-slate-500 mt-1">No recent storms or properties found near your location</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#1F2937] text-left text-xs text-slate-500 uppercase tracking-wider">
-                  <th className="px-4 py-3">#</th>
-                  <th className="px-4 py-3">Address</th>
-                  <th className="px-4 py-3">Score</th>
-                  <th className="px-4 py-3">Tier</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Distance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads
-                  .sort((a, b) => (b.damageScore || 0) - (a.damageScore || 0))
-                  .slice(0, 25)
-                  .map((lead, idx) => {
-                    const score = lead.damageScore || 0;
-                    return (
-                      <tr key={lead.id || idx} className="border-b border-[#1F2937]/50 hover:bg-[#1E293B]/50 transition-colors">
-                        <td className="px-4 py-3 text-sm text-slate-500">{idx + 1}</td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-white">{lead.address}</p>
-                          {lead.city && <p className="text-xs text-slate-500">{lead.city}, {lead.state}</p>}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`text-sm font-bold ${
-                            score >= 80 ? 'text-emerald-400' :
-                            score >= 60 ? 'text-amber-400' : 'text-slate-400'
-                          }`}>{score}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            score >= 80 ? 'bg-red-500/10 text-red-400' :
-                            score >= 60 ? 'bg-amber-500/10 text-amber-400' :
-                            'bg-slate-700/50 text-slate-400'
-                          }`}>
-                            {score >= 80 ? '🔥 Hot' : score >= 60 ? '⚡ Warm' : 'Cold'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-400">
-                          {lead.tags?.join(', ') || 'New'}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-400">
-                          {lead.nearestStorm?.distance ? `${lead.nearestStorm.distance.toFixed(1)} mi` : '-'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// KNOCK LIST PANEL
-// ============================================================================
-
-function KnockListPanel({ userLocation }: { userLocation: { lat: number; lng: number } }) {
-  const [items, setItems] = useState<KnockListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchKnockList = async () => {
-      try {
-        const params = new URLSearchParams({
-          lat: String(userLocation.lat),
-          lng: String(userLocation.lng),
-          radius: '5',
-        });
-        const res = await fetch(`/api/knock-list/properties?${params}`);
-        if (res.ok) {
-          const data = await res.json();
-          setItems(data.properties || []);
-          if (data.message) setMessage(data.message);
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchKnockList();
-  }, [userLocation]);
-
-  if (loading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
-  }
-
-  const getPriority = (score: number) => score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low';
-  const filteredItems = filter === 'all' ? items : items.filter((i) => getPriority(i.damageScore) === filter);
-
-  return (
-    <div className="space-y-6">
-      {/* Filter Bar */}
-      <div className="flex items-center gap-3">
-        {['all', 'high', 'medium', 'low'].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-              filter === f
-                ? 'bg-[#6D5CFF]/15 text-white'
-                : 'bg-[#111827] text-slate-400 hover:bg-[#1E293B] hover:text-white border border-[#1F2937]'
-            }`}
-          >
-            {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1) + ' Priority'} ({f === 'all' ? items.length : items.filter((i) => getPriority(i.damageScore) === f).length})
-          </button>
-        ))}
-      </div>
-
-      {/* List */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] overflow-hidden">
-        {filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <ClipboardList className="h-12 w-12 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400">{message || 'No properties in knock list'}</p>
-            <p className="text-xs text-slate-500 mt-1">Searching near your location ({userLocation.lat.toFixed(2)}, {userLocation.lng.toFixed(2)})</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-[#1F2937]/50">
-            {filteredItems.map((item) => {
-              const priority = getPriority(item.damageScore);
-              return (
-                <div key={item.id} className="flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                    priority === 'high' ? 'bg-red-500/10 text-red-400' :
-                    priority === 'medium' ? 'bg-amber-500/10 text-amber-400' :
-                    'bg-slate-700/50 text-slate-400'
-                  }`}>
-                    <span className="text-sm font-bold">{item.damageScore}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{item.address}</p>
-                    <p className="text-xs text-slate-500">
-                      {item.ownerName ? `${item.ownerName} · ` : ''}Est. ${item.estimatedJobValue?.toLocaleString() || '-'}
-                    </p>
-                  </div>
-                  <div className="text-right hidden md:block">
-                    <p className="text-xs text-slate-400">Roof Age: {item.roofAge || '-'} yrs</p>
-                    <p className="text-xs text-slate-500">{item.distance ? `${item.distance.toFixed(1)} mi` : ''}</p>
-                  </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    priority === 'high' ? 'bg-red-500/10 text-red-400' :
-                    priority === 'medium' ? 'bg-amber-500/10 text-amber-400' :
-                    'bg-slate-700/50 text-slate-400'
-                  }`}>
-                    {priority === 'high' ? '🔥 Hot' : priority === 'medium' ? '⚡ Warm' : 'Cold'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// SMART ROUTE PANEL
-// ============================================================================
-
-function SmartRoutePanel() {
-  const [stops, setStops] = useState<RouteStop[]>([]);
+function SmartRoutePanel({
+  routeStops,
+  addToRoute,
+  removeFromRoute,
+  setRouteStops,
+  userLocation,
+}: {
+  routeStops: RouteStop[];
+  addToRoute: (stop: Omit<RouteStop, 'id'>) => void;
+  removeFromRoute: (id: string) => void;
+  setRouteStops: React.Dispatch<React.SetStateAction<RouteStop[]>>;
+  userLocation: { lat: number; lng: number };
+}) {
   const [newAddress, setNewAddress] = useState('');
-  const [optimizedRoute, setOptimizedRoute] = useState<any>(null);
+  const [optimizedRoute, setOptimizedRoute] = useState<OptimizedRoute | null>(null);
   const [loading, setLoading] = useState(false);
+  const [routeError, setRouteError] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Address autocomplete
+  // Address autocomplete via Mapbox
   const handleAddressChange = (value: string) => {
     setNewAddress(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (value.length < 3) { setSuggestions([]); return; }
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(value)}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&types=address&country=us&limit=5`);
+        const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+        if (!token) return;
+        const res = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(value)}.json?access_token=${token}&types=address&country=us&limit=5`
+        );
         if (res.ok) {
           const data = await res.json();
           setSuggestions(data.features || []);
@@ -1053,45 +1259,92 @@ function SmartRoutePanel() {
     }, 300);
   };
 
-  const addStop = (address: string, lat?: number, lng?: number) => {
-    setStops([...stops, { address, lat, lng }]);
+  const addManualStop = (addr: string, lat?: number, lng?: number) => {
+    addToRoute({ address: addr, lat, lng, source: 'manual' });
     setNewAddress('');
     setSuggestions([]);
   };
 
-  const removeStop = (index: number) => {
-    setStops(stops.filter((_, i) => i !== index));
-    setOptimizedRoute(null);
-  };
-
+  // Optimize route via our API (uses Google Directions)
   const optimizeRoute = async () => {
-    if (stops.length < 2) return;
+    if (routeStops.length < 2) return;
     setLoading(true);
+    setRouteError('');
+    setOptimizedRoute(null);
+
     try {
+      const waypoints = routeStops.map(s => s.address);
       const res = await fetch('/api/route-optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stops: stops.map((s) => s.address) }),
+        body: JSON.stringify({ waypoints, optimizeWaypoints: true }),
       });
+
       if (res.ok) {
         const data = await res.json();
-        setOptimizedRoute(data);
+        setOptimizedRoute({
+          totalDistance: data.routeInfo?.totalDistance || '-',
+          totalDuration: data.routeInfo?.totalDuration || '-',
+          legs: data.routeInfo?.legs || [],
+          waypointOrder: data.waypointOrder || null,
+          polyline: data.polyline || null,
+        });
+
+        // Reorder stops if optimized
+        if (data.waypointOrder && data.waypointOrder.length > 0) {
+          const middleStops = routeStops.slice(1, -1);
+          const reordered = [
+            routeStops[0],
+            ...data.waypointOrder.map((idx: number) => middleStops[idx]),
+            routeStops[routeStops.length - 1],
+          ].filter(Boolean);
+          setRouteStops(reordered);
+        }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setRouteError(err.error || 'Failed to optimize route');
       }
     } catch (error) {
       console.error('Error:', error);
+      setRouteError('Network error');
     } finally {
       setLoading(false);
     }
   };
 
+  // Build Google Maps link for turn-by-turn
+  const getGoogleMapsLink = () => {
+    if (routeStops.length < 2) return '#';
+    const origin = encodeURIComponent(routeStops[0].address);
+    const destination = encodeURIComponent(routeStops[routeStops.length - 1].address);
+    const waypoints = routeStops.slice(1, -1).map(s => encodeURIComponent(s.address)).join('|');
+    return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ''}&travelmode=driving`;
+  };
+
+  // Build route markers for the map
+  const routeMarkers: MapMarker[] = routeStops
+    .filter(s => s.lat && s.lng)
+    .map((s, i) => ({
+      id: s.id,
+      lat: s.lat!,
+      lng: s.lng!,
+      type: 'property' as const,
+      popup: `#${i + 1} — ${s.address}`,
+    }));
+
+  // Calculate map center from stops
+  const mapCenter = routeStops.length > 0 && routeStops[0].lat && routeStops[0].lng
+    ? { lat: routeStops[0].lat!, lng: routeStops[0].lng! }
+    : { lat: userLocation.lat, lng: userLocation.lng };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Route Builder */}
+      {/* Left: Route Builder */}
       <div className="space-y-4">
         <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Route className="h-5 w-5 text-[#A78BFA]" />
-            Build Your Route
+            Route Builder
           </h3>
 
           {/* Add Stop */}
@@ -1100,6 +1353,11 @@ function SmartRoutePanel() {
               type="text"
               value={newAddress}
               onChange={(e) => handleAddressChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newAddress.trim()) {
+                  addManualStop(newAddress.trim());
+                }
+              }}
               placeholder="Type an address to add a stop..."
               className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF]"
             />
@@ -1108,7 +1366,7 @@ function SmartRoutePanel() {
                 {suggestions.map((s: any) => (
                   <button
                     key={s.id}
-                    onClick={() => addStop(s.place_name, s.center[1], s.center[0])}
+                    onClick={() => addManualStop(s.place_name, s.center[1], s.center[0])}
                     className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-[#1E293B] transition-colors border-b border-[#1F2937]/50 last:border-0"
                   >
                     <MapPin className="inline h-3 w-3 mr-2 text-slate-500" />
@@ -1120,20 +1378,32 @@ function SmartRoutePanel() {
           </div>
 
           {/* Stops List */}
-          {stops.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
+          {routeStops.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
               <Navigation className="h-10 w-10 text-slate-600 mb-3" />
-              <p className="text-sm text-slate-400">Add at least 2 stops to build a route</p>
+              <p className="text-sm text-slate-400">No stops yet</p>
+              <p className="text-xs text-slate-500 mt-1">Add stops manually or use Storm Map / Opportunities to add properties</p>
             </div>
           ) : (
             <div className="space-y-2 mb-4">
-              {stops.map((stop, idx) => (
-                <div key={idx} className="flex items-center gap-3 rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6D5CFF]/20 text-xs font-bold text-[#A78BFA]">
+              {routeStops.map((stop, idx) => (
+                <div key={stop.id} className="flex items-center gap-3 rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6D5CFF]/20 text-xs font-bold text-[#A78BFA] flex-shrink-0">
                     {idx + 1}
                   </span>
-                  <span className="flex-1 text-sm text-white truncate">{stop.address}</span>
-                  <button onClick={() => removeStop(idx)} className="text-slate-500 hover:text-red-400 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-white truncate block">{stop.address}</span>
+                    {stop.source && stop.source !== 'manual' && (
+                      <span className="text-[10px] text-slate-500">via {stop.source}</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      removeFromRoute(stop.id);
+                      setOptimizedRoute(null);
+                    }}
+                    className="flex-shrink-0 text-slate-500 hover:text-red-400 transition-colors"
+                  >
                     <XCircle className="h-4 w-4" />
                   </button>
                 </div>
@@ -1141,252 +1411,120 @@ function SmartRoutePanel() {
             </div>
           )}
 
-          <button
-            onClick={optimizeRoute}
-            disabled={stops.length < 2 || loading}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#6D5CFF] px-4 py-3 text-sm font-semibold text-white hover:bg-[#5B4AE8] disabled:opacity-50 transition-all"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-            Optimize Route
-          </button>
-        </div>
-      </div>
+          {routeError && (
+            <p className="mb-3 text-sm text-red-400 flex items-center gap-1">
+              <AlertTriangle className="h-4 w-4" /> {routeError}
+            </p>
+          )}
 
-      {/* Route Results */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Optimized Route</h3>
-        {optimizedRoute ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
-                <p className="text-lg font-bold text-white">{optimizedRoute.totalDistance || '-'}</p>
-                <p className="text-xs text-slate-400">Total Miles</p>
-              </div>
-              <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
-                <p className="text-lg font-bold text-white">{optimizedRoute.totalTime || '-'}</p>
-                <p className="text-xs text-slate-400">Est. Time</p>
-              </div>
-            </div>
-            {optimizedRoute.optimizedOrder && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-slate-300">Optimized Order:</p>
-                {optimizedRoute.optimizedOrder.map((addr: string, idx: number) => (
-                  <div key={idx} className="flex items-center gap-3 rounded-lg bg-[#0B0F1A] p-3 border border-[#1F2937]/50">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-400">
-                      {idx + 1}
-                    </span>
-                    <span className="text-sm text-white truncate">{addr}</span>
-                  </div>
-                ))}
-              </div>
+          <div className="flex gap-3">
+            <button
+              onClick={optimizeRoute}
+              disabled={routeStops.length < 2 || loading}
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[#6D5CFF] px-4 py-3 text-sm font-semibold text-white hover:bg-[#5B4AE8] disabled:opacity-50 transition-all"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              Optimize Route
+            </button>
+            {routeStops.length >= 2 && (
+              <a
+                href={getGoogleMapsLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-lg bg-[#111827] border border-[#1F2937] px-4 py-3 text-sm font-medium text-slate-300 hover:bg-[#1E293B] transition-all"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Google Maps
+              </a>
             )}
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Navigation className="h-12 w-12 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400">Add stops and optimize to see your route</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
-// ============================================================================
-// KNOCK TRACKER PANEL
-// ============================================================================
-
-function KnockTrackerPanel() {
-  const [knocks, setKnocks] = useState<DoorKnock[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showLogForm, setShowLogForm] = useState(false);
-  const [newKnock, setNewKnock] = useState({ property_address: '', outcome: 'not_home', notes: '' });
-  const [submitting, setSubmitting] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchKnocks = async () => {
-      try {
-        const res = await fetch('/api/door-knocks');
-        if (res.ok) {
-          const data = await res.json();
-          setKnocks(data.knocks || []);
-        } else {
-          // Table might not exist yet — that's OK
-          setFetchError('Door knocks feature requires database setup. You can still log knocks locally.');
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        setFetchError('Could not connect to server');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchKnocks();
-  }, []);
-
-  const logKnock = async () => {
-    if (!newKnock.property_address.trim()) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch('/api/door-knocks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newKnock),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setKnocks([data.knock || data, ...knocks]);
-        setNewKnock({ property_address: '', outcome: 'not_home', notes: '' });
-        setShowLogForm(false);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const outcomeIcons: Record<string, { icon: React.ElementType; color: string; label: string }> = {
-    appointment_set: { icon: Calendar, color: 'text-emerald-400', label: 'Appointment Set' },
-    interested: { icon: Star, color: 'text-amber-400', label: 'Interested' },
-    not_interested: { icon: XCircle, color: 'text-red-400', label: 'Not Interested' },
-    not_home: { icon: DoorOpen, color: 'text-slate-400', label: 'Not Home' },
-    no_answer: { icon: DoorOpen, color: 'text-slate-500', label: 'No Answer' },
-    callback: { icon: Phone, color: 'text-blue-400', label: 'Call Back' },
-  };
-
-  if (loading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
-  }
-
-  const todayKnocks = knocks.filter((k) => {
-    const knockDate = new Date(k.knocked_at).toDateString();
-    return knockDate === new Date().toDateString();
-  });
-
-  return (
-    <div className="space-y-6">
-      {/* Today's Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
-          <p className="text-2xl font-bold text-white">{todayKnocks.length}</p>
-          <p className="text-xs text-slate-400">Today&apos;s Knocks</p>
-        </div>
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-400">{todayKnocks.filter((k) => k.outcome === 'appointment_set').length}</p>
-          <p className="text-xs text-slate-400">Appointments</p>
-        </div>
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
-          <p className="text-2xl font-bold text-amber-400">{todayKnocks.filter((k) => k.outcome === 'interested').length}</p>
-          <p className="text-xs text-slate-400">Interested</p>
-        </div>
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
-          <p className="text-2xl font-bold text-slate-400">
-            {todayKnocks.length > 0
-              ? `${Math.round((todayKnocks.filter((k) => ['appointment_set', 'interested'].includes(k.outcome)).length / todayKnocks.length) * 100)}%`
-              : '0%'}
-          </p>
-          <p className="text-xs text-slate-400">Contact Rate</p>
+          {routeStops.length > 0 && (
+            <button
+              onClick={() => {
+                setRouteStops([]);
+                setOptimizedRoute(null);
+              }}
+              className="w-full mt-3 text-xs text-slate-500 hover:text-red-400 transition-colors"
+            >
+              Clear all stops
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Log Knock Button / Form */}
-      {!showLogForm ? (
-        <button
-          onClick={() => setShowLogForm(true)}
-          className="flex items-center gap-2 rounded-xl bg-[#6D5CFF] px-6 py-3 text-sm font-semibold text-white hover:bg-[#5B4AE8] transition-all"
-        >
-          <Plus className="h-4 w-4" /> Log Door Knock
-        </button>
-      ) : (
+      {/* Right: Map + Route Info */}
+      <div className="space-y-4">
+        {/* Route Map */}
+        <div className="h-[350px] rounded-xl overflow-hidden border border-[#1F2937]">
+          <MapboxMap
+            center={mapCenter}
+            zoom={routeStops.length > 0 ? 11 : 10}
+            showUserLocation
+            darkMode
+            markers={routeMarkers}
+          />
+        </div>
+
+        {/* Route Details */}
         <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Log Door Knock</h3>
-          <div className="space-y-4">
-            <input
-              type="text"
-              value={newKnock.property_address}
-              onChange={(e) => setNewKnock({ ...newKnock, property_address: e.target.value })}
-              placeholder="Property address"
-              className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF]"
-            />
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {Object.entries(outcomeIcons).map(([key, { icon: Icon, color, label }]) => (
-                <button
-                  key={key}
-                  onClick={() => setNewKnock({ ...newKnock, outcome: key })}
-                  className={`flex flex-col items-center gap-1 rounded-lg border p-3 text-xs transition-all ${
-                    newKnock.outcome === key
-                      ? 'border-[#6D5CFF] bg-[#6D5CFF]/10'
-                      : 'border-[#1F2937] bg-[#0B0F1A] hover:border-[#374151]'
-                  }`}
-                >
-                  <Icon className={`h-5 w-5 ${color}`} />
-                  <span className="text-slate-300">{label}</span>
-                </button>
-              ))}
-            </div>
-            <textarea
-              value={newKnock.notes}
-              onChange={(e) => setNewKnock({ ...newKnock, notes: e.target.value })}
-              placeholder="Notes (optional)"
-              rows={2}
-              className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF] resize-none"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={logKnock}
-                disabled={!newKnock.property_address.trim() || submitting}
-                className="flex items-center gap-2 rounded-lg bg-[#6D5CFF] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#5B4AE8] disabled:opacity-50 transition-all"
-              >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                Save
-              </button>
-              <button
-                onClick={() => setShowLogForm(false)}
-                className="rounded-lg border border-[#1F2937] px-6 py-2.5 text-sm text-slate-400 hover:bg-[#1E293B] transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Knock History */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] overflow-hidden">
-        <div className="p-4 border-b border-[#1F2937]">
-          <h3 className="text-lg font-semibold text-white">Recent Door Knocks</h3>
-        </div>
-        {knocks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <DoorOpen className="h-12 w-12 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-400">{fetchError || 'No door knocks logged yet'}</p>
-            <p className="text-xs text-slate-500 mt-1">Use the button above to log your first door knock</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-[#1F2937]/50">
-            {knocks.slice(0, 20).map((knock) => {
-              const info = outcomeIcons[knock.outcome] || outcomeIcons.not_home;
-              const Icon = info.icon;
-              return (
-                <div key={knock.id} className="flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors">
-                  <Icon className={`h-5 w-5 ${info.color}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{knock.property_address}</p>
-                    {knock.notes && <p className="text-xs text-slate-500 truncate">{knock.notes}</p>}
-                  </div>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${info.color}`}>
-                    {info.label}
-                  </span>
-                  <span className="text-xs text-slate-500 hidden md:block">
-                    {new Date(knock.knocked_at).toLocaleString()}
-                  </span>
+          <h3 className="text-base font-semibold text-white mb-4">Route Details</h3>
+          {optimizedRoute ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+                  <p className="text-xl font-bold text-white">{optimizedRoute.totalDistance}</p>
+                  <p className="text-xs text-slate-400">Total Distance</p>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+                  <p className="text-xl font-bold text-white">{optimizedRoute.totalDuration}</p>
+                  <p className="text-xs text-slate-400">Drive Time</p>
+                </div>
+              </div>
+
+              {/* Leg-by-leg */}
+              {optimizedRoute.legs.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Turn-by-Turn</p>
+                  {optimizedRoute.legs.map((leg, idx) => (
+                    <div key={idx} className="flex items-center gap-3 rounded-lg bg-[#0B0F1A] p-2.5 border border-[#1F2937]/50">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#6D5CFF]/20 text-[10px] font-bold text-[#A78BFA] flex-shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-white truncate">{leg.endAddress}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-xs text-slate-400">{leg.distance}</p>
+                        <p className="text-[10px] text-slate-500">{leg.duration}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Google Maps deep link */}
+              <a
+                href={getGoogleMapsLink()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-all"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open in Google Maps for Navigation
+              </a>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <Navigation className="h-10 w-10 text-slate-600 mb-3" />
+              <p className="text-sm text-slate-400">
+                {routeStops.length < 2
+                  ? 'Add at least 2 stops to calculate a route'
+                  : 'Click "Optimize Route" to calculate'}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
