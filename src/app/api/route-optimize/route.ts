@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { checkFeatureAccess } from "@/lib/subscriptions";
 
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_SOLAR_API_KEY || "AIzaSyB4EuYOLXgQ0sd9AYlx0bJ709VcNLi9HyI";
 
@@ -12,16 +11,6 @@ export async function POST(request: NextRequest) {
 
 		if (!user) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-		}
-
-		// Check feature access - using lead_generator feature key
-		const access = await checkFeatureAccess(user.id, "lead_generator");
-		if (!access.allowed) {
-			return NextResponse.json({
-				error: "Feature not available",
-				reason: access.reason,
-				tier: access.tier
-			}, { status: 403 });
 		}
 
 		const body = await request.json();

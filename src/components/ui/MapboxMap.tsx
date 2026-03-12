@@ -63,7 +63,15 @@ export default function MapboxMap({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const circleIdsRef = useRef<string[]>([]);
+  const pathIdsRef = useRef<string[]>([]);
+  const onMapClickRef = useRef(onMapClick);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // Keep the callback ref up-to-date
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
 
   // Initialize map
   useEffect(() => {
@@ -113,8 +121,8 @@ export default function MapboxMap({
     });
 
     map.current.on("click", (e) => {
-      if (onMapClick) {
-        onMapClick(e.lngLat.lat, e.lngLat.lng);
+      if (onMapClickRef.current) {
+        onMapClickRef.current(e.lngLat.lat, e.lngLat.lng);
       }
     });
 
@@ -189,15 +197,18 @@ export default function MapboxMap({
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
 
-    // Remove existing path layers
-    paths.forEach((path) => {
-      if (map.current?.getLayer(`path-${path.id}`)) {
-        map.current.removeLayer(`path-${path.id}`);
+    // Remove all previous path layers/sources
+    pathIdsRef.current.forEach((prevId) => {
+      if (map.current?.getLayer(`path-${prevId}`)) {
+        map.current.removeLayer(`path-${prevId}`);
       }
-      if (map.current?.getSource(`path-${path.id}`)) {
-        map.current.removeSource(`path-${path.id}`);
+      if (map.current?.getSource(`path-${prevId}`)) {
+        map.current.removeSource(`path-${prevId}`);
       }
     });
+
+    // Track current path IDs
+    pathIdsRef.current = paths.map(p => p.id);
 
     // Add new paths
     paths.forEach((path) => {
@@ -236,16 +247,24 @@ export default function MapboxMap({
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
 
-    circles.forEach((circle) => {
-      const sourceId = `circle-${circle.id}`;
-      const layerId = `circle-layer-${circle.id}`;
-
+    // Remove all previous circle layers/sources
+    circleIdsRef.current.forEach((prevId) => {
+      const sourceId = `circle-${prevId}`;
+      const layerId = `circle-layer-${prevId}`;
       if (map.current?.getLayer(layerId)) {
         map.current.removeLayer(layerId);
       }
       if (map.current?.getSource(sourceId)) {
         map.current.removeSource(sourceId);
       }
+    });
+
+    // Track current circle IDs
+    circleIdsRef.current = circles.map(c => c.id);
+
+    circles.forEach((circle) => {
+      const sourceId = `circle-${circle.id}`;
+      const layerId = `circle-layer-${circle.id}`;
 
       // Create circle polygon
       const radiusKm = circle.radiusMiles * 1.60934;

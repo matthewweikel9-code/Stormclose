@@ -936,7 +936,8 @@ function PropertyLookupPanel({
       const res = await fetch(`/api/property/lookup?address=${encodeURIComponent(address)}`);
       if (res.ok) {
         const data = await res.json();
-        setProperty(data.property || data);
+        // API returns flat object: { address, lat, lng, owner, property, roof, ... }
+        setProperty(data);
       } else {
         const err = await res.json().catch(() => ({}));
         setError(err.error || 'Property not found');
