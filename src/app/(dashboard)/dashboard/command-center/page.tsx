@@ -481,8 +481,19 @@ export default function StormOperationsCenter() {
         setSelectedCell(cell);
         setLeftPanelOpen(true);
       }
+    } else if (marker.id.startsWith("storm-")) {
+      const stormId = marker.id.replace("storm-", "");
+      const storm = storms.find((s) => s.id === stormId);
+      if (storm) {
+        // Scan properties near the storm report
+        fetchParcels(storm.lat, storm.lng, 1);
+        fetchPropertyIntel(undefined, storm.lat, storm.lng);
+        setMapCenter({ lat: storm.lat, lng: storm.lng });
+        setMapZoom(14);
+        setRightPanelOpen(true);
+      }
     }
-  }, [parcels, stormCells, fetchPropertyIntel]);
+  }, [parcels, stormCells, storms, fetchPropertyIntel, fetchParcels]);
 
   const handleAddressSearch = useCallback(async () => {
     if (!searchAddress.trim()) return;
@@ -723,35 +734,73 @@ export default function StormOperationsCenter() {
                     </h3>
                     <div className="space-y-1.5">
                       {storms.slice(0, 15).map((storm) => (
-                        <button
+                        <div
                           key={storm.id}
-                          onClick={() => {
-                            setMapCenter({ lat: storm.lat, lng: storm.lng });
-                            setMapZoom(11);
-                          }}
-                          className="w-full text-left p-2 rounded-lg bg-storm-z1 border border-storm-border hover:border-storm-purple/30 transition-colors"
+                          className="p-2 rounded-lg bg-storm-z1 border border-storm-border hover:border-storm-purple/30 transition-colors"
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-white">
-                              {storm.type === "tornado" ? "🌪️" : storm.type === "hail" ? "🧊" : storm.type === "wind" ? "💨" : "⛈️"}{" "}
-                              {storm.location || "Unknown"}
-                            </span>
-                            <span className={`text-[10px] font-bold ${
-                              storm.severity === "extreme" ? "text-red-400" :
-                              storm.severity === "severe" ? "text-orange-400" :
-                              storm.severity === "moderate" ? "text-yellow-400" : "text-blue-400"
-                            }`}>
-                              {storm.damageScore}
-                            </span>
+                          <button
+                            onClick={() => {
+                              setMapCenter({ lat: storm.lat, lng: storm.lng });
+                              setMapZoom(13);
+                            }}
+                            className="w-full text-left"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-white">
+                                {storm.type === "tornado" ? "🌪️" : storm.type === "hail" ? "🧊" : storm.type === "wind" ? "💨" : "⛈️"}{" "}
+                                {storm.location || "Unknown"}
+                              </span>
+                              <span className={`text-[10px] font-bold ${
+                                storm.severity === "extreme" ? "text-red-400" :
+                                storm.severity === "severe" ? "text-orange-400" :
+                                storm.severity === "moderate" ? "text-yellow-400" : "text-blue-400"
+                              }`}>
+                                {storm.damageScore}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-storm-muted mt-0.5">
+                              {storm.hailSize ? `${storm.hailSize}" hail` : ""}
+                              {storm.hailSize && storm.windSpeed ? " · " : ""}
+                              {storm.windSpeed ? `${storm.windSpeed}mph wind` : ""}
+                              {" · "}
+                              {new Date(storm.startTime).toLocaleDateString()}
+                            </div>
+                          </button>
+                          <div className="flex gap-1.5 mt-1.5">
+                            <button
+                              onClick={() => {
+                                fetchParcels(storm.lat, storm.lng, 1);
+                                setMapCenter({ lat: storm.lat, lng: storm.lng });
+                                setMapZoom(14);
+                                setRightPanelOpen(true);
+                              }}
+                              className="flex-1 text-[10px] bg-storm-purple/15 text-storm-purple border border-storm-purple/25 rounded py-1 hover:bg-storm-purple/25 transition-colors"
+                            >
+                              🔍 Scan Properties
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRouteStops((prev) => {
+                                  if (prev.some((s) => s.id === `storm-${storm.id}`)) return prev;
+                                  return [
+                                    ...prev,
+                                    {
+                                      id: `storm-${storm.id}`,
+                                      address: storm.location || `${storm.lat.toFixed(4)}, ${storm.lng.toFixed(4)}`,
+                                      lat: storm.lat,
+                                      lng: storm.lng,
+                                      source: "storm" as const,
+                                    },
+                                  ];
+                                });
+                                setRightPanelOpen(true);
+                              }}
+                              className="flex-1 text-[10px] bg-storm-z2 text-white border border-storm-border rounded py-1 hover:border-storm-purple/30 transition-colors"
+                            >
+                              📌 Add to Route
+                            </button>
                           </div>
-                          <div className="text-[10px] text-storm-muted mt-0.5">
-                            {storm.hailSize ? `${storm.hailSize}" hail` : ""}
-                            {storm.hailSize && storm.windSpeed ? " · " : ""}
-                            {storm.windSpeed ? `${storm.windSpeed}mph wind` : ""}
-                            {" · "}
-                            {new Date(storm.startTime).toLocaleDateString()}
-                          </div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -791,17 +840,40 @@ export default function StormOperationsCenter() {
                           <div className="text-white font-medium">{selectedCell.direction}°</div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => {
-                          fetchParcels(selectedCell.lat, selectedCell.lng, 2);
-                          setMapCenter({ lat: selectedCell.lat, lng: selectedCell.lng });
-                          setMapZoom(13);
-                          setRightPanelOpen(true);
-                        }}
-                        className="mt-3 w-full text-xs bg-storm-purple/20 text-storm-purple border border-storm-purple/30 rounded-lg py-1.5 hover:bg-storm-purple/30 transition-colors"
-                      >
-                        🔍 Scan Impact Zone
-                      </button>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => {
+                            fetchParcels(selectedCell.lat, selectedCell.lng, 2);
+                            setMapCenter({ lat: selectedCell.lat, lng: selectedCell.lng });
+                            setMapZoom(13);
+                            setRightPanelOpen(true);
+                          }}
+                          className="flex-1 text-xs bg-storm-purple/20 text-storm-purple border border-storm-purple/30 rounded-lg py-1.5 hover:bg-storm-purple/30 transition-colors"
+                        >
+                          🔍 Scan Properties
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRouteStops((prev) => {
+                              if (prev.some((s) => s.id === `cell-${selectedCell.id}`)) return prev;
+                              return [
+                                ...prev,
+                                {
+                                  id: `cell-${selectedCell.id}`,
+                                  address: selectedCell.location || `${selectedCell.lat.toFixed(4)}, ${selectedCell.lng.toFixed(4)}`,
+                                  lat: selectedCell.lat,
+                                  lng: selectedCell.lng,
+                                  source: "storm" as const,
+                                },
+                              ];
+                            });
+                            setRightPanelOpen(true);
+                          }}
+                          className="flex-1 text-xs bg-storm-z2 text-white border border-storm-border rounded-lg py-1.5 hover:border-storm-purple/30 transition-colors"
+                        >
+                          📌 Add to Route
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
