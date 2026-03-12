@@ -198,9 +198,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Fetch the created stops back so frontend has IDs + full data
+    const { data: createdStops } = await (supabase.from("mission_stops") as any)
+      .select("*")
+      .eq("mission_id", mission.id)
+      .order("stop_order", { ascending: true });
+
     return NextResponse.json({
       success: true,
       mission: formatMission(mission),
+      stops: (createdStops || []).map(formatStop),
     });
   } catch (error) {
     console.error("[Missions] Create error:", error);

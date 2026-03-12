@@ -479,13 +479,23 @@ export default function StormCommandCenterV2() {
       const parcelData = parcelRes.ok ? await parcelRes.json() : { parcels: [] };
       const scannedParcels: Parcel[] = parcelData.parcels || [];
 
-      // Filter to residential only
+      // Filter to residential only + must have valid coordinates
       const residential = scannedParcels.filter(
-        (p) => ["SFR", "MFR", "CON", "TH", "MOB"].includes(p.typeCode)
+        (p) => ["SFR", "MFR", "CON", "TH", "MOB"].includes(p.typeCode) &&
+               p.lat !== 0 && p.lng !== 0 && p.lat && p.lng
       );
 
-      // 2. Build route stops from residential parcels
-      const stops: RouteStop[] = residential.slice(0, 30).map((p) => ({
+      if (residential.length === 0) {
+        console.warn("[Deploy] No valid residential parcels found near storm");
+        setParcels(scannedParcels);
+        setMapCenter({ lat: event.lat, lng: event.lng });
+        setMapZoom(14);
+        setMissionLoading(false);
+        return;
+      }
+
+      // 2. Build route stops — cap at 23 (Google Directions allows 25 waypoints incl origin+dest)
+      const stops: RouteStop[] = residential.slice(0, 23).map((p) => ({
         id: `parcel-${p.id}`,
         address: `${p.address}, ${p.city}, ${p.state} ${p.zip}`,
         lat: p.lat,
@@ -502,37 +512,46 @@ export default function StormCommandCenterV2() {
       setParcels(scannedParcels);
 
       // 3. Create mission in DB
-      const missionRes = await fetch("/api/missions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: `Storm Deploy: ${event.location} ${event.type === "hail" ? `(${event.hailSize}")` : ""}`,
-          description: `Auto-deployed to ${event.type} event at ${event.location}. ${event.estimatedProperties} est. properties.`,
-          centerLat: event.lat,
-          centerLng: event.lng,
-          radiusMiles: 1.0,
-          stops: stops.map((s) => ({
-            address: s.address,
-            lat: s.lat,
-            lng: s.lng,
-            city: s.city,
-            state: s.state,
-            zip: s.zip,
-            owner_name: s.owner,
-            property_type: s.propertyType,
-          })),
-          scheduledDate: new Date().toISOString().split("T")[0],
-        }),
-      });
+      let missionCreated = false;
+      try {
+        const missionRes = await fetch("/api/missions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: `Storm Deploy: ${event.location} ${event.type === "hail" ? `(${event.hailSize}")` : ""}`,
+            description: `Auto-deployed to ${event.type} event at ${event.location}. ${event.estimatedProperties} est. properties.`,
+            centerLat: event.lat,
+            centerLng: event.lng,
+            radiusMiles: 1.0,
+            stops: stops.map((s) => ({
+              address: s.address,
+              lat: s.lat,
+              lng: s.lng,
+              city: s.city,
+              state: s.state,
+              zip: s.zip,
+              owner_name: s.owner,
+              property_type: s.propertyType,
+            })),
+            scheduledDate: new Date().toISOString().split("T")[0],
+          }),
+        });
 
-      if (missionRes.ok) {
-        const missionData = await missionRes.json();
-        setActiveMission(missionData.mission);
-        setMissionStops(missionData.stops || []);
-        fetchMissions(); // Refresh missions list
+        if (missionRes.ok) {
+          const missionData = await missionRes.json();
+          setActiveMission(missionData.mission);
+          setMissionStops(missionData.stops || []);
+          missionCreated = true;
+          fetchMissions();
+        } else {
+          const errData = await missionRes.json().catch(() => ({}));
+          console.error("[Deploy] Mission creation failed:", missionRes.status, errData);
+        }
+      } catch (missionErr) {
+        console.error("[Deploy] Mission creation error:", missionErr);
       }
 
-      // 4. Auto-optimize route if we have 2+ stops
+      // 4. Auto-optimize route if we have 2+ stops (runs even if mission creation failed)
       if (stops.length >= 2) {
         setRouteLoading(true);
         try {
@@ -558,15 +577,22 @@ export default function StormCommandCenterV2() {
               ].filter(Boolean);
               setRouteStops(reordered);
             }
+          } else {
+            console.error("[Deploy] Route optimization failed:", routeRes.status);
           }
         } catch (routeErr) {
-          console.error("Auto-route optimize error:", routeErr);
+          console.error("[Deploy] Auto-route optimize error:", routeErr);
         } finally {
           setRouteLoading(false);
         }
       }
 
-      // 5. Center map on storm
+      // 5. If mission was created but we didn't get stops, switch to deploy tab as fallback
+      if (!missionCreated) {
+        setRightTab("deploy");
+      }
+
+      // 6. Center map on storm
       setMapCenter({ lat: event.lat, lng: event.lng });
       setMapZoom(14);
     } catch (e) {
