@@ -6,6 +6,7 @@ import {
   calculateRoofAge,
   estimateClaimValue,
   CoreLogicProperty,
+  CoreLogicError,
 } from "@/lib/corelogic";
 import { verifyHailAtLocation } from "@/lib/xweather";
 
@@ -105,6 +106,19 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error looking up property:", error);
+
+    // Preserve CoreLogic-specific errors (rate limit, auth, etc.)
+    if (error instanceof CoreLogicError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: error.isRateLimit ? "RATE_LIMIT" : "API_ERROR",
+          retryAfter: error.isRateLimit ? 60 : undefined,
+        },
+        { status: error.status }
+      );
+    }
+
     return NextResponse.json({ error: "Failed to lookup property" }, { status: 500 });
   }
 }

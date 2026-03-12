@@ -476,7 +476,17 @@ export default function StormCommandCenterV2() {
       const parcelRes = await fetch(
         `/api/corelogic/parcels?lat=${event.lat}&lng=${event.lng}&radius=1&pageSize=50&all=true`
       );
-      const parcelData = parcelRes.ok ? await parcelRes.json() : { parcels: [] };
+      let parcelData: any = { parcels: [] };
+      if (parcelRes.ok) {
+        parcelData = await parcelRes.json();
+      } else {
+        const errBody = await parcelRes.json().catch(() => ({}));
+        const isRateLimit = parcelRes.status === 429 || errBody.code === "RATE_LIMIT";
+        console.error("[Deploy] Parcel scan failed:", parcelRes.status, errBody.error || "Unknown error");
+        if (isRateLimit) {
+          alert("⚡ CoreLogic API daily quota exceeded (100 req/day on DEMO tier). Property data will be available when the quota resets. The mission will deploy without parcel data.");
+        }
+      }
       const scannedParcels: Parcel[] = parcelData.parcels || [];
 
       // Filter to residential only + must have valid coordinates

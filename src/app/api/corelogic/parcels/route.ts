@@ -8,6 +8,7 @@ import {
   getParcelCentroid,
   decodePropertyType,
   CoreLogicParcel,
+  CoreLogicError,
 } from "@/lib/corelogic";
 
 /**
@@ -123,9 +124,18 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("[CoreLogic Parcels] Error:", error);
+
+    // Preserve actual status from CoreLogic (429 rate limit, 401 auth, etc.)
+    const status = error instanceof CoreLogicError ? error.status : 500;
+    const isRateLimit = error instanceof CoreLogicError && error.isRateLimit;
+
     return NextResponse.json(
-      { error: error.message || "Failed to fetch parcel data" },
-      { status: 500 }
+      {
+        error: error.message || "Failed to fetch parcel data",
+        code: isRateLimit ? "RATE_LIMIT" : "API_ERROR",
+        retryAfter: isRateLimit ? 60 : undefined,
+      },
+      { status }
     );
   }
 }

@@ -15,6 +15,32 @@ const TOKEN_URL = `${CORELOGIC_BASE_URL}/oauth/token?grant_type=client_credentia
 // Token cache (in-memory, lasts ~1 hour per token)
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+// Response cache — reduce API calls on rate-limited tiers
+const responseCache = new Map<string, { data: any; expiresAt: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min cache for parcel queries
+const MAX_CACHE_SIZE = 50;
+
+// Rate limit tracking
+let rateLimitHitAt: number | null = null;
+const RATE_LIMIT_COOLDOWN_MS = 60 * 1000; // Wait 60s after hitting rate limit
+
+/**
+ * Custom error class for CoreLogic API errors — preserves HTTP status
+ */
+export class CoreLogicError extends Error {
+  status: number;
+  isRateLimit: boolean;
+  isQuotaExhausted: boolean;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "CoreLogicError";
+    this.status = status;
+    this.isRateLimit = status === 429;
+    this.isQuotaExhausted = status === 429 && message.toLowerCase().includes("quota");
+  }
+}
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export interface CoreLogicParcel {
@@ -124,6 +150,7 @@ async function getToken(): Promise<string> {
       Authorization: `Basic ${credentials}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
+    body: "", // Required — some proxies reject POST without body/Content-Length
   });
 
   if (!response.ok) {
@@ -144,12 +171,30 @@ async function getToken(): Promise<string> {
 }
 
 /**
- * Make an authenticated request to the CoreLogic API
+ * Make an authenticated request to the CoreLogic API.
+ * Includes: response caching, rate-limit awareness, retry on 429, proper error propagation.
  */
 async function corelogicRequest(
   endpoint: string,
   params: Record<string, string>
 ): Promise<any> {
+  // ── Check rate limit cooldown ──
+  if (rateLimitHitAt && Date.now() - rateLimitHitAt < RATE_LIMIT_COOLDOWN_MS) {
+    const waitSec = Math.ceil((RATE_LIMIT_COOLDOWN_MS - (Date.now() - rateLimitHitAt)) / 1000);
+    throw new CoreLogicError(
+      429,
+      `CoreLogic API daily quota exceeded. Requests will resume in ~${waitSec}s or at quota reset.`
+    );
+  }
+
+  // ── Check response cache ──
+  const cacheKey = `${endpoint}?${JSON.stringify(params)}`;
+  const cached = responseCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    console.log("[CoreLogic] Cache hit:", endpoint);
+    return cached.data;
+  }
+
   const token = await getToken();
   
   const url = new URL(`${CORELOGIC_BASE_URL}${endpoint}`);
@@ -164,12 +209,38 @@ async function corelogicRequest(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    console.error("[CoreLogic] API error:", response.status, error);
-    throw new Error(`CoreLogic API error: ${response.status} - ${error}`);
+    const errorText = await response.text();
+    console.error("[CoreLogic] API error:", response.status, errorText);
+
+    // Rate limit — set cooldown so we don't spam the API
+    if (response.status === 429) {
+      rateLimitHitAt = Date.now();
+      throw new CoreLogicError(
+        429,
+        `CoreLogic API quota exceeded (100 requests/day on DEMO tier). Try again later. Details: ${errorText}`
+      );
+    }
+
+    // Token expired / invalid — clear cache and let caller retry
+    if (response.status === 401) {
+      cachedToken = null;
+      throw new CoreLogicError(401, `CoreLogic authentication failed. Token may have expired.`);
+    }
+
+    throw new CoreLogicError(response.status, `CoreLogic API error: ${response.status} - ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+
+  // ── Cache successful responses ──
+  if (responseCache.size >= MAX_CACHE_SIZE) {
+    // Evict oldest entries
+    const firstKey = responseCache.keys().next().value;
+    if (firstKey) responseCache.delete(firstKey);
+  }
+  responseCache.set(cacheKey, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+
+  return data;
 }
 
 // ─── Parcel Search ─────────────────────────────────────────────────────────
@@ -268,6 +339,8 @@ export async function getPropertyByAddress(
 
     return parcelToProperty(result.parcels[0]);
   } catch (error) {
+    // Rethrow rate-limit / auth errors so route handlers can surface them
+    if (error instanceof CoreLogicError) throw error;
     console.error("[CoreLogic] getPropertyByAddress error:", error);
     return null;
   }
@@ -306,6 +379,8 @@ export async function getPropertyByLocation(
 
     return parcelsToReturn.map(p => parcelToProperty(p, lat, lng));
   } catch (error) {
+    // Rethrow rate-limit / auth errors so route handlers can surface them
+    if (error instanceof CoreLogicError) throw error;
     console.error("[CoreLogic] getPropertyByLocation error:", error);
     return [];
   }
@@ -362,6 +437,8 @@ export async function searchPropertiesInArea(
 
     return filtered.map(p => parcelToProperty(p, lat, lng));
   } catch (error) {
+    // Rethrow rate-limit / auth errors so route handlers can surface them
+    if (error instanceof CoreLogicError) throw error;
     console.error("[CoreLogic] searchPropertiesInArea error:", error);
     return [];
   }
