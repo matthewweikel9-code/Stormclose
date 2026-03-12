@@ -109,20 +109,19 @@ interface ForecastDay {
 }
 
 interface DailyBriefing {
+  headline: string;
   summary: string;
-  topOpportunity: {
-    location: string;
-    estimatedValue: string;
-    reason: string;
-  } | null;
-  stats: {
-    newStorms: number;
-    propertiesIdentified: number;
-    activeAlerts: number;
-    estimatedTotalValue: string;
-  };
-  recommendedActions: string[];
-  weatherOutlook: string;
+  actions: string[];
+  opportunity_score: number;
+  weather_advisory: string;
+  best_time_to_canvas: string;
+}
+
+interface BriefingRaw {
+  stormCount: number;
+  maxHailSize: number;
+  hotLeadCount: number;
+  stormLocations: string[];
 }
 
 interface DashboardContentProps {
@@ -144,6 +143,7 @@ export function DashboardContent({
   const [nearbyLeads, setNearbyLeads] = useState<Lead[]>([]);
   const [forecast, setForecast] = useState<ForecastDay[]>([]);
   const [briefing, setBriefing] = useState<DailyBriefing | null>(null);
+  const [briefingRaw, setBriefingRaw] = useState<BriefingRaw | null>(null);
   const [loading, setLoading] = useState(true);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [briefingLoading, setBriefingLoading] = useState(false);
@@ -220,6 +220,7 @@ export function DashboardContent({
       if (res.ok) {
         const data = await res.json();
         setBriefing(data.briefing || null);
+        setBriefingRaw(data.raw || null);
       }
     } catch (error) {
       console.error('Error fetching briefing:', error);
@@ -502,60 +503,57 @@ export function DashboardContent({
             </div>
           ) : briefing ? (
             <div className="p-5 space-y-5">
-              {/* Summary */}
-              <p className="text-storm-muted text-sm leading-relaxed">{briefing.summary}</p>
+              {/* Headline */}
+              <div>
+                <h3 className="text-base font-semibold text-white">{briefing.headline}</h3>
+                <p className="text-storm-muted text-sm leading-relaxed mt-1">{briefing.summary}</p>
+              </div>
 
-              {/* Stats Row */}
+              {/* Stats Row from raw data */}
               <div className="grid grid-cols-4 gap-3">
                 <div className="bg-storm-z1/50 rounded-xl p-3 border border-storm-border/50 text-center">
-                  <p className="text-lg font-bold text-white">{briefing.stats.newStorms}</p>
-                  <p className="text-2xs text-storm-subtle mt-0.5">New Storms</p>
+                  <p className="text-lg font-bold text-white">{briefingRaw?.stormCount ?? 0}</p>
+                  <p className="text-2xs text-storm-subtle mt-0.5">Storms</p>
                 </div>
                 <div className="bg-storm-z1/50 rounded-xl p-3 border border-storm-border/50 text-center">
-                  <p className="text-lg font-bold text-white">{briefing.stats.propertiesIdentified}</p>
-                  <p className="text-2xs text-storm-subtle mt-0.5">Properties</p>
+                  <p className="text-lg font-bold text-white">{briefingRaw?.hotLeadCount ?? 0}</p>
+                  <p className="text-2xs text-storm-subtle mt-0.5">Hot Leads</p>
                 </div>
                 <div className="bg-storm-z1/50 rounded-xl p-3 border border-storm-border/50 text-center">
-                  <p className="text-lg font-bold text-amber-400">{briefing.stats.activeAlerts}</p>
-                  <p className="text-2xs text-storm-subtle mt-0.5">Active Alerts</p>
+                  <p className="text-lg font-bold text-amber-400">{briefingRaw?.maxHailSize ? `${briefingRaw.maxHailSize}"` : '—'}</p>
+                  <p className="text-2xs text-storm-subtle mt-0.5">Max Hail</p>
                 </div>
                 <div className="bg-storm-z1/50 rounded-xl p-3 border border-storm-border/50 text-center">
-                  <p className="text-lg font-bold text-emerald-400">{briefing.stats.estimatedTotalValue}</p>
-                  <p className="text-2xs text-storm-subtle mt-0.5">Est. Value</p>
+                  <p className="text-lg font-bold text-emerald-400">{briefing.opportunity_score}</p>
+                  <p className="text-2xs text-storm-subtle mt-0.5">Opp. Score</p>
                 </div>
               </div>
 
-              {/* Top Opportunity */}
-              {briefing.topOpportunity && (
-                <div className="bg-gradient-to-r from-storm-purple/10 to-storm-glow/5 border border-storm-purple/20 rounded-xl p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Target className="w-4 h-4 text-storm-glow" />
-                        <h3 className="font-semibold text-white text-sm">Top Opportunity</h3>
-                      </div>
-                      <p className="text-storm-muted text-xs mt-1">{briefing.topOpportunity.location}</p>
-                      <p className="text-storm-subtle text-xs mt-0.5">{briefing.topOpportunity.reason}</p>
+              {/* Best time + weather */}
+              <div className="bg-gradient-to-r from-storm-purple/10 to-storm-glow/5 border border-storm-purple/20 rounded-xl p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Target className="w-4 h-4 text-storm-glow" />
+                      <h3 className="font-semibold text-white text-sm">Best Canvassing Window</h3>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-emerald-400">{briefing.topOpportunity.estimatedValue}</p>
-                      <Link 
-                        href="/dashboard/command-center"
-                        className="text-storm-glow hover:text-storm-purple text-2xs font-medium transition-colors flex items-center gap-1 mt-1 justify-end"
-                      >
-                        View in Storm Ops <ExternalLink className="w-3 h-3" />
-                      </Link>
-                    </div>
+                    <p className="text-storm-muted text-xs mt-1">{briefing.best_time_to_canvas}</p>
                   </div>
+                  <Link
+                    href="/dashboard/command-center"
+                    className="button-primary text-xs flex items-center gap-1.5"
+                  >
+                    Open Storm Ops <ExternalLink className="w-3 h-3" />
+                  </Link>
                 </div>
-              )}
+              </div>
 
-              {/* Recommended Actions */}
-              {briefing.recommendedActions.length > 0 && (
+              {/* Actions */}
+              {briefing.actions && briefing.actions.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-storm-muted uppercase tracking-wider mb-2">Recommended Actions</h3>
                   <div className="space-y-1.5">
-                    {briefing.recommendedActions.map((action, i) => (
+                    {briefing.actions.map((action, i) => (
                       <div key={i} className="flex items-start gap-2 text-sm text-storm-muted">
                         <span className="flex items-center justify-center w-5 h-5 rounded-md bg-storm-purple/15 text-storm-glow text-2xs font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
                         <span>{action}</span>
@@ -565,14 +563,14 @@ export function DashboardContent({
                 </div>
               )}
 
-              {/* Weather Outlook */}
-              {briefing.weatherOutlook && (
+              {/* Weather Advisory */}
+              {briefing.weather_advisory && (
                 <div className="bg-storm-z1/30 rounded-lg p-3 border border-storm-border/50">
                   <div className="flex items-center gap-2 mb-1">
                     <Cloud className="w-3.5 h-3.5 text-blue-400" />
-                    <span className="text-2xs font-semibold text-storm-subtle uppercase tracking-wider">Weather Outlook</span>
+                    <span className="text-2xs font-semibold text-storm-subtle uppercase tracking-wider">Weather Advisory</span>
                   </div>
-                  <p className="text-xs text-storm-muted">{briefing.weatherOutlook}</p>
+                  <p className="text-xs text-storm-muted">{briefing.weather_advisory}</p>
                 </div>
               )}
             </div>
