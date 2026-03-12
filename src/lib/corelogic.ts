@@ -402,38 +402,103 @@ export function calculateRoofAge(property: CoreLogicProperty): number {
 }
 
 /**
- * Estimate potential claim value based on property characteristics
+ * Estimate potential claim value based on property characteristics.
+ * Uses building sqft, stories, roof material, market value, and roof age
+ * to produce a realistic per-property estimate instead of a flat rate.
  */
 export function estimateClaimValue(property: CoreLogicProperty): {
   roofReplacement: number;
   siding: number;
   gutters: number;
   total: number;
+  roofSquares: number;
   confidence: "low" | "medium" | "high";
 } {
-  const sqft = property.squareFootage || 1500;
-  
-  // Industry averages for storm damage claims
-  const roofCostPerSqft = 8.50;
-  const sidingEstimate = sqft * 0.4 * 6;
-  const guttersEstimate = Math.sqrt(sqft) * 4 * 12;
-  
-  const roofReplacement = Math.round(sqft * roofCostPerSqft);
-  const siding = Math.round(sidingEstimate);
-  const gutters = Math.round(guttersEstimate);
-  
-  // Confidence based on data quality
-  let confidence: "low" | "medium" | "high" = "medium";
-  if (property.squareFootage > 0 && property.roofType !== "Unknown") {
-    confidence = "high";
-  } else if (property.squareFootage === 0) {
-    confidence = "low";
+  // ── 1. Determine building footprint (sqft on the ground) ──────────
+  let buildingSqft = property.squareFootage || 0;
+  const stories = property.stories || 1;
+  const hasRealSqft = buildingSqft > 0;
+
+  // If we have market/assessed value but no sqft, estimate sqft from value
+  // Avg US home ~$150/sqft; this gives a rough footprint estimate
+  if (!hasRealSqft) {
+    const value = property.marketValue || property.assessedValue || 0;
+    if (value > 0) {
+      buildingSqft = Math.round(value / 150);
+    } else {
+      // True unknown — use regional average (~1800 sqft)
+      buildingSqft = 1800;
+    }
   }
-  
+
+  // Footprint = total sqft ÷ stories (roof only covers one floor)
+  const footprint = Math.round(buildingSqft / stories);
+
+  // ── 2. Calculate roof area from footprint + pitch multiplier ──────
+  // Standard pitch factors: low(3-4)=1.03, medium(5-7)=1.12, steep(8-12)=1.25
+  const roofType = (property.roofType || "").toLowerCase();
+  const pitchMultiplier =
+    roofType.includes("flat") || roofType.includes("low") ? 1.03 :
+    roofType.includes("steep") || roofType.includes("high") || roofType.includes("mansard") ? 1.25 :
+    1.12; // Standard medium pitch
+
+  // Waste/overhang factor (~15%)
+  const wasteFactor = 1.15;
+  const roofAreaSqft = Math.round(footprint * pitchMultiplier * wasteFactor);
+  const roofSquares = Math.round(roofAreaSqft / 100); // 1 square = 100 sqft
+
+  // ── 3. Material-specific cost per square ──────────────────────────
+  const material = (property.roofMaterial || "Asphalt Shingle").toLowerCase();
+  let costPerSquare: number;
+  if (material.includes("tile") || material.includes("clay")) {
+    costPerSquare = 550;
+  } else if (material.includes("metal") || material.includes("standing seam")) {
+    costPerSquare = 600;
+  } else if (material.includes("slate")) {
+    costPerSquare = 750;
+  } else if (material.includes("wood") || material.includes("shake") || material.includes("cedar")) {
+    costPerSquare = 500;
+  } else {
+    // Asphalt/architectural shingles (most common)
+    costPerSquare = 450;
+  }
+
+  // Age adjustment — older roofs may need more tear-off/decking work
+  const roofAge = property.roofAge || 15;
+  const ageMultiplier = roofAge >= 25 ? 1.15 : roofAge >= 20 ? 1.10 : roofAge >= 15 ? 1.05 : 1.0;
+
+  const roofReplacement = Math.round(roofSquares * costPerSquare * ageMultiplier);
+
+  // ── 4. Supplemental line items ────────────────────────────────────
+  // Gutters: linear feet ≈ perimeter. Approx perimeter from footprint assuming ~1.5:1 ratio
+  const side = Math.sqrt(footprint);
+  const perimeterFt = Math.round(side * 4.2); // Rectangle approximation
+  const gutters = Math.round(perimeterFt * 12); // ~$12/lf installed
+
+  // Siding: typically 30-40% of wall area gets damaged in hail
+  // Wall area ≈ perimeter × wall height × 0.35 (hail-exposed portion)
+  const wallHeight = stories * 9; // 9ft per story
+  const sidingArea = Math.round(perimeterFt * wallHeight * 0.35);
+  const siding = Math.round(sidingArea * 6); // ~$6/sqft siding repair
+
+  // ── 5. Confidence scoring ─────────────────────────────────────────
+  let confidence: "low" | "medium" | "high" = "low";
+  let dataPoints = 0;
+  if (hasRealSqft) dataPoints += 2;
+  if (property.yearBuilt > 0) dataPoints += 1;
+  if (property.roofType !== "Unknown" && property.roofType) dataPoints += 1;
+  if (property.roofMaterial && property.roofMaterial !== "Asphalt Shingle") dataPoints += 1; // non-default
+  if (property.marketValue > 0 || property.assessedValue > 0) dataPoints += 1;
+  if (property.stories > 0) dataPoints += 1;
+
+  if (dataPoints >= 4) confidence = "high";
+  else if (dataPoints >= 2) confidence = "medium";
+
   return {
     roofReplacement,
     siding,
     gutters,
+    roofSquares,
     total: roofReplacement + siding + gutters,
     confidence,
   };

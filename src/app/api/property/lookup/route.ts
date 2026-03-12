@@ -179,7 +179,8 @@ function formatPropertyResponse(property: CoreLogicProperty, stormExposure: any)
       age: roofAge,
       complexity: roofAge > 20 ? "complex" : roofAge > 10 ? "moderate" : "simple",
       condition: conditions[conditionIndex],
-      squareFootage: Math.round((property.squareFootage || 2000) * 1.15),
+      squareFootage: claimEstimate.roofSquares * 100,
+      squares: claimEstimate.roofSquares,
       pitch: 6,
     },
     parcel: {
@@ -206,6 +207,7 @@ function formatPropertyResponse(property: CoreLogicProperty, stormExposure: any)
       siding: claimEstimate.siding,
       gutters: claimEstimate.gutters,
       total: claimEstimate.total,
+      roofSquares: claimEstimate.roofSquares,
       confidence: claimEstimate.confidence,
     },
     stormExposure,

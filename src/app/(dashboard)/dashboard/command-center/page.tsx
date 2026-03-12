@@ -470,7 +470,7 @@ export default function StormCommandCenterV2() {
   const deployToStorm = useCallback(async (event: TimelineEvent) => {
     setMissionLoading(true);
     setRightPanelOpen(true);
-    setRightTab("deploy");
+    setRightTab("mission");
     try {
       // 1. Scan parcels near storm
       const parcelRes = await fetch(
@@ -528,10 +528,45 @@ export default function StormCommandCenterV2() {
       if (missionRes.ok) {
         const missionData = await missionRes.json();
         setActiveMission(missionData.mission);
+        setMissionStops(missionData.stops || []);
         fetchMissions(); // Refresh missions list
       }
 
-      // 4. Center map on storm
+      // 4. Auto-optimize route if we have 2+ stops
+      if (stops.length >= 2) {
+        setRouteLoading(true);
+        try {
+          const routeRes = await fetch("/api/route-optimize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              waypoints: stops.map((s) => `${s.lat},${s.lng}`),
+              optimizeWaypoints: true,
+            }),
+          });
+          if (routeRes.ok) {
+            const routeData = await routeRes.json();
+            setRouteResult(routeData.routeInfo || routeData);
+
+            // Reorder stops according to optimized waypoint order
+            if (routeData.waypointOrder && routeData.waypointOrder.length > 0) {
+              const middleStops = stops.slice(1, -1);
+              const reordered = [
+                stops[0],
+                ...routeData.waypointOrder.map((i: number) => middleStops[i]),
+                stops[stops.length - 1],
+              ].filter(Boolean);
+              setRouteStops(reordered);
+            }
+          }
+        } catch (routeErr) {
+          console.error("Auto-route optimize error:", routeErr);
+        } finally {
+          setRouteLoading(false);
+        }
+      }
+
+      // 5. Center map on storm
       setMapCenter({ lat: event.lat, lng: event.lng });
       setMapZoom(14);
     } catch (e) {
