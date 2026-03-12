@@ -42,8 +42,18 @@ export async function GET(request: NextRequest) {
         coords = { lat: property.lat, lng: property.lng };
       }
     } else if (lat && lng) {
-      const properties = await getPropertyByLocation(parseFloat(lat), parseFloat(lng));
-      property = properties[0] || null;
+      // Try progressively larger radii to find closest property
+      const parsedLat = parseFloat(lat);
+      const parsedLng = parseFloat(lng);
+      const radii = [0.1, 0.25, 0.5];
+      
+      for (const radius of radii) {
+        const properties = await getPropertyByLocation(parsedLat, parsedLng, radius);
+        if (properties.length > 0) {
+          property = properties[0];
+          break;
+        }
+      }
     }
 
     // If no address provided, geocode from coords

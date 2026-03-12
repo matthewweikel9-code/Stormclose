@@ -275,14 +275,16 @@ export async function getPropertyByAddress(
 
 /**
  * Get properties by coordinates — equivalent to old getPropertyByLocation
+ * Returns the closest property to the given coordinates.
+ * First tries residential filter; falls back to all types if none found.
  */
 export async function getPropertyByLocation(
   lat: number,
   lng: number,
-  radiusMiles: string = "0.25"
+  radiusMiles: number | string = 0.5
 ): Promise<CoreLogicProperty[]> {
   try {
-    const radius = parseFloat(radiusMiles);
+    const radius = typeof radiusMiles === "string" ? parseFloat(radiusMiles) : radiusMiles;
     const result = await searchParcelsByLocation(lat, lng, radius, 50);
     
     if (!result.parcels || result.parcels.length === 0) {
@@ -290,7 +292,7 @@ export async function getPropertyByLocation(
       return [];
     }
 
-    // Filter to residential properties only
+    // Try residential first
     const residentialTypes = new Set(["SFR", "MFR", "CON", "TH", "MOB"]);
     const residentialParcels = result.parcels.filter(p => {
       if (!p.typeCode) return true; // Include if type unknown
@@ -299,7 +301,10 @@ export async function getPropertyByLocation(
 
     console.log(`[CoreLogic] Filtered ${result.parcels.length} → ${residentialParcels.length} residential properties`);
 
-    return residentialParcels.map(p => parcelToProperty(p, lat, lng));
+    // Fall back to all parcels if no residential found
+    const parcelsToReturn = residentialParcels.length > 0 ? residentialParcels : result.parcels;
+
+    return parcelsToReturn.map(p => parcelToProperty(p, lat, lng));
   } catch (error) {
     console.error("[CoreLogic] getPropertyByLocation error:", error);
     return [];
@@ -582,8 +587,13 @@ export async function getAllParcelsInRadius(
   const pageSize = Math.min(50, maxParcels);
   const firstPage = await searchParcelsByLocation(lat, lng, radiusMiles, pageSize, 1);
   
+  if (!firstPage.parcels || firstPage.parcels.length === 0) {
+    console.log("[CoreLogic] No parcels found in radius", radiusMiles, "miles from", lat, lng);
+    return [];
+  }
+
   const allParcels = [...firstPage.parcels];
-  const totalAvailable = firstPage.pageInfo.length;
+  const totalAvailable = firstPage.pageInfo?.length || allParcels.length;
   const totalPages = Math.ceil(Math.min(totalAvailable, maxParcels) / pageSize);
 
   // Fetch remaining pages in parallel (max 3 at a time)
@@ -592,10 +602,17 @@ export async function getAllParcelsInRadius(
     
     for (let i = 0; i < pageNumbers.length; i += 3) {
       const batch = pageNumbers.slice(i, i + 3);
-      const results = await Promise.all(
-        batch.map((page) => searchParcelsByLocation(lat, lng, radiusMiles, pageSize, page))
-      );
-      results.forEach((r) => allParcels.push(...r.parcels));
+      try {
+        const results = await Promise.all(
+          batch.map((page) => searchParcelsByLocation(lat, lng, radiusMiles, pageSize, page))
+        );
+        results.forEach((r) => {
+          if (r.parcels) allParcels.push(...r.parcels);
+        });
+      } catch (error) {
+        console.error("[CoreLogic] Error fetching page batch:", error);
+        break; // Stop pagination on error, return what we have
+      }
     }
   }
 

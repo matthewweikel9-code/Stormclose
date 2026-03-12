@@ -185,7 +185,8 @@ export default function MapboxMap({
         mapboxMarker.setPopup(popup);
       }
 
-      el.addEventListener("click", () => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
         if (onMarkerClick) onMarkerClick(marker);
       });
 

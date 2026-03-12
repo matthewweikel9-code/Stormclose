@@ -227,13 +227,20 @@ export default function StormOperationsCenter() {
 
   const fetchParcels = useCallback(async (lat: number, lng: number, radius: number = 0.25) => {
     setParcelLoading(true);
+    setParcels([]); // Clear previous results
     try {
       const res = await fetch(
         `/api/corelogic/parcels?lat=${lat}&lng=${lng}&radius=${radius}&pageSize=50&all=true`
       );
-      if (!res.ok) throw new Error("Parcel API failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error("Parcel API failed:", res.status, errData.error);
+        throw new Error(errData.error || "Parcel API failed");
+      }
       const data = await res.json();
-      setParcels(data.parcels || []);
+      const loadedParcels = data.parcels || [];
+      console.log(`[Scan Zone] Loaded ${loadedParcels.length} parcels`);
+      setParcels(loadedParcels);
     } catch (e) {
       console.error("Parcel fetch error:", e);
       setParcels([]);
@@ -245,16 +252,28 @@ export default function StormOperationsCenter() {
   const fetchPropertyIntel = useCallback(async (address?: string, lat?: number, lng?: number) => {
     setPropertyLoading(true);
     setRightPanelOpen(true);
+    setPropertyIntel(null); // Clear previous result
     try {
       const params = address
         ? `address=${encodeURIComponent(address)}`
         : `lat=${lat}&lng=${lng}`;
       const res = await fetch(`/api/property/lookup?${params}`);
+      const data = await res.json();
+      
       if (!res.ok) {
-        setPropertyIntel(null);
+        console.warn("Property intel: not found —", data.error || data.message);
+        // Set a minimal "not found" state so the UI can show a message
+        setPropertyIntel({
+          address: address || `${lat?.toFixed(4)}, ${lng?.toFixed(4)}`,
+          lat: lat || 0,
+          lng: lng || 0,
+          source: "none",
+          _notFound: true,
+          _message: data.message || "No property found at this location.",
+        } as any);
         return;
       }
-      const data = await res.json();
+      
       setPropertyIntel(data);
     } catch (e) {
       console.error("Property intel error:", e);
@@ -358,7 +377,7 @@ export default function StormOperationsCenter() {
 
     // Parcels (on map when loaded)
     parcels.forEach((p) => {
-      if (p.lat && p.lng) {
+      if (p.lat !== 0 && p.lng !== 0 && p.lat != null && p.lng != null) {
         markers.push({
           id: `parcel-${p.id}`,
           lat: p.lat,
@@ -829,7 +848,25 @@ export default function StormOperationsCenter() {
                   </div>
                 )}
 
-                {propertyIntel && !propertyLoading && (
+                {propertyIntel && !propertyLoading && (propertyIntel as any)._notFound && (
+                  <div className="p-3 border-b border-storm-border">
+                    <h3 className="text-xs font-semibold text-storm-muted uppercase tracking-wider mb-2">
+                      Property Intelligence
+                    </h3>
+                    <div className="bg-storm-z1 rounded-lg p-4 border border-storm-border text-center">
+                      <div className="text-2xl mb-2">🏚️</div>
+                      <div className="text-sm text-white font-semibold mb-1">No Property Found</div>
+                      <div className="text-xs text-storm-muted">
+                        {(propertyIntel as any)._message || "Try clicking closer to a residential address or use the search bar."}
+                      </div>
+                      <div className="text-[10px] text-storm-muted/60 mt-2">
+                        {propertyIntel.address}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {propertyIntel && !propertyLoading && !(propertyIntel as any)._notFound && (
                   <div className="p-3 border-b border-storm-border">
                     <h3 className="text-xs font-semibold text-storm-muted uppercase tracking-wider mb-2">
                       Property Intelligence
