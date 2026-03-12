@@ -126,7 +126,7 @@ export default function CarrierIntelligencePage() {
 									onClick={() => fetchCarrierDetails(carrier.id)}
 									className={`w-full text-left p-4 rounded-lg transition-all ${
 										selectedCarrier?.name === carrier.name
-											? "bg-[#6D5CFF]/20 border border-[#6D5CFF]/50"
+											? "bg-storm-purple/20 border border-storm-purple/50"
 											: "bg-slate-800 hover:bg-slate-700 border border-transparent"
 									}`}
 								>
@@ -152,7 +152,7 @@ export default function CarrierIntelligencePage() {
 				<Card className="p-6 lg:col-span-2">
 					{isLoadingDetails ? (
 						<div className="flex items-center justify-center h-64">
-							<div className="animate-spin h-8 w-8 border-2 border-[#6D5CFF] border-t-transparent rounded-full" />
+							<div className="animate-spin h-8 w-8 border-2 border-storm-purple border-t-transparent rounded-full" />
 						</div>
 					) : !selectedCarrier ? (
 						<div className="flex flex-col items-center justify-center h-64 text-slate-500">
@@ -232,7 +232,7 @@ export default function CarrierIntelligencePage() {
 									{selectedCarrier.preferredDocumentation.map((doc, i) => (
 										<span
 											key={i}
-											className="px-3 py-1 rounded-full bg-[#6D5CFF]/20 text-[#A78BFA] text-xs"
+											className="px-3 py-1 rounded-full bg-storm-purple/20 text-storm-glow text-xs"
 										>
 											{doc}
 										</span>

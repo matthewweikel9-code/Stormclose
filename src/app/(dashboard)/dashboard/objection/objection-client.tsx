@@ -370,7 +370,7 @@ export function ObjectionClient() {
                 <p className="mb-3 text-xs text-slate-400">
                   Response #{result.objectionId.slice(0, 8)} • {new Date(result.createdAt).toLocaleString()}
                 </p>
-                <article className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-xl border border-[#1F2937] bg-[#0B0F1A] p-4 text-sm leading-6 text-slate-200">
+                <article className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-xl border border-storm-border bg-storm-z0 p-4 text-sm leading-6 text-slate-200">
                   {result.content}
                 </article>
               </>

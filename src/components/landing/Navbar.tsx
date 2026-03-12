@@ -15,7 +15,7 @@ export function Navbar() {
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
 	return (
-		<nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#0B0F1A]/80 backdrop-blur-xl">
+		<nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-storm-z0/80 backdrop-blur-xl">
 			<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 				<div className="flex h-16 items-center justify-between">
 					{/* Logo */}
@@ -46,7 +46,7 @@ export function Navbar() {
 						</Link>
 						<Link
 							href="/signup"
-							className="rounded-lg bg-[#6D5CFF] px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-[#5B4AE8] hover:shadow-lg hover:shadow-[#6D5CFF]/25"
+							className="rounded-lg bg-storm-purple px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-storm-purple-hover hover:shadow-lg hover:shadow-storm-purple/25"
 						>
 							Get Started
 						</Link>
@@ -91,7 +91,7 @@ export function Navbar() {
 						initial={{ opacity: 0, height: 0 }}
 						animate={{ opacity: 1, height: "auto" }}
 						exit={{ opacity: 0, height: 0 }}
-						className="border-t border-white/5 bg-[#0B0F1A]/95 backdrop-blur-xl md:hidden"
+						className="border-t border-white/5 bg-storm-z0/95 backdrop-blur-xl md:hidden"
 					>
 						<div className="space-y-1 px-4 py-4">
 							{navLinks.map((link) => (
@@ -113,7 +113,7 @@ export function Navbar() {
 								</Link>
 								<Link
 									href="/signup"
-									className="rounded-lg bg-[#6D5CFF] px-3 py-2 text-center text-base font-semibold text-white transition-all hover:bg-[#5B4AE8]"
+									className="rounded-lg bg-storm-purple px-3 py-2 text-center text-base font-semibold text-white transition-all hover:bg-storm-purple-hover"
 								>
 									Get Started
 								</Link>

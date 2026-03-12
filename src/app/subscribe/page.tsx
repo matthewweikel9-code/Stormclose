@@ -36,11 +36,11 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
   const tierName = TIER_DISPLAY_NAMES[tier];
 
   return (
-    <main className="min-h-screen bg-[#0B0F1A] flex items-center justify-center p-4">
+    <main className="min-h-screen bg-storm-bg flex items-center justify-center p-4">
       <section className="mx-auto max-w-md rounded-2xl border border-slate-700 bg-slate-800/50 p-8">
         <div className="text-center mb-6">
-          <div className="mx-auto w-16 h-16 bg-[#6D5CFF]/10 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-[#6D5CFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mx-auto w-16 h-16 bg-storm-purple/10 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-storm-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
@@ -62,7 +62,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
 
         <p className="mt-5 text-sm text-slate-500 text-center">
           Not ready yet?{" "}
-          <Link href="/" className="font-semibold text-[#A78BFA] hover:text-[#6D5CFF]">
+          <Link href="/" className="font-semibold text-storm-glow hover:text-storm-purple">
             Return home
           </Link>
         </p>

@@ -215,7 +215,7 @@ export default function JobNimbusSyncPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F1A] p-6">
+    <div className="min-h-screen bg-storm-z0 p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

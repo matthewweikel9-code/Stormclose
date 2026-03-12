@@ -29,7 +29,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
   const sessionId = searchParams?.session_id;
 
   return (
-    <main className="min-h-screen bg-[#0B0F1A] flex items-center justify-center p-4">
+    <main className="min-h-screen bg-storm-bg flex items-center justify-center p-4">
       <section className="mx-auto max-w-lg rounded-2xl border border-slate-700 bg-slate-800/50 p-8">
         <div className="text-center mb-6">
           <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
@@ -72,7 +72,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
         <div className="mt-6 flex flex-col gap-3">
           <Link 
             href="/dashboard" 
-            className="w-full py-3 text-center bg-gradient-to-r from-[#6D5CFF] to-[#A78BFA] text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+            className="w-full py-3 text-center bg-gradient-to-r from-storm-purple to-storm-glow text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
           >
             Go to Dashboard
           </Link>

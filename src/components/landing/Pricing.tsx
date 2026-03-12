@@ -72,11 +72,11 @@ const tiers = [
 
 export function Pricing() {
 	return (
-		<section id="pricing" className="relative bg-[#0B0F1A] py-24">
+		<section id="pricing" className="relative bg-storm-z0 py-24">
 			{/* Background */}
 			<div className="absolute inset-0 overflow-hidden">
-				<div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-[#6D5CFF]/10 blur-[150px]" />
-				<div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-[#A78BFA]/10 blur-[100px]" />
+				<div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-storm-purple/10 blur-[150px]" />
+				<div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-storm-glow/10 blur-[100px]" />
 			</div>
 
 			<div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -88,7 +88,7 @@ export function Pricing() {
 					transition={{ duration: 0.6 }}
 					className="text-center"
 				>
-					<span className="text-sm font-semibold uppercase tracking-wider text-[#A78BFA]">
+					<span className="text-sm font-semibold uppercase tracking-wider text-storm-glow">
 						Pricing
 					</span>
 					<h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
@@ -113,24 +113,24 @@ export function Pricing() {
 							<div
 								className={`relative h-full overflow-hidden rounded-3xl border p-1 ${
 									tier.highlighted
-										? "border-[#6D5CFF]/50 bg-gradient-to-b from-[#6D5CFF]/20 to-slate-900/80"
+										? "border-storm-purple/50 bg-gradient-to-b from-storm-purple/20 to-slate-900/80"
 										: "border-slate-700/50 bg-gradient-to-b from-slate-800/50 to-slate-900/50"
 								}`}
 							>
 								{/* Glow effect for highlighted */}
 								{tier.highlighted && (
 									<>
-										<div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-[#6D5CFF]/30 blur-[60px]" />
-										<div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-[#A78BFA]/20 blur-[60px]" />
+										<div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-storm-purple/30 blur-[60px]" />
+										<div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-storm-glow/20 blur-[60px]" />
 									</>
 								)}
 
-								<div className="relative h-full rounded-[22px] bg-[#0B0F1A] p-6 flex flex-col">
+								<div className="relative h-full rounded-[22px] bg-storm-z0 p-6 flex flex-col">
 									{/* Badge */}
 									{tier.badge && (
 										<div className={`mb-4 inline-flex self-start items-center rounded-full px-3 py-1 text-xs font-semibold ${
 											tier.highlighted
-												? "bg-[#6D5CFF]/20 text-[#A78BFA]"
+												? "bg-storm-purple/20 text-storm-glow"
 												: "bg-amber-500/10 text-amber-400"
 										}`}>
 											{tier.badge}
@@ -153,7 +153,7 @@ export function Pricing() {
 										href={tier.href}
 										className={`mt-6 block w-full rounded-xl py-3 text-center text-sm font-semibold transition-all ${
 											tier.highlighted
-												? "bg-[#6D5CFF] text-white hover:bg-[#5B4AE8] hover:shadow-xl hover:shadow-[#6D5CFF]/25"
+												? "bg-storm-purple text-white hover:bg-storm-purple-hover hover:shadow-xl hover:shadow-storm-purple/25"
 												: "bg-slate-800 text-white hover:bg-slate-700"
 										}`}
 									>
@@ -167,7 +167,7 @@ export function Pricing() {
 												<li key={featureIndex} className="flex items-start gap-3">
 													<svg
 														className={`h-5 w-5 flex-shrink-0 ${
-															tier.highlighted ? "text-[#6D5CFF]" : "text-slate-500"
+															tier.highlighted ? "text-storm-purple" : "text-slate-500"
 														}`}
 														fill="none"
 														viewBox="0 0 24 24"

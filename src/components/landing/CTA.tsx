@@ -5,12 +5,12 @@ import Link from "next/link";
 
 export function CTA() {
 	return (
-		<section className="relative overflow-hidden bg-[#111827] py-24">
+		<section className="relative overflow-hidden bg-storm-z1 py-24">
 			{/* Background effects */}
 			<div className="absolute inset-0">
 				{/* Gradient orbs */}
 				<motion.div
-					className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#6D5CFF]/20 blur-[150px]"
+					className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-storm-purple/20 blur-[150px]"
 					animate={{
 						scale: [1, 1.1, 1],
 						opacity: [0.2, 0.3, 0.2],
@@ -21,17 +21,17 @@ export function CTA() {
 						ease: "easeInOut",
 					}}
 				/>
-				<div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-[#A78BFA]/10 blur-[100px]" />
-				<div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-[#6D5CFF]/15 blur-[100px]" />
+				<div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-storm-glow/10 blur-[100px]" />
+				<div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-storm-purple/15 blur-[100px]" />
 
 				{/* Lightning lines */}
 				<motion.div
-					className="absolute left-1/4 top-0 h-full w-px bg-gradient-to-b from-[#6D5CFF]/30 via-[#A78BFA]/20 to-transparent"
+					className="absolute left-1/4 top-0 h-full w-px bg-gradient-to-b from-storm-purple/30 via-storm-glow/20 to-transparent"
 					animate={{ opacity: [0.1, 0.3, 0.1] }}
 					transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
 				/>
 				<motion.div
-					className="absolute right-1/4 top-0 h-full w-px bg-gradient-to-b from-transparent via-[#6D5CFF]/20 to-[#A78BFA]/30"
+					className="absolute right-1/4 top-0 h-full w-px bg-gradient-to-b from-transparent via-storm-purple/20 to-storm-glow/30"
 					animate={{ opacity: [0.1, 0.25, 0.1] }}
 					transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
 				/>
@@ -54,10 +54,10 @@ export function CTA() {
 						className="mx-auto mb-8 inline-flex items-center justify-center"
 					>
 						<div className="relative">
-							<div className="absolute inset-0 rounded-full bg-[#6D5CFF]/30 blur-xl" />
-							<div className="relative rounded-full border border-[#6D5CFF]/30 bg-[#6D5CFF]/10 p-4">
+							<div className="absolute inset-0 rounded-full bg-storm-purple/30 blur-xl" />
+							<div className="relative rounded-full border border-storm-purple/30 bg-storm-purple/10 p-4">
 								<svg
-									className="h-8 w-8 text-[#A78BFA]"
+									className="h-8 w-8 text-storm-glow"
 									fill="none"
 									viewBox="0 0 24 24"
 									stroke="currentColor"
@@ -82,7 +82,7 @@ export function CTA() {
 						className="text-3xl font-bold text-white sm:text-4xl md:text-5xl"
 					>
 						Start Closing Claims{" "}
-						<span className="bg-gradient-to-r from-[#A78BFA] to-[#6D5CFF] bg-clip-text text-transparent">
+						<span className="bg-gradient-to-r from-storm-glow to-storm-purple bg-clip-text text-transparent">
 							Faster
 						</span>
 					</motion.h2>
@@ -108,7 +108,7 @@ export function CTA() {
 					>
 						<Link
 							href="/signup"
-							className="group relative inline-flex items-center justify-center overflow-hidden rounded-xl bg-[#6D5CFF] px-10 py-4 text-lg font-semibold text-white transition-all hover:bg-[#5B4AE8] hover:shadow-2xl hover:shadow-[#6D5CFF]/30"
+							className="group relative inline-flex items-center justify-center overflow-hidden rounded-xl bg-storm-purple px-10 py-4 text-lg font-semibold text-white transition-all hover:bg-storm-purple-hover hover:shadow-2xl hover:shadow-storm-purple/30"
 						>
 							<span className="relative z-10 flex items-center gap-2">
 								Get Started

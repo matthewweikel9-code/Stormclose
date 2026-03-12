@@ -40,7 +40,7 @@ export default function LoginPage({
 				<div className="text-right">
 					<Link
 						href="/forgot-password"
-						className="text-sm font-medium text-[#A78BFA] hover:text-[#6D5CFF]"
+						className="text-sm font-medium text-storm-glow hover:text-storm-purple"
 					>
 						Forgot password?
 					</Link>
@@ -52,7 +52,7 @@ export default function LoginPage({
 
 			<p className="mt-4 text-sm text-slate-400">
 				No account yet?{" "}
-				<Link href="/signup" className="font-semibold text-[#A78BFA] hover:text-[#6D5CFF]">
+				<Link href="/signup" className="font-semibold text-storm-glow hover:text-storm-purple">
 					Sign up
 				</Link>
 			</p>

@@ -10,7 +10,7 @@ import {
 
 export default function HomePage() {
 	return (
-		<main className="min-h-screen bg-[#0B0F1A]">
+		<main className="min-h-screen bg-storm-bg">
 			<Navbar />
 			<Hero />
 			<Features />

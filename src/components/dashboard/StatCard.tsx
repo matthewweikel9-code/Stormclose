@@ -24,10 +24,10 @@ export function StatCard({
 	return (
 		<motion.div
 			whileHover={{ y: -4, transition: { duration: 0.2 } }}
-			className="group relative overflow-hidden rounded-xl border border-[#1F2937] bg-[#111827] p-6 transition-all hover:border-[#6D5CFF]/30 hover:shadow-xl hover:shadow-[#6D5CFF]/5"
+			className="group relative overflow-hidden rounded-xl border border-storm-border bg-storm-z1 p-6 transition-all hover:border-storm-purple/30 hover:shadow-xl hover:shadow-storm-purple/5"
 		>
 			{/* Background glow on hover */}
-			<div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#6D5CFF]/5 opacity-0 blur-2xl transition-opacity group-hover:opacity-100" />
+			<div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-storm-purple/5 opacity-0 blur-2xl transition-opacity group-hover:opacity-100" />
 
 			<div className="relative">
 				<div className="flex items-start justify-between">
@@ -36,7 +36,7 @@ export function StatCard({
 						<p className="mt-2 text-3xl font-bold text-white">{value}</p>
 					</div>
 					{icon && (
-						<div className="rounded-lg bg-[#6D5CFF]/10 p-2 text-[#A78BFA]">
+						<div className="rounded-lg bg-storm-purple/10 p-2 text-storm-glow">
 							{icon}
 						</div>
 					)}

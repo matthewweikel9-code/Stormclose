@@ -52,10 +52,10 @@ const steps = [
 
 export function HowItWorks() {
 	return (
-		<section id="how-it-works" className="relative bg-[#111827] py-24">
+		<section id="how-it-works" className="relative bg-storm-z1 py-24">
 			{/* Background */}
 			<div className="absolute inset-0 overflow-hidden">
-				<div className="absolute left-1/2 top-0 h-px w-full max-w-2xl -translate-x-1/2 bg-gradient-to-r from-transparent via-[#6D5CFF]/50 to-transparent" />
+				<div className="absolute left-1/2 top-0 h-px w-full max-w-2xl -translate-x-1/2 bg-gradient-to-r from-transparent via-storm-purple/50 to-transparent" />
 			</div>
 
 			<div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -67,7 +67,7 @@ export function HowItWorks() {
 					transition={{ duration: 0.6 }}
 					className="text-center"
 				>
-					<span className="text-sm font-semibold uppercase tracking-wider text-[#A78BFA]">
+					<span className="text-sm font-semibold uppercase tracking-wider text-storm-glow">
 						How It Works
 					</span>
 					<h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
@@ -91,7 +91,7 @@ export function HowItWorks() {
 						>
 							{/* Connector line */}
 							{index < steps.length - 1 && (
-								<div className="absolute left-1/2 top-16 hidden h-px w-full bg-gradient-to-r from-[#6D5CFF]/50 to-transparent lg:block" />
+								<div className="absolute left-1/2 top-16 hidden h-px w-full bg-gradient-to-r from-storm-purple/50 to-transparent lg:block" />
 							)}
 
 							<div className="relative flex flex-col items-center text-center">
@@ -100,10 +100,10 @@ export function HowItWorks() {
 									whileHover={{ scale: 1.1 }}
 									className="relative mb-6"
 								>
-									<div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-[#6D5CFF]/30 bg-gradient-to-b from-[#6D5CFF]/20 to-transparent text-[#A78BFA]">
+									<div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-storm-purple/30 bg-gradient-to-b from-storm-purple/20 to-transparent text-storm-glow">
 										{step.icon}
 									</div>
-									<span className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-[#6D5CFF] text-sm font-bold text-white">
+									<span className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-storm-purple text-sm font-bold text-white">
 										{step.number.replace("0", "")}
 									</span>
 								</motion.div>
@@ -130,7 +130,7 @@ export function HowItWorks() {
 				>
 					<div className="relative mx-auto max-w-4xl overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-b from-slate-800 to-slate-900 p-1">
 						{/* Mock dashboard preview */}
-						<div className="rounded-xl bg-[#0B0F1A] p-6">
+						<div className="rounded-xl bg-storm-z0 p-6">
 							<div className="flex items-center gap-2 border-b border-slate-800 pb-4">
 								<div className="h-3 w-3 rounded-full bg-red-500/80" />
 								<div className="h-3 w-3 rounded-full bg-yellow-500/80" />
@@ -143,7 +143,7 @@ export function HowItWorks() {
 									<div className="text-sm text-slate-400">Reports Generated</div>
 								</div>
 								<div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-									<div className="text-2xl font-bold text-[#A78BFA]">89%</div>
+									<div className="text-2xl font-bold text-storm-glow">89%</div>
 									<div className="text-sm text-slate-400">Approval Rate</div>
 								</div>
 								<div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">

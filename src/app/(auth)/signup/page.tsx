@@ -44,7 +44,7 @@ export default function SignupPage({
 
 			<p className="mt-4 text-sm text-slate-400">
 				Already have an account?{" "}
-				<Link href="/login" className="font-semibold text-[#A78BFA] hover:text-[#6D5CFF]">
+				<Link href="/login" className="font-semibold text-storm-glow hover:text-storm-purple">
 					Log in
 				</Link>
 			</p>

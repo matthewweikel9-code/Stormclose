@@ -26,11 +26,11 @@ export function Card({
 
 	return (
 		<Component
-			className={`rounded-xl border border-[#1F2937] bg-[#111827] p-6 ${
+			className={`rounded-xl border border-storm-border bg-storm-z1 p-6 ${
 				hover
-					? "transition-all hover:border-[#6D5CFF]/30 hover:shadow-xl hover:shadow-[#6D5CFF]/5"
+					? "transition-all hover:border-storm-purple/30 hover:shadow-xl hover:shadow-storm-purple/5"
 					: ""
-			} ${glow ? "shadow-lg shadow-[#6D5CFF]/10" : ""} ${className}`}
+			} ${glow ? "shadow-lg shadow-storm-purple/10" : ""} ${className}`}
 			{...hoverProps}
 		>
 			{children}

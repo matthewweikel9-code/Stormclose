@@ -423,7 +423,7 @@ High Estimate:    ${formatCurrency(result.estimates.costRange.high)}
 								}
 							}}
 							placeholder="Start typing an address..."
-							className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-[#6D5CFF] focus:outline-none focus:ring-1 focus:ring-[#6D5CFF]"
+							className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-storm-purple focus:outline-none focus:ring-1 focus:ring-storm-purple"
 						/>
 						
 						{/* Autocomplete Dropdown */}
@@ -544,7 +544,7 @@ High Estimate:    ${formatCurrency(result.estimates.costRange.high)}
 							<p className="mt-1 text-sm text-slate-400">Roofing Squares</p>
 						</Card>
 						<Card className="p-5 text-center">
-							<p className="text-4xl font-bold text-[#A78BFA]">{result.measurements.totalAreaSqFt.toLocaleString()}</p>
+							<p className="text-4xl font-bold text-storm-glow">{result.measurements.totalAreaSqFt.toLocaleString()}</p>
 							<p className="mt-1 text-sm text-slate-400">Total Sq Ft</p>
 						</Card>
 						<Card className="p-5 text-center">
@@ -562,7 +562,7 @@ High Estimate:    ${formatCurrency(result.estimates.costRange.high)}
 						{/* Roof Segments */}
 						<Card className="p-6">
 							<h3 className="mb-4 text-lg font-semibold text-white flex items-center gap-2">
-								<svg className="h-5 w-5 text-[#A78BFA]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<svg className="h-5 w-5 text-storm-glow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
 								</svg>
 								Roof Segments
@@ -620,7 +620,7 @@ High Estimate:    ${formatCurrency(result.estimates.costRange.high)}
 					</div>
 
 					{/* Cost Estimate */}
-					<Card className="p-6 bg-gradient-to-br from-[#6D5CFF]/10 to-transparent border-[#6D5CFF]/30">
+					<Card className="p-6 bg-gradient-to-br from-storm-purple/10 to-transparent border-storm-purple/30">
 						<h3 className="mb-4 text-lg font-semibold text-white flex items-center gap-2">
 							<svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -669,8 +669,8 @@ High Estimate:    ${formatCurrency(result.estimates.costRange.high)}
 			{/* Empty State */}
 			{!result && !error && !isLoading && (
 				<Card className="p-12 text-center">
-					<div className="mx-auto mb-4 h-16 w-16 rounded-full bg-[#6D5CFF]/10 flex items-center justify-center">
-						<svg className="h-8 w-8 text-[#A78BFA]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<div className="mx-auto mb-4 h-16 w-16 rounded-full bg-storm-purple/10 flex items-center justify-center">
+						<svg className="h-8 w-8 text-storm-glow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
 						</svg>
 					</div>

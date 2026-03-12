@@ -132,7 +132,7 @@ export default function NegotiationCoachPage() {
 							<select
 								value={state}
 								onChange={(e) => setState(e.target.value)}
-								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white text-sm focus:border-[#6D5CFF] focus:outline-none"
+								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white text-sm focus:border-storm-purple focus:outline-none"
 							>
 								<option value="">Select state...</option>
 								{US_STATES.map((s) => (
@@ -148,7 +148,7 @@ export default function NegotiationCoachPage() {
 							<select
 								value={carrier}
 								onChange={(e) => setCarrier(e.target.value)}
-								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white text-sm focus:border-[#6D5CFF] focus:outline-none"
+								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white text-sm focus:border-storm-purple focus:outline-none"
 							>
 								<option value="">Select carrier...</option>
 								{CARRIERS.map((c) => (
@@ -164,7 +164,7 @@ export default function NegotiationCoachPage() {
 							<select
 								value={objectionType}
 								onChange={(e) => setObjectionType(e.target.value)}
-								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white text-sm focus:border-[#6D5CFF] focus:outline-none"
+								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white text-sm focus:border-storm-purple focus:outline-none"
 							>
 								<option value="">Select type...</option>
 								{OBJECTION_TYPES.map((o) => (
@@ -182,7 +182,7 @@ export default function NegotiationCoachPage() {
 								value={lineItem}
 								onChange={(e) => setLineItem(e.target.value)}
 								placeholder="e.g., Ice & Water Shield"
-								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-[#6D5CFF] focus:outline-none"
+								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-storm-purple focus:outline-none"
 							/>
 						</div>
 					</div>
@@ -239,7 +239,7 @@ export default function NegotiationCoachPage() {
 									<div
 										className={`max-w-[85%] rounded-lg px-4 py-3 ${
 											message.role === "user"
-												? "bg-[#6D5CFF] text-white"
+												? "bg-storm-purple text-white"
 												: "bg-slate-800 text-slate-300"
 										}`}
 									>
@@ -255,9 +255,9 @@ export default function NegotiationCoachPage() {
 								<div className="bg-slate-800 rounded-lg px-4 py-3">
 									<div className="flex items-center gap-2">
 										<div className="animate-pulse flex gap-1">
-											<div className="w-2 h-2 bg-[#6D5CFF] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-											<div className="w-2 h-2 bg-[#6D5CFF] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-											<div className="w-2 h-2 bg-[#6D5CFF] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+											<div className="w-2 h-2 bg-storm-purple rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+											<div className="w-2 h-2 bg-storm-purple rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+											<div className="w-2 h-2 bg-storm-purple rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
 										</div>
 										<span className="text-sm text-slate-400">Coaching...</span>
 									</div>
@@ -281,7 +281,7 @@ export default function NegotiationCoachPage() {
 							value={situation}
 							onChange={(e) => setSituation(e.target.value)}
 							placeholder="What is the adjuster saying? What do you need help with?"
-							className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-[#6D5CFF] focus:outline-none focus:ring-1 focus:ring-[#6D5CFF]"
+							className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-storm-purple focus:outline-none focus:ring-1 focus:ring-storm-purple"
 							disabled={isLoading}
 						/>
 						<Button

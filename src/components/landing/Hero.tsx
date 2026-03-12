@@ -5,13 +5,13 @@ import Link from "next/link";
 
 export function Hero() {
 	return (
-		<section className="relative min-h-screen overflow-hidden bg-[#0B0F1A] pt-16">
+		<section className="relative min-h-screen overflow-hidden bg-storm-z0 pt-16">
 			{/* Animated background */}
 			<div className="absolute inset-0 overflow-hidden">
 				{/* Gradient orbs */}
-				<div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-[#6D5CFF]/20 blur-[120px]" />
-				<div className="absolute -right-40 top-1/3 h-96 w-96 rounded-full bg-[#A78BFA]/15 blur-[150px]" />
-				<div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-[#6D5CFF]/10 blur-[100px]" />
+				<div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-storm-purple/20 blur-[120px]" />
+				<div className="absolute -right-40 top-1/3 h-96 w-96 rounded-full bg-storm-glow/15 blur-[150px]" />
+				<div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-storm-purple/10 blur-[100px]" />
 				
 				{/* Grid pattern */}
 				<div 
@@ -25,7 +25,7 @@ export function Hero() {
 
 				{/* Lightning effect */}
 				<motion.div
-					className="absolute left-1/2 top-20 h-[500px] w-[2px] -translate-x-1/2 bg-gradient-to-b from-[#A78BFA] via-[#6D5CFF] to-transparent opacity-20"
+					className="absolute left-1/2 top-20 h-[500px] w-[2px] -translate-x-1/2 bg-gradient-to-b from-storm-glow via-storm-purple to-transparent opacity-20"
 					animate={{
 						opacity: [0.1, 0.3, 0.1],
 						scaleY: [1, 1.1, 1],
@@ -50,10 +50,10 @@ export function Hero() {
 						initial={{ opacity: 0, scale: 0.9 }}
 						animate={{ opacity: 1, scale: 1 }}
 						transition={{ delay: 0.2, duration: 0.5 }}
-						className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#6D5CFF]/30 bg-[#6D5CFF]/10 px-4 py-1.5"
+						className="mb-6 inline-flex items-center gap-2 rounded-full border border-storm-purple/30 bg-storm-purple/10 px-4 py-1.5"
 					>
-						<span className="h-2 w-2 rounded-full bg-[#6D5CFF] animate-pulse" />
-						<span className="text-sm font-medium text-[#A78BFA]">
+						<span className="h-2 w-2 rounded-full bg-storm-purple animate-pulse" />
+						<span className="text-sm font-medium text-storm-glow">
 							AI-Powered Roofing Claims
 						</span>
 					</motion.div>
@@ -66,7 +66,7 @@ export function Hero() {
 						className="mx-auto max-w-4xl text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
 					>
 						Close Insurance Claims{" "}
-						<span className="bg-gradient-to-r from-[#A78BFA] to-[#6D5CFF] bg-clip-text text-transparent">
+						<span className="bg-gradient-to-r from-storm-glow to-storm-purple bg-clip-text text-transparent">
 							Faster with AI
 						</span>
 					</motion.h1>
@@ -92,11 +92,11 @@ export function Hero() {
 					>
 						<Link
 							href="/signup"
-							className="group relative inline-flex items-center justify-center overflow-hidden rounded-lg bg-[#6D5CFF] px-8 py-3.5 text-base font-semibold text-white transition-all hover:bg-[#5B4AE8] hover:shadow-xl hover:shadow-[#6D5CFF]/25"
+							className="group relative inline-flex items-center justify-center overflow-hidden rounded-lg bg-storm-purple px-8 py-3.5 text-base font-semibold text-white transition-all hover:bg-storm-purple-hover hover:shadow-xl hover:shadow-storm-purple/25"
 						>
 							<span className="relative z-10">Get Started</span>
 							<motion.div
-								className="absolute inset-0 bg-gradient-to-r from-[#A78BFA] to-[#6D5CFF]"
+								className="absolute inset-0 bg-gradient-to-r from-storm-glow to-storm-purple"
 								animate={{
 									x: ["-100%", "100%"],
 								}}
@@ -113,7 +113,7 @@ export function Hero() {
 							className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/50 px-8 py-3.5 text-base font-semibold text-white transition-all hover:border-slate-600 hover:bg-slate-800"
 						>
 							<svg
-								className="h-5 w-5 text-[#A78BFA]"
+								className="h-5 w-5 text-storm-glow"
 								fill="none"
 								viewBox="0 0 24 24"
 								stroke="currentColor"
@@ -145,19 +145,19 @@ export function Hero() {
 						<p className="text-sm text-slate-500">Built for roofing professionals</p>
 						<div className="flex items-center gap-6">
 							<div className="flex items-center gap-2">
-								<svg className="h-5 w-5 text-[#6D5CFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<svg className="h-5 w-5 text-storm-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
 								</svg>
 								<span className="text-sm text-slate-400">AI-Powered Reports</span>
 							</div>
 							<div className="flex items-center gap-2">
-								<svg className="h-5 w-5 text-[#6D5CFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<svg className="h-5 w-5 text-storm-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
 								</svg>
 								<span className="text-sm text-slate-400">Generate in Seconds</span>
 							</div>
 							<div className="flex items-center gap-2">
-								<svg className="h-5 w-5 text-[#6D5CFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<svg className="h-5 w-5 text-storm-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
 								</svg>
 								<span className="text-sm text-slate-400">Secure & Private</span>
@@ -168,7 +168,7 @@ export function Hero() {
 			</div>
 
 			{/* Bottom fade */}
-			<div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0B0F1A] to-transparent" />
+			<div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-storm-bg to-transparent" />
 		</section>
 	);
 }

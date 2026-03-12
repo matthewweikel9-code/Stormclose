@@ -352,7 +352,7 @@ export default function RoutePlannerPage() {
 			)}
 
 			{/* Route Summary */}
-			<Card className="p-6 bg-gradient-to-br from-[#6D5CFF]/10 to-transparent border-[#6D5CFF]/30">
+			<Card className="p-6 bg-gradient-to-br from-storm-purple/10 to-transparent border-storm-purple/30">
 				<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
 					<div className="text-center">
 						<p className="text-3xl font-bold text-white">{properties.length}</p>
@@ -363,7 +363,7 @@ export default function RoutePlannerPage() {
 						<p className="text-sm text-slate-400">Total Est. Profit</p>
 					</div>
 					<div className="text-center">
-						<p className="text-3xl font-bold text-[#A78BFA]">
+						<p className="text-3xl font-bold text-storm-glow">
 							{routeInfo?.totalDistance || "—"}
 						</p>
 						<p className="text-sm text-slate-400">Total Distance</p>
@@ -395,7 +395,7 @@ export default function RoutePlannerPage() {
 							value={startingPoint}
 							onChange={(e) => setStartingPoint(e.target.value)}
 							placeholder="Your office address or current location..."
-							className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6D5CFF]"
+							className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-storm-purple"
 						/>
 					</div>
 					<div className="flex items-end gap-3">
@@ -473,7 +473,7 @@ export default function RoutePlannerPage() {
 							<Card className="p-4 bg-slate-800/50 border-slate-700">
 								<div className="flex items-center gap-4">
 									{/* Stop Number */}
-									<div className="w-10 h-10 rounded-full bg-[#6D5CFF] flex items-center justify-center text-white font-bold shrink-0">
+									<div className="w-10 h-10 rounded-full bg-storm-purple flex items-center justify-center text-white font-bold shrink-0">
 										{index + 1}
 									</div>
 									

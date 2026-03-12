@@ -21,9 +21,9 @@ export default async function ObjectionPage() {
 		return (
 			<section className="saas-shell">
 				<div className="mx-auto max-w-2xl text-center">
-					<div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#6D5CFF]/10">
+					<div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full bg-storm-purple/10">
 						<svg
-							className="h-8 w-8 text-[#A78BFA]"
+							className="h-8 w-8 text-storm-glow"
 							fill="none"
 							viewBox="0 0 24 24"
 							stroke="currentColor"
@@ -46,13 +46,13 @@ export default async function ObjectionPage() {
 					<div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
 						<Link
 							href="/settings/billing"
-							className="inline-flex items-center justify-center rounded-xl bg-[#6D5CFF] px-6 py-3 font-semibold text-white transition-all hover:bg-[#5B4DE0]"
+							className="inline-flex items-center justify-center rounded-xl bg-storm-purple px-6 py-3 font-semibold text-white transition-all hover:bg-[#5B4DE0]"
 						>
 							Upgrade to Pro+
 						</Link>
 						<Link
 							href="/dashboard"
-							className="inline-flex items-center justify-center rounded-xl border border-[#1F2937] bg-[#111827] px-6 py-3 font-medium text-slate-300 transition-all hover:bg-[#1F2937]"
+							className="inline-flex items-center justify-center storm-card px-6 py-3 font-medium text-slate-300 transition-all hover:bg-storm-border"
 						>
 							Back to Dashboard
 						</Link>

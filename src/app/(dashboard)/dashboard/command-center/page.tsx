@@ -32,7 +32,7 @@ import {
 // Lazy load the MapboxMap component
 const MapboxMap = dynamic(
   () => import('@/components/ui/MapboxMap'),
-  { ssr: false, loading: () => <div className="h-full w-full animate-pulse rounded-xl bg-[#111827]" /> }
+  { ssr: false, loading: () => <div className="h-full w-full animate-pulse rounded-xl bg-storm-z1" /> }
 );
 
 // ============================================================================
@@ -213,7 +213,7 @@ export default function CommandCenterPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#6D5CFF] to-[#A78BFA] shadow-lg shadow-[#6D5CFF]/20">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-storm-purple to-storm-glow shadow-lg shadow-storm-purple/20">
             <Crosshair className="h-5 w-5 text-white" />
           </span>
           Command Center
@@ -224,7 +224,7 @@ export default function CommandCenterPage() {
       </div>
 
       {/* Tab Bar */}
-      <div className="mb-6 flex items-center gap-1 overflow-x-auto rounded-xl bg-[#111827] p-1.5 border border-[#1F2937] scrollbar-hide">
+      <div className="mb-6 flex items-center gap-1 overflow-x-auto storm-card rounded-xl p-1.5 scrollbar-hide">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -234,11 +234,11 @@ export default function CommandCenterPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-[#6D5CFF]/15 text-white shadow-sm'
-                  : 'text-slate-400 hover:bg-[#1E293B] hover:text-slate-300'
+                  ? 'bg-storm-purple/15 text-white shadow-sm'
+                  : 'text-slate-400 hover:bg-storm-z2 hover:text-slate-300'
               }`}
             >
-              <Icon className={`h-4 w-4 ${isActive ? 'text-[#A78BFA]' : ''}`} />
+              <Icon className={`h-4 w-4 ${isActive ? 'text-storm-glow' : ''}`} />
               {tab.label}
               {tab.badge && (
                 <span className={`ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${tab.badgeColor} ${tab.badge === 'LIVE' ? 'animate-pulse' : ''}`}>
@@ -266,7 +266,7 @@ export default function CommandCenterPage() {
       <div className="min-h-[calc(100vh-14rem)]">
         {locationLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF] mb-3" />
+            <Loader2 className="h-8 w-8 animate-spin text-storm-purple mb-3" />
             <p className="text-sm text-slate-400">Getting your location...</p>
           </div>
         ) : (
@@ -446,7 +446,7 @@ function StormMapPanel({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Map — 2 cols */}
-        <div className="lg:col-span-2 h-[600px] rounded-xl overflow-hidden border border-[#1F2937] relative">
+        <div className="lg:col-span-2 h-[600px] rounded-xl overflow-hidden border border-storm-border relative">
           <MapboxMap
             center={{ lat: userLocation.lat, lng: userLocation.lng }}
             zoom={8}
@@ -479,14 +479,14 @@ function StormMapPanel({
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Storm Feed */}
-          <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4">
+          <div className="storm-card p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                <Cloud className="h-4 w-4 text-[#A78BFA]" />
+                <Cloud className="h-4 w-4 text-storm-glow" />
                 Storm Feed
                 <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-400 animate-pulse">LIVE</span>
               </h3>
-              <button onClick={fetchStorms} className="rounded-lg p-2 text-slate-400 hover:bg-[#1E293B] hover:text-white transition-colors">
+              <button onClick={fetchStorms} className="rounded-lg p-2 text-slate-400 hover:bg-storm-z2 hover:text-white transition-colors">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
             </div>
@@ -494,14 +494,14 @@ function StormMapPanel({
             {loading && storms.length === 0 ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="animate-pulse rounded-lg bg-[#1E293B] h-16" />
+                  <div key={i} className="animate-pulse rounded-lg bg-storm-z2 h-16" />
                 ))}
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <AlertTriangle className="h-10 w-10 text-red-500/50 mb-3" />
                 <p className="text-sm text-red-400">{error}</p>
-                <button onClick={fetchStorms} className="mt-3 text-xs text-[#A78BFA] hover:underline">Try Again</button>
+                <button onClick={fetchStorms} className="mt-3 text-xs text-storm-glow hover:underline">Try Again</button>
               </div>
             ) : storms.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -517,8 +517,8 @@ function StormMapPanel({
                     onClick={() => handleStormClick(storm)}
                     className={`w-full text-left rounded-lg border p-3 transition-all ${
                       selectedStorm?.id === storm.id
-                        ? 'border-[#6D5CFF] bg-[#6D5CFF]/10'
-                        : 'border-[#1F2937] bg-[#0B0F1A] hover:border-[#374151]'
+                        ? 'border-storm-purple bg-storm-purple/10'
+                        : 'border-storm-border bg-storm-z0 hover:border-storm-border-light'
                     }`}
                   >
                     <div className="flex items-start justify-between">
@@ -550,14 +550,14 @@ function StormMapPanel({
 
           {/* Nearby Properties — shown when a storm is clicked */}
           {selectedStorm && (
-            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4">
+            <div className="storm-card p-4">
               <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                 <Home className="h-4 w-4 text-emerald-400" />
                 Properties Near Storm
               </h3>
               {propsLoading ? (
                 <div className="flex items-center justify-center py-6">
-                  <Loader2 className="h-5 w-5 animate-spin text-[#6D5CFF]" />
+                  <Loader2 className="h-5 w-5 animate-spin text-storm-purple" />
                   <span className="ml-2 text-xs text-slate-400">Searching ATTOM...</span>
                 </div>
               ) : nearbyProperties.length === 0 ? (
@@ -565,7 +565,7 @@ function StormMapPanel({
               ) : (
                 <div className="space-y-2 max-h-[200px] overflow-y-auto">
                   {nearbyProperties.map((prop, i) => (
-                    <div key={i} className="flex items-center justify-between rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-2.5">
+                    <div key={i} className="flex items-center justify-between rounded-lg bg-storm-z0 border border-storm-border p-2.5">
                       <div className="min-w-0 flex-1 mr-2">
                         <p className="text-xs text-white truncate">{prop.address}</p>
                         <p className="text-[10px] text-slate-500">
@@ -583,7 +583,7 @@ function StormMapPanel({
                   ))}
                   <button
                     onClick={goToRoute}
-                    className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-[#6D5CFF]/10 py-2 text-xs font-medium text-[#A78BFA] hover:bg-[#6D5CFF]/20 transition-colors"
+                    className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-storm-purple/10 py-2 text-xs font-medium text-storm-glow hover:bg-storm-purple/20 transition-colors"
                   >
                     <Route className="h-3.5 w-3.5" />
                     Go to Smart Route
@@ -665,14 +665,14 @@ function OpportunitiesPanel({
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
+    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-storm-purple" /></div>;
   }
 
   return (
     <div className="space-y-6">
       {/* Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-5">
+        <div className="storm-card p-5">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
               <DollarSign className="h-5 w-5 text-emerald-400" />
@@ -683,10 +683,10 @@ function OpportunitiesPanel({
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-5">
+        <div className="storm-card p-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#6D5CFF]/10">
-              <Cloud className="h-5 w-5 text-[#A78BFA]" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-storm-purple/10">
+              <Cloud className="h-5 w-5 text-storm-glow" />
             </span>
             <div>
               <p className="text-2xl font-bold text-white">{stats.total}</p>
@@ -694,7 +694,7 @@ function OpportunitiesPanel({
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-5">
+        <div className="storm-card p-5">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
               <TrendingUp className="h-5 w-5 text-amber-400" />
@@ -716,8 +716,8 @@ function OpportunitiesPanel({
               onClick={() => setTimeframe(tf)}
               className={`rounded-lg px-3.5 py-2 text-xs font-medium transition-all ${
                 timeframe === tf
-                  ? 'bg-[#6D5CFF]/15 text-white'
-                  : 'bg-[#111827] text-slate-400 hover:bg-[#1E293B] hover:text-white border border-[#1F2937]'
+                  ? 'bg-storm-purple/15 text-white'
+                  : 'bg-storm-z1 text-storm-muted hover:bg-storm-z2 hover:text-white border border-storm-border'
               }`}
             >
               {tf === '24h' ? 'Last 24h' : tf === '7d' ? 'Last 7 Days' : 'Last 30 Days'}
@@ -736,8 +736,8 @@ function OpportunitiesPanel({
       </div>
 
       {/* Storm Events Cards */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] overflow-hidden">
-        <div className="p-4 border-b border-[#1F2937]">
+      <div className="storm-card overflow-hidden">
+        <div className="p-4 border-b border-storm-border">
           <h3 className="text-lg font-semibold text-white">Storm-Generated Opportunities</h3>
           <p className="text-xs text-slate-500 mt-0.5">Click a storm to see details · Click &quot;Add to Route&quot; to plan your canvass</p>
         </div>
@@ -748,12 +748,12 @@ function OpportunitiesPanel({
             <p className="text-xs text-slate-500 mt-1">Try expanding to 30 days</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#1F2937]/50">
+          <div className="divide-y divide-storm-border/50">
             {opportunities.slice(0, 15).map((opp) => (
               <div key={opp.id}>
                 <button
                   onClick={() => setExpandedStorm(expandedStorm === opp.id ? null : opp.id)}
-                  className="w-full flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors text-left"
+                  className="w-full flex items-center gap-4 p-4 hover:bg-storm-z2/50 transition-colors text-left"
                 >
                   {/* Severity Dot */}
                   <span className={`flex-shrink-0 h-3 w-3 rounded-full ${
@@ -767,7 +767,7 @@ function OpportunitiesPanel({
                   </div>
                   {/* Score */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="h-2 w-14 rounded-full bg-[#1E293B] overflow-hidden">
+                    <div className="h-2 w-14 rounded-full bg-storm-z2 overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
                           opp.opportunityScore >= 80 ? 'bg-red-500' :
@@ -800,21 +800,21 @@ function OpportunitiesPanel({
 
                 {/* Expanded detail */}
                 {expandedStorm === opp.id && (
-                  <div className="px-4 pb-4 bg-[#0B0F1A]/50">
+                  <div className="px-4 pb-4 bg-storm-z0/50">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                      <div className="rounded-lg bg-[#111827] border border-[#1F2937] p-3 text-center">
+                      <div className="rounded-xl bg-storm-z1 border border-storm-border p-3 text-center">
                         <p className="text-lg font-bold text-white">${(opp.estimatedDamage / 1000).toFixed(0)}K</p>
                         <p className="text-[10px] text-slate-500">Est. Damage</p>
                       </div>
-                      <div className="rounded-lg bg-[#111827] border border-[#1F2937] p-3 text-center">
+                      <div className="rounded-xl bg-storm-z1 border border-storm-border p-3 text-center">
                         <p className="text-lg font-bold text-white">{opp.affectedProperties}</p>
                         <p className="text-[10px] text-slate-500">Properties</p>
                       </div>
-                      <div className="rounded-lg bg-[#111827] border border-[#1F2937] p-3 text-center">
+                      <div className="rounded-xl bg-storm-z1 border border-storm-border p-3 text-center">
                         <p className="text-lg font-bold text-amber-400">{opp.hailSize}&quot;</p>
                         <p className="text-[10px] text-slate-500">Max Hail</p>
                       </div>
-                      <div className="rounded-lg bg-[#111827] border border-[#1F2937] p-3 text-center">
+                      <div className="rounded-xl bg-storm-z1 border border-storm-border p-3 text-center">
                         <p className="text-lg font-bold text-white">{opp.windSpeed || 0}</p>
                         <p className="text-[10px] text-slate-500">Max Wind (mph)</p>
                       </div>
@@ -828,7 +828,7 @@ function OpportunitiesPanel({
                           source: 'opportunities',
                         });
                       }}
-                      className="flex items-center gap-2 rounded-lg bg-[#6D5CFF]/10 px-4 py-2 text-xs font-medium text-[#A78BFA] hover:bg-[#6D5CFF]/20 transition-colors"
+                      className="flex items-center gap-2 rounded-lg bg-storm-purple/10 px-4 py-2 text-xs font-medium text-storm-glow hover:bg-storm-purple/20 transition-colors"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Add Storm Area to Route
@@ -843,8 +843,8 @@ function OpportunitiesPanel({
 
       {/* Top Properties Section */}
       {topProperties.length > 0 && (
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] overflow-hidden">
-          <div className="p-4 border-b border-[#1F2937] flex items-center justify-between">
+        <div className="storm-card overflow-hidden">
+          <div className="p-4 border-b border-storm-border flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold text-white flex items-center gap-2">
                 <Home className="h-4 w-4 text-emerald-400" />
@@ -853,11 +853,11 @@ function OpportunitiesPanel({
               <p className="text-xs text-slate-500 mt-0.5">ATTOM property data near highest-scoring storm</p>
             </div>
           </div>
-          <div className="divide-y divide-[#1F2937]/50">
+          <div className="divide-y divide-storm-border/50">
             {topProperties.map((prop) => {
               const inRoute = routeStops.some(s => s.address.includes(prop.address));
               return (
-                <div key={prop.id} className="flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors">
+                <div key={prop.id} className="flex items-center gap-4 p-4 hover:bg-storm-z2/50 transition-colors">
                   <div className={`flex h-9 w-9 items-center justify-center rounded-lg flex-shrink-0 ${
                     prop.priority === 'hot' ? 'bg-red-500/10 text-red-400' :
                     prop.priority === 'warm' ? 'bg-amber-500/10 text-amber-400' :
@@ -875,7 +875,7 @@ function OpportunitiesPanel({
                     <p className="text-sm font-semibold text-emerald-400">${prop.opportunityValue?.toLocaleString()}</p>
                     <div className="flex gap-1 mt-0.5 justify-end">
                       {prop.tags?.map((t, i) => (
-                        <span key={i} className="rounded bg-[#1E293B] px-1.5 py-0.5 text-[10px] text-slate-400">{t}</span>
+                        <span key={i} className="rounded bg-storm-z2 px-1.5 py-0.5 text-[10px] text-slate-400">{t}</span>
                       ))}
                     </div>
                   </div>
@@ -963,9 +963,9 @@ function PropertyLookupPanel({
   return (
     <div className="space-y-6">
       {/* Search */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+      <div className="storm-card p-6">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <Search className="h-5 w-5 text-[#A78BFA]" />
+          <Search className="h-5 w-5 text-storm-glow" />
           Property Intelligence Lookup
         </h3>
         <div className="flex gap-3">
@@ -975,12 +975,12 @@ function PropertyLookupPanel({
             onChange={(e) => setAddress(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && lookupProperty()}
             placeholder="Enter property address (e.g., 123 Main St, Dallas, TX)"
-            className="flex-1 rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF] focus:ring-1 focus:ring-[#6D5CFF]/50"
+            className="flex-1 rounded-lg border border-storm-border bg-storm-z0 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-storm-purple focus:ring-1 focus:ring-storm-purple/50"
           />
           <button
             onClick={lookupProperty}
             disabled={loading || !address.trim()}
-            className="flex items-center gap-2 rounded-lg bg-[#6D5CFF] px-6 py-3 text-sm font-semibold text-white hover:bg-[#5B4AE8] disabled:opacity-50 transition-all"
+            className="flex items-center gap-2 rounded-lg bg-storm-purple px-6 py-3 text-sm font-semibold text-white hover:bg-storm-purple-hover disabled:opacity-50 transition-all"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Search
@@ -1013,7 +1013,7 @@ function PropertyLookupPanel({
             {addedToRoute && (
               <button
                 onClick={goToRoute}
-                className="flex items-center gap-2 rounded-lg bg-[#6D5CFF]/10 px-4 py-2.5 text-xs font-medium text-[#A78BFA] hover:bg-[#6D5CFF]/20 transition-colors"
+                className="flex items-center gap-2 rounded-lg bg-storm-purple/10 px-4 py-2.5 text-xs font-medium text-storm-glow hover:bg-storm-purple/20 transition-colors"
               >
                 <ArrowRight className="h-3.5 w-3.5" />
                 Go to Smart Route
@@ -1023,9 +1023,9 @@ function PropertyLookupPanel({
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Property Overview */}
-            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+            <div className="storm-card p-6">
               <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-[#A78BFA]" />
+                <Building2 className="h-4 w-4 text-storm-glow" />
                 Property Details
               </h3>
               <div className="space-y-3">
@@ -1038,7 +1038,7 @@ function PropertyLookupPanel({
                   { label: 'Type', value: property.property?.buildingType || '-' },
                   { label: 'Bed / Bath', value: property.property?.bedrooms ? `${property.property.bedrooms} / ${property.property.bathrooms}` : '-' },
                 ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-[#1F2937]/50 last:border-0">
+                  <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-storm-border/50 last:border-0">
                     <span className="text-xs text-slate-400">{item.label}</span>
                     <span className="text-xs text-white font-medium">{item.value}</span>
                   </div>
@@ -1047,9 +1047,9 @@ function PropertyLookupPanel({
             </div>
 
             {/* Owner Info */}
-            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+            <div className="storm-card p-6">
               <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-                <User className="h-4 w-4 text-[#A78BFA]" />
+                <User className="h-4 w-4 text-storm-glow" />
                 Owner Information
               </h3>
               <div className="space-y-3">
@@ -1060,7 +1060,7 @@ function PropertyLookupPanel({
                   { label: 'Last Sale', value: property.sale?.lastSaleDate ? new Date(property.sale.lastSaleDate).toLocaleDateString() : '-' },
                   { label: 'Last Sale Amount', value: property.sale?.lastSaleAmount ? `$${property.sale.lastSaleAmount.toLocaleString()}` : '-' },
                 ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-[#1F2937]/50 last:border-0">
+                  <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-storm-border/50 last:border-0">
                     <span className="text-xs text-slate-400">{item.label}</span>
                     <span className="text-xs text-white font-medium">{item.value || '-'}</span>
                   </div>
@@ -1069,7 +1069,7 @@ function PropertyLookupPanel({
             </div>
 
             {/* Roof Intel */}
-            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+            <div className="storm-card p-6">
               <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
                 <Shield className="h-4 w-4 text-amber-400" />
                 Roof Intelligence
@@ -1083,7 +1083,7 @@ function PropertyLookupPanel({
                   { label: 'Roof Sqft', value: property.roof?.squareFootage ? property.roof.squareFootage.toLocaleString() : '-' },
                   { label: 'Complexity', value: property.roof?.complexity || '-' },
                 ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-[#1F2937]/50 last:border-0">
+                  <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-storm-border/50 last:border-0">
                     <span className="text-xs text-slate-400">{item.label}</span>
                     <span className={`text-xs font-medium ${item.highlight ? 'text-amber-400' : 'text-white'}`}>
                       {item.value}
@@ -1094,23 +1094,23 @@ function PropertyLookupPanel({
             </div>
 
             {/* Storm Exposure */}
-            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+            <div className="storm-card p-6">
               <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
                 <Cloud className="h-4 w-4 text-red-400" />
                 Storm Exposure
               </h3>
               {property.stormExposure ? (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                     <span className="text-xs text-slate-400">Hail Events</span>
                     <span className="text-sm font-bold text-white">{property.stormExposure.hailEvents}</span>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                     <span className="text-xs text-slate-400">Max Hail Size</span>
                     <span className="text-sm font-bold text-amber-400">{property.stormExposure.maxHailSize}&quot;</span>
                   </div>
                   {property.stormExposure.lastStormDate && (
-                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                       <span className="text-xs text-slate-400">Last Storm</span>
                       <span className="text-sm font-bold text-white">{new Date(property.stormExposure.lastStormDate).toLocaleDateString()}</span>
                     </div>
@@ -1128,22 +1128,22 @@ function PropertyLookupPanel({
             </div>
 
             {/* Claim Estimate */}
-            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+            <div className="storm-card p-6">
               <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-emerald-400" />
                 Claim Estimate
               </h3>
               {property.claimEstimate ? (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                     <span className="text-xs text-slate-400">Roof Replacement</span>
                     <span className="text-sm font-bold text-emerald-400">${property.claimEstimate.roofReplacement?.toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                     <span className="text-xs text-slate-400">Siding</span>
                     <span className="text-sm font-bold text-white">${property.claimEstimate.siding?.toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                     <span className="text-xs text-slate-400">Gutters</span>
                     <span className="text-sm font-bold text-white">${property.claimEstimate.gutters?.toLocaleString()}</span>
                   </div>
@@ -1170,23 +1170,23 @@ function PropertyLookupPanel({
             </div>
 
             {/* Neighborhood / Assessment */}
-            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+            <div className="storm-card p-6">
               <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-                <Map className="h-4 w-4 text-[#A78BFA]" />
+                <Map className="h-4 w-4 text-storm-glow" />
                 Neighborhood Intel
               </h3>
               <div className="space-y-3">
                 {property.neighborhood && (
                   <>
-                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                       <span className="text-xs text-slate-400">Avg Home Value</span>
                       <span className="text-sm font-bold text-white">${property.neighborhood.avgHomeValue?.toLocaleString()}</span>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                       <span className="text-xs text-slate-400">Avg Roof Age</span>
                       <span className="text-sm font-bold text-white">{property.neighborhood.avgRoofAge} yrs</span>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                       <span className="text-xs text-slate-400">Claim Likelihood</span>
                       <span className={`text-sm font-bold ${
                         (property.neighborhood.claimLikelihood || 0) >= 70 ? 'text-red-400' :
@@ -1197,11 +1197,11 @@ function PropertyLookupPanel({
                 )}
                 {property.assessment && (
                   <>
-                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                       <span className="text-xs text-slate-400">Assessed Value</span>
                       <span className="text-sm font-bold text-white">${property.assessment.assessedValue?.toLocaleString()}</span>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-[#0B0F1A] p-3">
+                    <div className="flex items-center justify-between rounded-lg bg-storm-z0 p-3">
                       <span className="text-xs text-slate-400">Market Value</span>
                       <span className="text-sm font-bold text-white">${property.assessment.marketValue?.toLocaleString()}</span>
                     </div>
@@ -1342,9 +1342,9 @@ function SmartRoutePanel({
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left: Route Builder */}
       <div className="space-y-4">
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+        <div className="storm-card p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Route className="h-5 w-5 text-[#A78BFA]" />
+            <Route className="h-5 w-5 text-storm-glow" />
             Route Builder
           </h3>
 
@@ -1360,15 +1360,15 @@ function SmartRoutePanel({
                 }
               }}
               placeholder="Type an address to add a stop..."
-              className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF]"
+              className="w-full rounded-lg border border-storm-border bg-storm-z0 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-storm-purple"
             />
             {suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-[#1F2937] bg-[#111827] shadow-xl overflow-hidden">
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 storm-card rounded-lg shadow-xl overflow-hidden">
                 {suggestions.map((s: any) => (
                   <button
                     key={s.id}
                     onClick={() => addManualStop(s.place_name, s.center[1], s.center[0])}
-                    className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-[#1E293B] transition-colors border-b border-[#1F2937]/50 last:border-0"
+                    className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-storm-z2 transition-colors border-b border-storm-border/50 last:border-0"
                   >
                     <MapPin className="inline h-3 w-3 mr-2 text-slate-500" />
                     {s.place_name}
@@ -1388,8 +1388,8 @@ function SmartRoutePanel({
           ) : (
             <div className="space-y-2 mb-4">
               {routeStops.map((stop, idx) => (
-                <div key={stop.id} className="flex items-center gap-3 rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#6D5CFF]/20 text-xs font-bold text-[#A78BFA] flex-shrink-0">
+                <div key={stop.id} className="flex items-center gap-3 rounded-lg bg-storm-z0 border border-storm-border p-3">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-storm-purple/20 text-xs font-bold text-storm-glow flex-shrink-0">
                     {idx + 1}
                   </span>
                   <div className="flex-1 min-w-0">
@@ -1422,7 +1422,7 @@ function SmartRoutePanel({
             <button
               onClick={optimizeRoute}
               disabled={routeStops.length < 2 || loading}
-              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[#6D5CFF] px-4 py-3 text-sm font-semibold text-white hover:bg-[#5B4AE8] disabled:opacity-50 transition-all"
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-storm-purple px-4 py-3 text-sm font-semibold text-white hover:bg-storm-purple-hover disabled:opacity-50 transition-all"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
               Optimize Route
@@ -1432,7 +1432,7 @@ function SmartRoutePanel({
                 href={getGoogleMapsLink()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-lg bg-[#111827] border border-[#1F2937] px-4 py-3 text-sm font-medium text-slate-300 hover:bg-[#1E293B] transition-all"
+                className="flex items-center justify-center gap-2 rounded-xl bg-storm-z1 border border-storm-border px-4 py-3 text-sm font-medium text-slate-300 hover:bg-storm-z2 transition-all"
               >
                 <ExternalLink className="h-4 w-4" />
                 Google Maps
@@ -1457,7 +1457,7 @@ function SmartRoutePanel({
       {/* Right: Map + Route Info */}
       <div className="space-y-4">
         {/* Route Map */}
-        <div className="h-[350px] rounded-xl overflow-hidden border border-[#1F2937]">
+        <div className="h-[350px] rounded-xl overflow-hidden border border-storm-border">
           <MapboxMap
             center={mapCenter}
             zoom={routeStops.length > 0 ? 11 : 10}
@@ -1468,16 +1468,16 @@ function SmartRoutePanel({
         </div>
 
         {/* Route Details */}
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+        <div className="storm-card p-6">
           <h3 className="text-base font-semibold text-white mb-4">Route Details</h3>
           {optimizedRoute ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+                <div className="rounded-lg bg-storm-z0 border border-storm-border p-3 text-center">
                   <p className="text-xl font-bold text-white">{optimizedRoute.totalDistance}</p>
                   <p className="text-xs text-slate-400">Total Distance</p>
                 </div>
-                <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+                <div className="rounded-lg bg-storm-z0 border border-storm-border p-3 text-center">
                   <p className="text-xl font-bold text-white">{optimizedRoute.totalDuration}</p>
                   <p className="text-xs text-slate-400">Drive Time</p>
                 </div>
@@ -1488,8 +1488,8 @@ function SmartRoutePanel({
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Turn-by-Turn</p>
                   {optimizedRoute.legs.map((leg, idx) => (
-                    <div key={idx} className="flex items-center gap-3 rounded-lg bg-[#0B0F1A] p-2.5 border border-[#1F2937]/50">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#6D5CFF]/20 text-[10px] font-bold text-[#A78BFA] flex-shrink-0">
+                    <div key={idx} className="flex items-center gap-3 rounded-lg bg-storm-z0 p-2.5 border border-storm-border/50">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-storm-purple/20 text-[10px] font-bold text-storm-glow flex-shrink-0">
                         {idx + 1}
                       </span>
                       <div className="flex-1 min-w-0">

@@ -251,15 +251,15 @@ ESTIMATED COSTS:
 							<button
 								onClick={() => fileInputRef.current?.click()}
 								disabled={isOcrProcessing}
-								className="w-full rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/50 p-6 text-center hover:border-[#6D5CFF] hover:bg-slate-800 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+								className="w-full rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/50 p-6 text-center hover:border-storm-purple hover:bg-slate-800 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								{isOcrProcessing ? (
 									<div className="flex flex-col items-center gap-2">
-										<svg className="animate-spin h-8 w-8 text-[#A78BFA]" viewBox="0 0 24 24">
+										<svg className="animate-spin h-8 w-8 text-storm-glow" viewBox="0 0 24 24">
 											<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
 											<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
 										</svg>
-										<span className="text-[#A78BFA] font-medium">Processing with AI OCR...</span>
+										<span className="text-storm-glow font-medium">Processing with AI OCR...</span>
 									</div>
 								) : (
 									<div className="flex flex-col items-center gap-2">
@@ -292,12 +292,12 @@ ESTIMATED COSTS:
 
 						{/* Imported Roof Data Banner */}
 						{importedRoofData && (
-							<div className="rounded-lg bg-[#6D5CFF]/10 border border-[#6D5CFF]/30 p-4">
+							<div className="rounded-lg bg-storm-purple/10 border border-storm-purple/30 p-4">
 								<div className="flex items-center gap-2 mb-2">
-									<svg className="h-5 w-5 text-[#A78BFA]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<svg className="h-5 w-5 text-storm-glow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
 									</svg>
-									<span className="font-medium text-[#A78BFA]">Imported from Roof Measurement AI</span>
+									<span className="font-medium text-storm-glow">Imported from Roof Measurement AI</span>
 								</div>
 								<p className="text-sm text-slate-400">
 									{importedRoofData.address} • {importedRoofData.roofSquares} squares • {importedRoofData.pitch} pitch
@@ -322,7 +322,7 @@ ESTIMATED COSTS:
 							<select
 								value={state}
 								onChange={(e) => setState(e.target.value)}
-								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-[#6D5CFF] focus:outline-none focus:ring-1 focus:ring-[#6D5CFF]"
+								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-storm-purple focus:outline-none focus:ring-1 focus:ring-storm-purple"
 							>
 								<option value="">Select state...</option>
 								{US_STATES.map((s) => (
@@ -339,7 +339,7 @@ ESTIMATED COSTS:
 							<select
 								value={damageType}
 								onChange={(e) => setDamageType(e.target.value)}
-								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-[#6D5CFF] focus:outline-none focus:ring-1 focus:ring-[#6D5CFF]"
+								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-storm-purple focus:outline-none focus:ring-1 focus:ring-storm-purple"
 							>
 								<option value="">Select damage type...</option>
 								{DAMAGE_TYPES.map((d) => (
@@ -356,7 +356,7 @@ ESTIMATED COSTS:
 							<select
 								value={roofType}
 								onChange={(e) => setRoofType(e.target.value)}
-								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-[#6D5CFF] focus:outline-none focus:ring-1 focus:ring-[#6D5CFF]"
+								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-storm-purple focus:outline-none focus:ring-1 focus:ring-storm-purple"
 							>
 								<option value="">Select roof type...</option>
 								{ROOF_TYPES.map((r) => (
@@ -375,7 +375,7 @@ ESTIMATED COSTS:
 								value={propertyAge}
 								onChange={(e) => setPropertyAge(e.target.value)}
 								placeholder="e.g., 15"
-								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-[#6D5CFF] focus:outline-none focus:ring-1 focus:ring-[#6D5CFF]"
+								className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-storm-purple focus:outline-none focus:ring-1 focus:ring-storm-purple"
 							/>
 						</div>
 
@@ -388,7 +388,7 @@ ESTIMATED COSTS:
 								value={adjusterEstimate}
 								onChange={(e) => setAdjusterEstimate(e.target.value)}
 								placeholder="Paste the adjuster's estimate text here, including all line items, quantities, and pricing..."
-								className="w-full h-48 rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-[#6D5CFF] focus:outline-none focus:ring-1 focus:ring-[#6D5CFF]"
+								className="w-full h-48 rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 focus:border-storm-purple focus:outline-none focus:ring-1 focus:ring-storm-purple"
 							/>
 						</div>
 
@@ -463,7 +463,7 @@ ESTIMATED COSTS:
 			</div>
 
 			{/* Tips Card */}
-			<Card className="p-6 bg-gradient-to-r from-[#6D5CFF]/5 to-[#A78BFA]/5 border-[#6D5CFF]/20">
+			<Card className="p-6 bg-gradient-to-r from-storm-purple/5 to-storm-glow/5 border-storm-purple/20">
 				<h3 className="text-lg font-semibold text-white mb-3">💡 Supplement Tips</h3>
 				<ul className="grid md:grid-cols-2 gap-3 text-sm text-slate-400">
 					<li className="flex items-start gap-2">

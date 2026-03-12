@@ -55,7 +55,7 @@ export function Logo({ className = "", showText = true }: LogoProps) {
 			</svg>
 			{showText && (
 				<span className="text-xl font-bold text-white">
-					Storm<span className="text-[#A78BFA]">Close</span>
+					Storm<span className="text-storm-glow">Close</span>
 				</span>
 			)}
 		</div>

@@ -19,7 +19,7 @@ export function PageHeader({
 		<div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div>
 				{kicker && (
-					<p className="mb-1 text-sm font-semibold uppercase tracking-wider text-[#A78BFA]">
+					<p className="mb-1 text-sm font-semibold uppercase tracking-wider text-storm-glow">
 						{kicker}
 					</p>
 				)}

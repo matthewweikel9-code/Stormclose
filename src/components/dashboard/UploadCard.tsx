@@ -90,8 +90,8 @@ export function UploadCard({
 			whileHover={{ scale: isLoading ? 1 : 1.01 }}
 			className={`relative rounded-xl border-2 border-dashed p-8 transition-all ${
 				isDragging
-					? "border-[#6D5CFF] bg-[#6D5CFF]/10"
-					: "border-[#1F2937] bg-[#111827] hover:border-[#6D5CFF]/50"
+					? "border-storm-purple bg-storm-purple/10"
+					: "border-storm-border bg-storm-z1 hover:border-storm-purple/50"
 			}`}
 			onDragEnter={handleDragIn}
 			onDragLeave={handleDragOut}
@@ -110,12 +110,12 @@ export function UploadCard({
 				{/* Icon */}
 				<div
 					className={`mb-4 rounded-xl p-4 ${
-						isDragging ? "bg-[#6D5CFF]/20" : "bg-[#1E293B]"
+						isDragging ? "bg-storm-purple/20" : "bg-storm-z2"
 					}`}
 				>
 					<svg
 						className={`h-8 w-8 ${
-							isDragging ? "text-[#6D5CFF]" : "text-[#A78BFA]"
+							isDragging ? "text-storm-purple" : "text-storm-glow"
 						}`}
 						fill="none"
 						viewBox="0 0 24 24"
@@ -158,7 +158,7 @@ export function UploadCard({
 
 				{/* Loading indicator */}
 				{isLoading && (
-					<div className="mt-4 flex items-center gap-2 text-[#A78BFA]">
+					<div className="mt-4 flex items-center gap-2 text-storm-glow">
 						<svg
 							className="h-5 w-5 animate-spin"
 							fill="none"

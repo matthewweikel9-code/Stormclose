@@ -54,7 +54,7 @@ export default function TeamPage() {
       </div>
 
       {/* Tab Bar */}
-      <div className="mb-6 flex items-center gap-1 overflow-x-auto rounded-xl bg-[#111827] p-1.5 border border-[#1F2937] scrollbar-hide">
+      <div className="mb-6 flex items-center gap-1 overflow-x-auto storm-card rounded-xl p-1.5 scrollbar-hide">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -65,7 +65,7 @@ export default function TeamPage() {
               className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
                 isActive
                   ? 'bg-emerald-500/15 text-white shadow-sm'
-                  : 'text-slate-400 hover:bg-[#1E293B] hover:text-slate-300'
+                  : 'text-slate-400 hover:bg-storm-z2 hover:text-slate-300'
               }`}
             >
               <Icon className={`h-4 w-4 ${isActive ? 'text-emerald-400' : ''}`} />
@@ -144,7 +144,7 @@ function PerformancePanel() {
             className={`rounded-lg px-4 py-2 text-sm font-medium capitalize transition-all ${
               period === p
                 ? 'bg-emerald-500/15 text-emerald-400'
-                : 'bg-[#111827] text-slate-400 hover:bg-[#1E293B] hover:text-white border border-[#1F2937]'
+                : 'bg-storm-z1 text-slate-400 hover:bg-storm-z2 hover:text-white border border-storm-border'
             }`}
           >
             {p === 'today' ? 'Today' : p === 'week' ? 'This Week' : 'This Month'}
@@ -169,8 +169,8 @@ function PerformancePanel() {
       )}
 
       {/* Leaderboard */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] overflow-hidden">
-        <div className="p-4 border-b border-[#1F2937]">
+      <div className="storm-card overflow-hidden">
+        <div className="p-4 border-b border-storm-border">
           <h3 className="text-lg font-semibold text-white">Team Leaderboard</h3>
         </div>
         {members.length === 0 ? (
@@ -182,7 +182,7 @@ function PerformancePanel() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#1F2937] text-left text-xs text-slate-500 uppercase tracking-wider">
+                <tr className="border-b border-storm-border text-left text-xs text-slate-500 uppercase tracking-wider">
                   <th className="px-4 py-3">#</th>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Doors</th>
@@ -196,7 +196,7 @@ function PerformancePanel() {
                 {members
                   .sort((a, b) => b.stats.revenue - a.stats.revenue)
                   .map((member, idx) => (
-                    <tr key={member.id} className="border-b border-[#1F2937]/50 hover:bg-[#1E293B]/50 transition-colors">
+                    <tr key={member.id} className="border-b border-storm-border/50 hover:bg-storm-z2/50 transition-colors">
                       <td className="px-4 py-3">
                         {idx === 0 ? <span className="text-amber-400">🥇</span> :
                          idx === 1 ? <span className="text-slate-400">🥈</span> :
@@ -331,14 +331,14 @@ function FieldMapPanel() {
               <Navigation className={`h-4 w-4 ${isTracking ? 'animate-pulse' : ''}`} />
               {isTracking ? 'Stop Tracking' : 'Start Tracking'}
             </button>
-            <button onClick={fetchLocations} className="rounded-lg p-2.5 text-slate-400 hover:bg-[#1E293B] hover:text-white transition-colors">
+            <button onClick={fetchLocations} className="rounded-lg p-2.5 text-slate-400 hover:bg-storm-z2 hover:text-white transition-colors">
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>
           <span className="text-xs text-slate-500">Updated {lastUpdate.toLocaleTimeString()}</span>
         </div>
 
-        <div className="h-[500px] rounded-xl border border-[#1F2937] bg-[#111827] flex items-center justify-center">
+        <div className="h-[500px] storm-card flex items-center justify-center">
           <div className="text-center">
             <Map className="h-16 w-16 text-slate-600 mx-auto mb-3" />
             <p className="text-sm text-slate-400">{activeMembers.length} team member{activeMembers.length !== 1 ? 's' : ''} active</p>
@@ -348,7 +348,7 @@ function FieldMapPanel() {
       </div>
 
       {/* Team List */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4">
+      <div className="storm-card p-4">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <Users className="h-5 w-5 text-emerald-400" />
           Team ({activeMembers.length} active)
@@ -361,7 +361,7 @@ function FieldMapPanel() {
         ) : (
           <div className="space-y-2 max-h-[450px] overflow-y-auto">
             {teamMembers.map((member) => (
-              <div key={member.id} className="rounded-lg border border-[#1F2937] bg-[#0B0F1A] p-3">
+              <div key={member.id} className="rounded-lg border border-storm-border bg-storm-z0 p-3">
                 <div className="flex items-center gap-3">
                   <div className={`h-2 w-2 rounded-full ${member.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`} />
                   <div className="flex-1 min-w-0">
@@ -374,11 +374,11 @@ function FieldMapPanel() {
                   </div>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  <div className="rounded bg-[#111827] px-2 py-1 text-center">
+                  <div className="rounded bg-storm-z1 px-2 py-1 text-center">
                     <p className="text-sm font-bold text-white">{member.doors_knocked}</p>
                     <p className="text-[10px] text-slate-500">Doors</p>
                   </div>
-                  <div className="rounded bg-[#111827] px-2 py-1 text-center">
+                  <div className="rounded bg-storm-z1 px-2 py-1 text-center">
                     <p className="text-sm font-bold text-emerald-400">{member.appointments_set}</p>
                     <p className="text-[10px] text-slate-500">Appts</p>
                   </div>
@@ -460,7 +460,7 @@ function JobNimbusPanel() {
   return (
     <div className="space-y-6">
       {!connected ? (
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-8 max-w-lg mx-auto text-center">
+        <div className="storm-card p-8 max-w-lg mx-auto text-center">
           <Link2 className="h-12 w-12 text-slate-600 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-white mb-2">Connect JobNimbus</h3>
           <p className="text-sm text-slate-400 mb-6">Enter your JobNimbus API key to sync contacts, jobs, and activities.</p>
@@ -470,7 +470,7 @@ function JobNimbusPanel() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="Enter JobNimbus API Key"
-              className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF]"
+              className="w-full rounded-lg border border-storm-border bg-storm-z0 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-storm-purple"
             />
             {error && (
               <p className="text-sm text-red-400 flex items-center justify-center gap-1">
@@ -478,7 +478,7 @@ function JobNimbusPanel() {
               </p>
             )}
             <button onClick={connectJobNimbus} disabled={loading || !apiKey.trim()}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#6D5CFF] px-4 py-3 text-sm font-semibold text-white hover:bg-[#5B4AE8] disabled:opacity-50 transition-all">
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-storm-purple px-4 py-3 text-sm font-semibold text-white hover:bg-storm-purple-hover disabled:opacity-50 transition-all">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
               Connect
             </button>
@@ -493,7 +493,7 @@ function JobNimbusPanel() {
               <span className="text-sm text-emerald-400 font-medium">Connected to JobNimbus</span>
             </div>
             <button onClick={syncData} disabled={loading}
-              className="flex items-center gap-2 rounded-lg border border-[#1F2937] px-4 py-2 text-sm text-slate-400 hover:bg-[#1E293B] hover:text-white transition-colors">
+              className="flex items-center gap-2 rounded-lg border border-storm-border px-4 py-2 text-sm text-slate-400 hover:bg-storm-z2 hover:text-white transition-colors">
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Sync Now
             </button>
@@ -502,19 +502,19 @@ function JobNimbusPanel() {
           {/* Sync Stats */}
           {syncStatus && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
+              <div className="storm-card p-4 text-center">
                 <p className="text-2xl font-bold text-white">{syncStatus.contacts || 0}</p>
                 <p className="text-xs text-slate-400">Contacts</p>
               </div>
-              <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
+              <div className="storm-card p-4 text-center">
                 <p className="text-2xl font-bold text-white">{syncStatus.jobs || 0}</p>
                 <p className="text-xs text-slate-400">Jobs</p>
               </div>
-              <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
+              <div className="storm-card p-4 text-center">
                 <p className="text-2xl font-bold text-white">{syncStatus.estimates || 0}</p>
                 <p className="text-xs text-slate-400">Estimates</p>
               </div>
-              <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4 text-center">
+              <div className="storm-card p-4 text-center">
                 <p className="text-2xl font-bold text-emerald-400">${(syncStatus.totalValue || 0).toLocaleString()}</p>
                 <p className="text-xs text-slate-400">Pipeline</p>
               </div>
@@ -522,8 +522,8 @@ function JobNimbusPanel() {
           )}
 
           {/* Contacts */}
-          <div className="rounded-xl border border-[#1F2937] bg-[#111827] overflow-hidden">
-            <div className="p-4 border-b border-[#1F2937]">
+          <div className="storm-card overflow-hidden">
+            <div className="p-4 border-b border-storm-border">
               <h3 className="text-lg font-semibold text-white">Recent Contacts</h3>
             </div>
             {contacts.length === 0 ? (
@@ -532,9 +532,9 @@ function JobNimbusPanel() {
                 <p className="text-sm text-slate-400">No contacts synced yet</p>
               </div>
             ) : (
-              <div className="divide-y divide-[#1F2937]/50">
+              <div className="divide-y divide-storm-border/50">
                 {contacts.slice(0, 15).map((contact: any, idx: number) => (
-                  <div key={contact.id || idx} className="flex items-center gap-4 p-4 hover:bg-[#1E293B]/50 transition-colors">
+                  <div key={contact.id || idx} className="flex items-center gap-4 p-4 hover:bg-storm-z2/50 transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white">{contact.name || contact.display_name}</p>
                       <p className="text-xs text-slate-500">{contact.address || contact.email}</p>
@@ -635,28 +635,28 @@ function TerritoriesPanel() {
 
       {/* Create Form */}
       {showCreate && (
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+        <div className="storm-card p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Create Territory</h3>
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label className="block text-sm text-slate-400 mb-1">Name</label>
               <input type="text" value={newTerritory.name} onChange={(e) => setNewTerritory({ ...newTerritory, name: e.target.value })}
-                placeholder="e.g., North Dallas" className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500" />
+                placeholder="e.g., North Dallas" className="w-full rounded-lg border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500" />
             </div>
             <div>
               <label className="block text-sm text-slate-400 mb-1">City</label>
               <input type="text" value={newTerritory.city} onChange={(e) => setNewTerritory({ ...newTerritory, city: e.target.value })}
-                placeholder="Dallas" className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500" />
+                placeholder="Dallas" className="w-full rounded-lg border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500" />
             </div>
             <div>
               <label className="block text-sm text-slate-400 mb-1">State</label>
               <input type="text" value={newTerritory.state} onChange={(e) => setNewTerritory({ ...newTerritory, state: e.target.value })}
-                placeholder="TX" className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500" />
+                placeholder="TX" className="w-full rounded-lg border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500" />
             </div>
             <div>
               <label className="block text-sm text-slate-400 mb-1">ZIP Codes</label>
               <input type="text" value={newTerritory.zip_codes} onChange={(e) => setNewTerritory({ ...newTerritory, zip_codes: e.target.value })}
-                placeholder="75201, 75202, 75203" className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500" />
+                placeholder="75201, 75202, 75203" className="w-full rounded-lg border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500" />
             </div>
           </div>
           <div className="flex gap-3">
@@ -665,7 +665,7 @@ function TerritoriesPanel() {
               Create Territory
             </button>
             <button onClick={() => setShowCreate(false)}
-              className="rounded-lg border border-[#1F2937] px-4 py-2 text-sm text-slate-400 hover:bg-[#1E293B] transition-colors">
+              className="rounded-lg border border-storm-border px-4 py-2 text-sm text-slate-400 hover:bg-storm-z2 transition-colors">
               Cancel
             </button>
           </div>
@@ -674,7 +674,7 @@ function TerritoriesPanel() {
 
       {/* Territories Grid */}
       {territories.length === 0 ? (
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-16 text-center">
+        <div className="storm-card p-16 text-center">
           <MapPin className="h-12 w-12 text-slate-600 mx-auto mb-3" />
           <p className="text-sm text-slate-400">No territories created yet</p>
           <p className="text-xs text-slate-500 mt-1">Create territories to assign areas to team members</p>
@@ -682,7 +682,7 @@ function TerritoriesPanel() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {territories.map((territory) => (
-            <div key={territory.id} className="rounded-xl border border-[#1F2937] bg-[#111827] p-5 hover:border-[#374151] transition-colors">
+            <div key={territory.id} className="storm-card p-5 hover:border-storm-border-light transition-colors">
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h4 className="text-sm font-semibold text-white">{territory.name}</h4>
@@ -695,11 +695,11 @@ function TerritoriesPanel() {
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="rounded-lg bg-[#0B0F1A] p-2 text-center">
+                <div className="rounded-lg bg-storm-z0 p-2 text-center">
                   <p className="text-lg font-bold text-white">{territory.total_properties}</p>
                   <p className="text-[10px] text-slate-500">Properties</p>
                 </div>
-                <div className="rounded-lg bg-[#0B0F1A] p-2 text-center">
+                <div className="rounded-lg bg-storm-z0 p-2 text-center">
                   <p className="text-lg font-bold text-emerald-400">{territory.active_leads}</p>
                   <p className="text-[10px] text-slate-500">Active Leads</p>
                 </div>
@@ -712,7 +712,7 @@ function TerritoriesPanel() {
               {territory.zip_codes?.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {territory.zip_codes.slice(0, 5).map((zip) => (
-                    <span key={zip} className="rounded bg-[#0B0F1A] px-1.5 py-0.5 text-[10px] text-slate-500">{zip}</span>
+                    <span key={zip} className="rounded bg-storm-z0 px-1.5 py-0.5 text-[10px] text-slate-500">{zip}</span>
                   ))}
                   {territory.zip_codes.length > 5 && (
                     <span className="text-[10px] text-slate-600">+{territory.zip_codes.length - 5} more</span>

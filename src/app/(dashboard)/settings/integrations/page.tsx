@@ -125,7 +125,7 @@ export default function IntegrationsPage() {
       )}
 
       {/* JobNimbus Integration */}
-      <div className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
+      <div className="bg-storm-z2 rounded-xl border border-[#334155] overflow-hidden">
         <div className="p-6 border-b border-[#334155]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -242,7 +242,7 @@ export default function IntegrationsPage() {
       </div>
 
       {/* Xactimate Integration (Coming Soon) */}
-      <div className="mt-6 bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden opacity-60">
+      <div className="mt-6 bg-storm-z2 rounded-xl border border-[#334155] overflow-hidden opacity-60">
         <div className="p-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">

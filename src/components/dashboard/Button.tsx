@@ -31,15 +31,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 		ref
 	) => {
 		const baseStyles =
-			"inline-flex items-center justify-center font-semibold transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0B0F1A] disabled:opacity-50 disabled:cursor-not-allowed";
+			"inline-flex items-center justify-center font-semibold transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-storm-bg disabled:opacity-50 disabled:cursor-not-allowed";
 
 		const variants = {
 			primary:
-				"bg-[#6D5CFF] text-white hover:bg-[#5B4AE8] focus:ring-[#6D5CFF] shadow-lg shadow-[#6D5CFF]/20 hover:shadow-xl hover:shadow-[#6D5CFF]/30",
+				"bg-storm-purple text-white hover:bg-storm-purple-hover focus:ring-storm-purple shadow-lg shadow-storm-purple/20 hover:shadow-xl hover:shadow-storm-purple/30",
 			secondary:
-				"bg-[#1E293B] text-slate-200 border border-slate-700 hover:bg-[#334155] hover:border-slate-600 focus:ring-slate-500",
+				"bg-storm-z2 text-slate-200 border border-slate-700 hover:bg-[#334155] hover:border-slate-600 focus:ring-slate-500",
 			ghost:
-				"bg-transparent text-slate-300 hover:bg-[#1E293B] hover:text-white focus:ring-slate-500",
+				"bg-transparent text-slate-300 hover:bg-storm-z2 hover:text-white focus:ring-slate-500",
 			danger:
 				"bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
 		};
@@ -56,7 +56,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 				whileHover={{ scale: disabled ? 1 : 1.02 }}
 				whileTap={{ scale: disabled ? 1 : 0.98 }}
 				className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${
-					glow ? "shadow-lg shadow-[#6D5CFF]/30" : ""
+					glow ? "shadow-lg shadow-storm-purple/30" : ""
 				} ${className}`}
 				disabled={disabled || isLoading}
 				type={type}
@@ -102,7 +102,7 @@ export function GlowButton({
 }: ButtonProps) {
 	return (
 		<div className="relative group">
-			<div className="absolute -inset-0.5 rounded-lg bg-gradient-to-r from-[#6D5CFF] to-[#A78BFA] opacity-50 blur group-hover:opacity-75 transition duration-300" />
+			<div className="absolute -inset-0.5 rounded-lg bg-gradient-to-r from-storm-purple to-storm-glow opacity-50 blur group-hover:opacity-75 transition duration-300" />
 			<Button
 				className={`relative ${className}`}
 				variant="primary"

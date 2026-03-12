@@ -124,11 +124,11 @@ const itemVariants = {
 
 export function Features() {
 	return (
-		<section id="features" className="relative bg-[#0B0F1A] py-24">
+		<section id="features" className="relative bg-storm-z0 py-24">
 			{/* Background elements */}
 			<div className="absolute inset-0 overflow-hidden">
-				<div className="absolute right-0 top-1/4 h-64 w-64 rounded-full bg-[#6D5CFF]/10 blur-[100px]" />
-				<div className="absolute bottom-0 left-1/4 h-64 w-64 rounded-full bg-[#A78BFA]/10 blur-[100px]" />
+				<div className="absolute right-0 top-1/4 h-64 w-64 rounded-full bg-storm-purple/10 blur-[100px]" />
+				<div className="absolute bottom-0 left-1/4 h-64 w-64 rounded-full bg-storm-glow/10 blur-[100px]" />
 			</div>
 
 			<div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -140,7 +140,7 @@ export function Features() {
 					transition={{ duration: 0.6 }}
 					className="text-center"
 				>
-					<span className="text-sm font-semibold uppercase tracking-wider text-[#A78BFA]">
+					<span className="text-sm font-semibold uppercase tracking-wider text-storm-glow">
 						Features
 					</span>
 					<h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
@@ -165,10 +165,10 @@ export function Features() {
 							key={index}
 							variants={itemVariants}
 							whileHover={{ y: -8, transition: { duration: 0.3 } }}
-							className="group relative rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-800/50 to-slate-900/50 p-8 transition-all hover:border-[#6D5CFF]/50 hover:shadow-xl hover:shadow-[#6D5CFF]/10"
+							className="group relative rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-800/50 to-slate-900/50 p-8 transition-all hover:border-storm-purple/50 hover:shadow-xl hover:shadow-storm-purple/10"
 						>
 							{/* Icon */}
-							<div className="mb-4 inline-flex items-center justify-center rounded-xl bg-[#6D5CFF]/10 p-3 text-[#A78BFA] transition-colors group-hover:bg-[#6D5CFF]/20">
+							<div className="mb-4 inline-flex items-center justify-center rounded-xl bg-storm-purple/10 p-3 text-storm-glow transition-colors group-hover:bg-storm-purple/20">
 								{feature.icon}
 							</div>
 
@@ -181,7 +181,7 @@ export function Features() {
 							</p>
 
 							{/* Hover gradient */}
-							<div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-[#6D5CFF]/0 via-[#6D5CFF]/5 to-[#A78BFA]/0 opacity-0 transition-opacity group-hover:opacity-100" />
+							<div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-storm-purple/0 via-storm-purple/5 to-storm-glow/0 opacity-0 transition-opacity group-hover:opacity-100" />
 						</motion.div>
 					))}
 				</motion.div>

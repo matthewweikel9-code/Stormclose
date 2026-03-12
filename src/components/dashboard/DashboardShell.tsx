@@ -22,26 +22,27 @@ export function DashboardShell({
 	tier = "free",
 	trialEnd,
 }: DashboardShellProps) {
-	// Calculate days until trial end
 	const daysUntilTrialEnd = trialEnd ? getDaysRemaining(trialEnd) : null;
 
 	return (
-		<div className="min-h-screen bg-[#0B0F1A]">
-			{/* Sidebar */}
+		<div className="min-h-screen bg-storm-bg">
+			{/* Sidebar — 72px collapsed, expands on hover */}
 			<Sidebar 
 				subscriptionTier={tier}
 				daysUntilTrialEnd={daysUntilTrialEnd}
 			/>
 
-			{/* Main content */}
-			<div className="pl-64">
+			{/* Main content — offset for collapsed sidebar */}
+			<div className="pl-[4.5rem] transition-all duration-300">
 				<TopNav 
 					user={user} 
 					subscriptionStatus={subscriptionStatus}
 					tier={tier}
 					trialEnd={trialEnd}
 				/>
-				<main className="min-h-[calc(100vh-4rem)] p-6">{children}</main>
+				<main className="min-h-[calc(100vh-4rem)] p-6 animate-fade-in">
+					{children}
+				</main>
 			</div>
 		</div>
 	);

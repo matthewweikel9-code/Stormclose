@@ -104,7 +104,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 			</div>
 
 			{/* Current Plan Card */}
-			<div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+			<div className="storm-card p-6">
 				<div className="flex items-start justify-between">
 					<div>
 						<h2 className="text-lg font-semibold text-white">Current Plan</h2>
@@ -113,7 +113,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 								tier === "pro_plus" 
 									? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400"
 									: tier === "pro"
-									? "bg-[#6D5CFF]/20 text-[#A78BFA]"
+									? "bg-storm-purple/20 text-storm-glow"
 									: "bg-slate-700/50 text-slate-400"
 							}`}>
 								{TIER_DISPLAY_NAMES[tier]}
@@ -140,7 +140,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 						<button
 							onClick={handleManageSubscription}
 							disabled={isLoading === "manage"}
-							className="rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-[#1E293B] hover:text-white disabled:opacity-50"
+							className="rounded-lg border border-storm-border bg-storm-z0 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-storm-z2 hover:text-white disabled:opacity-50"
 						>
 							{isLoading === "manage" ? "Loading..." : "Manage Subscription"}
 						</button>
@@ -149,13 +149,13 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 
 				{/* Usage */}
 				<div className="mt-6 grid gap-4 sm:grid-cols-2">
-					<div className="rounded-lg bg-[#0B0F1A] p-4">
+					<div className="rounded-lg bg-storm-z0 p-4">
 						<p className="text-sm text-slate-400">Plan Status</p>
 						<p className="mt-1 text-lg font-semibold text-white">
 							{status === "active" ? "Active" : isOnTrial ? "Trial" : "Inactive"}
 						</p>
 					</div>
-					<div className="rounded-lg bg-[#0B0F1A] p-4">
+					<div className="rounded-lg bg-storm-z0 p-4">
 						<p className="text-sm text-slate-400">Billing Period</p>
 						<p className="mt-1 text-lg font-semibold text-white">
 							{tier === "free" ? "N/A" : "Monthly"}
@@ -193,7 +193,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 					<div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
 						{/* Pro Plan */}
 						{tier !== "pro" && tier !== "pro_plus" && (
-							<div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+							<div className="storm-card p-6">
 								<div className="flex items-center justify-between">
 									<div>
 										<h3 className="text-lg font-semibold text-white">Pro</h3>
@@ -206,7 +206,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 								<ul className="mt-4 space-y-2">
 									{FEATURES_BY_TIER.pro.map((feature) => (
 										<li key={feature} className="flex items-center gap-2 text-sm text-slate-300">
-											<svg className="h-4 w-4 text-[#6D5CFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<svg className="h-4 w-4 text-storm-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
 											</svg>
 											{feature}
@@ -216,7 +216,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 								<button
 									onClick={() => handleUpgrade("pro")}
 									disabled={isLoading === "pro"}
-									className="mt-6 w-full rounded-lg bg-[#6D5CFF] py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#5B4AE8] disabled:opacity-50"
+									className="mt-6 w-full rounded-lg bg-storm-purple py-2.5 text-sm font-semibold text-white transition-colors hover:bg-storm-purple-hover disabled:opacity-50"
 								>
 									{isLoading === "pro" ? "Loading..." : "Upgrade to Pro"}
 								</button>
@@ -225,7 +225,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 
 						{/* Pro+ Plan */}
 						{tier !== "pro_plus" && (
-							<div className="rounded-xl border border-[#6D5CFF]/30 bg-gradient-to-b from-[#6D5CFF]/5 to-transparent p-6">
+							<div className="rounded-xl border border-storm-purple/30 bg-gradient-to-b from-storm-purple/5 to-transparent p-6">
 								<div className="flex items-center justify-between">
 									<div>
 										<h3 className="text-lg font-semibold text-white">Pro+</h3>
@@ -234,14 +234,14 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 											/month
 										</p>
 									</div>
-									<span className="rounded-full bg-[#6D5CFF]/20 px-3 py-1 text-xs font-semibold text-[#A78BFA]">
+									<span className="rounded-full bg-storm-purple/20 px-3 py-1 text-xs font-semibold text-storm-glow">
 										Popular
 									</span>
 								</div>
 								<ul className="mt-4 space-y-2">
 									{FEATURES_BY_TIER.pro_plus.map((feature) => (
 										<li key={feature} className="flex items-center gap-2 text-sm text-slate-300">
-											<svg className="h-4 w-4 text-[#6D5CFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<svg className="h-4 w-4 text-storm-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
 											</svg>
 											{feature}
@@ -251,7 +251,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 								<button
 									onClick={() => handleUpgrade("pro_plus")}
 									disabled={isLoading === "pro_plus"}
-									className="mt-6 w-full rounded-lg bg-[#6D5CFF] py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#5B4AE8] disabled:opacity-50"
+									className="mt-6 w-full rounded-lg bg-storm-purple py-2.5 text-sm font-semibold text-white transition-colors hover:bg-storm-purple-hover disabled:opacity-50"
 								>
 									{isLoading === "pro_plus" ? "Loading..." : "Upgrade to Pro+"}
 								</button>
@@ -295,7 +295,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 			)}
 
 			{/* Account Info */}
-			<div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+			<div className="storm-card p-6">
 				<h2 className="text-lg font-semibold text-white">Account Information</h2>
 				<div className="mt-4 space-y-3">
 					<div className="flex items-center justify-between">
@@ -313,7 +313,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 			<div>
 				<Link
 					href="/dashboard"
-					className="text-sm text-[#A78BFA] hover:text-[#6D5CFF]"
+					className="text-sm text-storm-glow hover:text-storm-purple"
 				>
 					← Back to Dashboard
 				</Link>

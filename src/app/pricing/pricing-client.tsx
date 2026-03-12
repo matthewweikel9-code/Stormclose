@@ -108,7 +108,7 @@ export function PricingClient() {
 	}
 
 	return (
-		<main className="min-h-screen bg-[#0B0F1A] px-4 py-16">
+		<main className="min-h-screen bg-storm-bg px-4 py-16">
 			<div className="mx-auto max-w-5xl">
 				<div className="text-center mb-12">
 					<h1 className="text-3xl font-bold text-white sm:text-4xl">Choose Your Plan</h1>
@@ -129,14 +129,14 @@ export function PricingClient() {
 							key={tierOption.name}
 							className={`relative rounded-2xl border p-6 ${
 								tierOption.highlighted
-									? "border-[#6D5CFF]/50 bg-gradient-to-b from-[#6D5CFF]/10 to-transparent"
+									? "border-storm-purple/50 bg-gradient-to-b from-storm-purple/10 to-transparent"
 									: "border-slate-700/50 bg-slate-800/30"
 							}`}
 						>
 							{tierOption.badge && (
 								<div className={`absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-xs font-semibold ${
 									tierOption.highlighted
-										? "bg-[#6D5CFF] text-white"
+										? "bg-storm-purple text-white"
 										: "bg-amber-500/20 text-amber-400"
 								}`}>
 									{tierOption.badge}
@@ -156,7 +156,7 @@ export function PricingClient() {
 									disabled={isLoading !== null}
 									className={`mt-6 w-full rounded-lg py-3 text-sm font-semibold transition-all disabled:opacity-50 ${
 										tierOption.highlighted
-											? "bg-[#6D5CFF] text-white hover:bg-[#5B4AE8]"
+											? "bg-storm-purple text-white hover:bg-storm-purple-hover"
 											: "bg-slate-700 text-white hover:bg-slate-600"
 									}`}
 								>
@@ -171,7 +171,7 @@ export function PricingClient() {
 									{tierOption.features.map((feature, index) => (
 										<li key={index} className="flex items-center gap-2 text-sm text-slate-300">
 											<svg
-												className={`h-4 w-4 ${tierOption.highlighted ? "text-[#6D5CFF]" : "text-slate-500"}`}
+												className={`h-4 w-4 ${tierOption.highlighted ? "text-storm-purple" : "text-slate-500"}`}
 												fill="none"
 												viewBox="0 0 24 24"
 												stroke="currentColor"
@@ -188,7 +188,7 @@ export function PricingClient() {
 				</div>
 
 				<div className="mt-12 text-center">
-					<Link href="/" className="text-sm text-[#A78BFA] hover:text-[#6D5CFF]">
+					<Link href="/" className="text-sm text-storm-glow hover:text-storm-purple">
 						← Back to Home
 					</Link>
 				</div>

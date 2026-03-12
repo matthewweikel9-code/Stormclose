@@ -43,7 +43,7 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#6D5CFF] to-[#A78BFA] shadow-lg shadow-[#6D5CFF]/20">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-storm-purple to-storm-glow shadow-lg shadow-storm-purple/20">
             <FileText className="h-5 w-5 text-white" />
           </span>
           Documents
@@ -52,7 +52,7 @@ export default function DocumentsPage() {
       </div>
 
       {/* Tab Bar */}
-      <div className="mb-6 flex items-center gap-1 overflow-x-auto rounded-xl bg-[#111827] p-1.5 border border-[#1F2937] scrollbar-hide">
+      <div className="mb-6 flex items-center gap-1 overflow-x-auto storm-card rounded-xl p-1.5 scrollbar-hide">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -62,11 +62,11 @@ export default function DocumentsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-[#6D5CFF]/15 text-white shadow-sm'
-                  : 'text-slate-400 hover:bg-[#1E293B] hover:text-slate-300'
+                  ? 'bg-storm-purple/15 text-white shadow-sm'
+                  : 'text-slate-400 hover:bg-storm-z2 hover:text-slate-300'
               }`}
             >
-              <Icon className={`h-4 w-4 ${isActive ? 'text-[#A78BFA]' : ''}`} />
+              <Icon className={`h-4 w-4 ${isActive ? 'text-storm-glow' : ''}`} />
               {tab.label}
             </button>
           );
@@ -169,34 +169,34 @@ function EstimateGeneratorPanel() {
       {/* Input Form */}
       <div className="space-y-4">
         {/* Customer Info */}
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+        <div className="storm-card p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Home className="h-5 w-5 text-[#A78BFA]" />
+            <Home className="h-5 w-5 text-storm-glow" />
             Customer Info
           </h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm text-slate-400 mb-1">Name</label>
               <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="John Smith" className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF]" />
+                placeholder="John Smith" className="w-full rounded-lg border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-storm-purple" />
             </div>
             <div>
               <label className="block text-sm text-slate-400 mb-1">Phone</label>
               <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)}
-                placeholder="(555) 123-4567" className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF]" />
+                placeholder="(555) 123-4567" className="w-full rounded-lg border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-storm-purple" />
             </div>
             <div className="col-span-2">
               <label className="block text-sm text-slate-400 mb-1">Address</label>
               <input type="text" value={address} onChange={(e) => setAddress(e.target.value)}
-                placeholder="123 Main St, Dallas, TX" className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF]" />
+                placeholder="123 Main St, Dallas, TX" className="w-full rounded-lg border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-storm-purple" />
             </div>
           </div>
         </div>
 
         {/* Roof Details */}
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+        <div className="storm-card p-6">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Ruler className="h-5 w-5 text-[#A78BFA]" />
+            <Ruler className="h-5 w-5 text-storm-glow" />
             Roof Details
           </h3>
           <div className="space-y-4">
@@ -204,12 +204,12 @@ function EstimateGeneratorPanel() {
               <div>
                 <label className="block text-sm text-slate-400 mb-1">Roof Squares</label>
                 <input type="number" value={roofSquares} onChange={(e) => setRoofSquares(Number(e.target.value))}
-                  className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white outline-none focus:border-[#6D5CFF]" />
+                  className="w-full rounded-lg border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white outline-none focus:border-storm-purple" />
               </div>
               <div>
                 <label className="block text-sm text-slate-400 mb-1">Pitch</label>
                 <input type="number" value={pitch} onChange={(e) => setPitch(Number(e.target.value))}
-                  className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white outline-none focus:border-[#6D5CFF]" />
+                  className="w-full rounded-lg border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white outline-none focus:border-storm-purple" />
               </div>
             </div>
             <div>
@@ -218,7 +218,7 @@ function EstimateGeneratorPanel() {
                 {(['simple', 'moderate', 'complex'] as const).map((c) => (
                   <button key={c} onClick={() => setComplexity(c)}
                     className={`rounded-lg border px-3 py-2 text-xs font-medium capitalize transition-all ${
-                      complexity === c ? 'border-[#6D5CFF] bg-[#6D5CFF]/10 text-white' : 'border-[#1F2937] bg-[#0B0F1A] text-slate-400 hover:border-[#374151]'
+                      complexity === c ? 'border-storm-purple bg-storm-purple/10 text-white' : 'border-storm-border bg-storm-z0 text-slate-400 hover:border-storm-border-light'
                     }`}>{c}</button>
                 ))}
               </div>
@@ -226,7 +226,7 @@ function EstimateGeneratorPanel() {
             <div>
               <label className="block text-sm text-slate-400 mb-1">Shingle Type</label>
               <select value={shingleType} onChange={(e) => setShingleType(e.target.value)}
-                className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-3 py-2 text-sm text-white outline-none focus:border-[#6D5CFF]">
+                className="w-full rounded-lg border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white outline-none focus:border-storm-purple">
                 {Object.entries(materialCosts).map(([key, { name }]) => (
                   <option key={key} value={key}>{name}</option>
                 ))}
@@ -234,12 +234,12 @@ function EstimateGeneratorPanel() {
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={includeTearOff} onChange={(e) => setIncludeTearOff(e.target.checked)}
-                className="rounded border-[#1F2937] bg-[#0B0F1A] text-[#6D5CFF] focus:ring-[#6D5CFF]" />
+                className="rounded border-storm-border bg-storm-z0 text-storm-purple focus:ring-storm-purple" />
               <span className="text-sm text-slate-400">Include tear-off & disposal</span>
             </label>
           </div>
           <button onClick={generateEstimate} disabled={loading}
-            className="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-[#6D5CFF] px-4 py-3 text-sm font-semibold text-white hover:bg-[#5B4AE8] disabled:opacity-50 transition-all">
+            className="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-storm-purple px-4 py-3 text-sm font-semibold text-white hover:bg-storm-purple-hover disabled:opacity-50 transition-all">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
             Generate Estimate
           </button>
@@ -247,12 +247,12 @@ function EstimateGeneratorPanel() {
       </div>
 
       {/* Estimate Preview */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+      <div className="storm-card p-6">
         <h3 className="text-lg font-semibold text-white mb-4">Estimate Preview</h3>
         {estimate ? (
           <div className="space-y-4">
             {/* Total */}
-            <div className="rounded-xl bg-gradient-to-r from-[#6D5CFF]/10 to-[#A78BFA]/10 border border-[#6D5CFF]/20 p-6 text-center">
+            <div className="rounded-xl bg-gradient-to-r from-storm-purple/10 to-storm-glow/10 border border-storm-purple/20 p-6 text-center">
               <p className="text-3xl font-bold text-white">${estimate.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
               <p className="text-sm text-slate-400 mt-1">Total Estimate</p>
             </div>
@@ -267,7 +267,7 @@ function EstimateGeneratorPanel() {
                 { label: `Overhead (${pricing.overheadPercent}%)`, value: estimate.overhead },
                 { label: `Profit (${pricing.profitPercent}%)`, value: estimate.profit },
               ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between py-2 border-b border-[#1F2937]/50 last:border-0">
+                <div key={item.label} className="flex items-center justify-between py-2 border-b border-storm-border/50 last:border-0">
                   <span className="text-sm text-slate-400">{item.label}</span>
                   <span className="text-sm text-white font-medium">${item.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
@@ -275,7 +275,7 @@ function EstimateGeneratorPanel() {
             </div>
 
             {/* Meta */}
-            <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 space-y-1">
+            <div className="rounded-xl bg-storm-z0 border border-storm-border p-3 space-y-1">
               <div className="flex justify-between text-xs"><span className="text-slate-500">Squares (with waste)</span><span className="text-white">{estimate.squaresWithWaste}</span></div>
               <div className="flex justify-between text-xs"><span className="text-slate-500">Waste Factor</span><span className="text-white">{(estimate.wasteFactor * 100).toFixed(0)}%</span></div>
               <div className="flex justify-between text-xs"><span className="text-slate-500">Pitch</span><span className="text-white">{estimate.pitch}/12</span></div>
@@ -283,10 +283,10 @@ function EstimateGeneratorPanel() {
 
             {/* Actions */}
             <div className="flex gap-3">
-              <button className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-[#1F2937] px-4 py-2.5 text-sm text-slate-400 hover:bg-[#1E293B] hover:text-white transition-colors">
+              <button className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-storm-border px-4 py-2.5 text-sm text-slate-400 hover:bg-storm-z2 hover:text-white transition-colors">
                 <Download className="h-4 w-4" /> Download PDF
               </button>
-              <button className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-[#1F2937] px-4 py-2.5 text-sm text-slate-400 hover:bg-[#1E293B] hover:text-white transition-colors">
+              <button className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-storm-border px-4 py-2.5 text-sm text-slate-400 hover:bg-storm-z2 hover:text-white transition-colors">
                 <Printer className="h-4 w-4" /> Print
               </button>
             </div>
@@ -412,9 +412,9 @@ function RoofMeasurePanel() {
   return (
     <div className="space-y-6">
       {/* Search */}
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+      <div className="storm-card p-6">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <Ruler className="h-5 w-5 text-[#A78BFA]" />
+          <Ruler className="h-5 w-5 text-storm-glow" />
           Instant Roof Measurement
         </h3>
         <p className="text-sm text-slate-400 mb-4">Powered by Google Solar API — get accurate roof dimensions from satellite imagery</p>
@@ -427,15 +427,15 @@ function RoofMeasurePanel() {
               onChange={(e) => handleAddressChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && measureRoof()}
               placeholder="Enter property address..."
-              className="w-full rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF]"
+              className="w-full rounded-lg border border-storm-border bg-storm-z0 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-storm-purple"
             />
             {showPredictions && predictions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-[#1F2937] bg-[#111827] shadow-xl overflow-hidden">
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl bg-storm-z1 border border-storm-border shadow-xl overflow-hidden">
                 {predictions.map((p) => (
                   <button
                     key={p.placeId}
                     onClick={() => selectPrediction(p)}
-                    className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-[#1E293B] transition-colors border-b border-[#1F2937]/50 last:border-0"
+                    className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-storm-z2 transition-colors border-b border-storm-border/50 last:border-0"
                   >
                     <MapPin className="inline h-3 w-3 mr-2 text-slate-500" />
                     <span className="text-white">{p.mainText}</span>
@@ -446,7 +446,7 @@ function RoofMeasurePanel() {
             )}
           </div>
           <button onClick={measureRoof} disabled={loading || !address.trim()}
-            className="flex items-center gap-2 rounded-lg bg-[#6D5CFF] px-6 py-3 text-sm font-semibold text-white hover:bg-[#5B4AE8] disabled:opacity-50 transition-all">
+            className="flex items-center gap-2 rounded-lg bg-storm-purple px-6 py-3 text-sm font-semibold text-white hover:bg-storm-purple-hover disabled:opacity-50 transition-all">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ruler className="h-4 w-4" />}
             Measure
           </button>
@@ -462,22 +462,22 @@ function RoofMeasurePanel() {
       {result && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Measurements */}
-          <div className="lg:col-span-2 rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+          <div className="lg:col-span-2 storm-card p-6">
             <h3 className="text-lg font-semibold text-white mb-4">Measurement Results</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+              <div className="rounded-xl bg-storm-z0 border border-storm-border p-3 text-center">
                 <p className="text-2xl font-bold text-white">{result.measurements.totalSquares}</p>
                 <p className="text-xs text-slate-400">Squares</p>
               </div>
-              <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+              <div className="rounded-xl bg-storm-z0 border border-storm-border p-3 text-center">
                 <p className="text-2xl font-bold text-white">{result.measurements.totalAreaSqFt.toLocaleString()}</p>
                 <p className="text-xs text-slate-400">Total Sq Ft</p>
               </div>
-              <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+              <div className="rounded-xl bg-storm-z0 border border-storm-border p-3 text-center">
                 <p className="text-2xl font-bold text-white">{result.measurements.facetCount}</p>
                 <p className="text-xs text-slate-400">Facets</p>
               </div>
-              <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+              <div className="rounded-xl bg-storm-z0 border border-storm-border p-3 text-center">
                 <p className="text-2xl font-bold text-white">{result.measurements.avgPitchRatio}</p>
                 <p className="text-xs text-slate-400">Avg Pitch</p>
               </div>
@@ -490,7 +490,7 @@ function RoofMeasurePanel() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-[#1F2937] text-left text-xs text-slate-500 uppercase">
+                      <tr className="border-b border-storm-border text-left text-xs text-slate-500 uppercase">
                         <th className="px-3 py-2">#</th>
                         <th className="px-3 py-2">Area</th>
                         <th className="px-3 py-2">Pitch</th>
@@ -499,7 +499,7 @@ function RoofMeasurePanel() {
                     </thead>
                     <tbody>
                       {result.segments.map((seg) => (
-                        <tr key={seg.id} className="border-b border-[#1F2937]/50">
+                        <tr key={seg.id} className="border-b border-storm-border/50">
                           <td className="px-3 py-2 text-sm text-slate-500">{seg.id}</td>
                           <td className="px-3 py-2 text-sm text-white">{seg.areaSqFt.toLocaleString()} sqft</td>
                           <td className="px-3 py-2 text-sm text-white">{seg.pitchRatio}</td>
@@ -515,7 +515,7 @@ function RoofMeasurePanel() {
 
           {/* Materials & Cost */}
           <div className="space-y-4">
-            <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+            <div className="storm-card p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Material Estimates</h3>
               <div className="space-y-3">
                 {[
@@ -524,7 +524,7 @@ function RoofMeasurePanel() {
                   { label: 'Ridge Cap Bundles', value: result.estimates.ridgeCapBundles },
                   { label: 'Drip Edge (ft)', value: result.estimates.dripEdgeFeet },
                 ].map((item) => (
-                  <div key={item.label} className="flex justify-between py-2 border-b border-[#1F2937]/50 last:border-0">
+                  <div key={item.label} className="flex justify-between py-2 border-b border-storm-border/50 last:border-0">
                     <span className="text-sm text-slate-400">{item.label}</span>
                     <span className="text-sm text-white font-medium">{item.value}</span>
                   </div>
@@ -540,7 +540,7 @@ function RoofMeasurePanel() {
               <p className="text-xs text-slate-400 mt-1">Based on market rates for your area</p>
             </div>
 
-            <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 space-y-1">
+            <div className="rounded-xl bg-storm-z0 border border-storm-border p-3 space-y-1">
               <div className="flex justify-between text-xs"><span className="text-slate-500">Imagery Date</span><span className="text-white">{result.imageryDate}</span></div>
               <div className="flex justify-between text-xs"><span className="text-slate-500">Data Quality</span><span className="text-white">{result.dataQuality}</span></div>
             </div>
@@ -592,9 +592,9 @@ function ReportsPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+      <div className="storm-card p-6">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <FileText className="h-5 w-5 text-[#A78BFA]" />
+          <FileText className="h-5 w-5 text-storm-glow" />
           Generate Report
         </h3>
 
@@ -608,11 +608,11 @@ function ReportsPanel() {
                 onClick={() => setReportType(rt.id)}
                 className={`rounded-lg border p-4 text-left transition-all ${
                   reportType === rt.id
-                    ? 'border-[#6D5CFF] bg-[#6D5CFF]/10'
-                    : 'border-[#1F2937] bg-[#0B0F1A] hover:border-[#374151]'
+                    ? 'border-storm-purple bg-storm-purple/10'
+                    : 'border-storm-border bg-storm-z0 hover:border-storm-border-light'
                 }`}
               >
-                <Icon className={`h-5 w-5 mb-2 ${reportType === rt.id ? 'text-[#A78BFA]' : 'text-slate-500'}`} />
+                <Icon className={`h-5 w-5 mb-2 ${reportType === rt.id ? 'text-storm-glow' : 'text-slate-500'}`} />
                 <p className="text-sm font-medium text-white">{rt.name}</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">{rt.description}</p>
               </button>
@@ -627,10 +627,10 @@ function ReportsPanel() {
             onChange={(e) => setReportAddress(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && generateReport()}
             placeholder="Enter address or storm details..."
-            className="flex-1 rounded-lg border border-[#1F2937] bg-[#0B0F1A] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-[#6D5CFF]"
+            className="flex-1 rounded-lg border border-storm-border bg-storm-z0 px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-storm-purple"
           />
           <button onClick={generateReport} disabled={loading || !reportAddress.trim()}
-            className="flex items-center gap-2 rounded-lg bg-[#6D5CFF] px-6 py-3 text-sm font-semibold text-white hover:bg-[#5B4AE8] disabled:opacity-50 transition-all">
+            className="flex items-center gap-2 rounded-lg bg-storm-purple px-6 py-3 text-sm font-semibold text-white hover:bg-storm-purple-hover disabled:opacity-50 transition-all">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
             Generate
           </button>
@@ -644,19 +644,19 @@ function ReportsPanel() {
 
       {/* Generated Report */}
       {generatedReport && (
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+        <div className="storm-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-white">Generated Report</h3>
             <div className="flex gap-2">
-              <button className="flex items-center gap-1.5 rounded-lg border border-[#1F2937] px-3 py-1.5 text-xs text-slate-400 hover:bg-[#1E293B] hover:text-white transition-colors">
+              <button className="flex items-center gap-1.5 rounded-lg border border-storm-border px-3 py-1.5 text-xs text-slate-400 hover:bg-storm-z2 hover:text-white transition-colors">
                 <Download className="h-3 w-3" /> PDF
               </button>
-              <button className="flex items-center gap-1.5 rounded-lg border border-[#1F2937] px-3 py-1.5 text-xs text-slate-400 hover:bg-[#1E293B] hover:text-white transition-colors">
+              <button className="flex items-center gap-1.5 rounded-lg border border-storm-border px-3 py-1.5 text-xs text-slate-400 hover:bg-storm-z2 hover:text-white transition-colors">
                 <Printer className="h-3 w-3" /> Print
               </button>
             </div>
           </div>
-          <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-4 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto">
+          <div className="rounded-xl bg-storm-z0 border border-storm-border p-4 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed max-h-[500px] overflow-y-auto">
             {typeof generatedReport.report === 'string' ? generatedReport.report : JSON.stringify(generatedReport, null, 2)}
           </div>
         </div>
@@ -746,7 +746,7 @@ function XactimatePanel() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
+    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-storm-purple" /></div>;
   }
 
   return (
@@ -754,11 +754,11 @@ function XactimatePanel() {
       {/* Upload + List */}
       <div className="space-y-4">
         {/* Upload */}
-        <div className="rounded-xl border-2 border-dashed border-[#1F2937] bg-[#111827] p-6 text-center hover:border-[#6D5CFF]/50 transition-colors cursor-pointer"
+        <div className="rounded-xl border-2 border-dashed border-storm-border bg-storm-z1 p-6 text-center hover:border-storm-purple/50 transition-colors cursor-pointer"
           onClick={() => fileInputRef.current?.click()}>
           <input ref={fileInputRef} type="file" accept=".esx,.pdf,.xml" onChange={handleUpload} className="hidden" />
           {isUploading ? (
-            <Loader2 className="h-8 w-8 animate-spin text-[#A78BFA] mx-auto" />
+            <Loader2 className="h-8 w-8 animate-spin text-storm-glow mx-auto" />
           ) : (
             <>
               <Upload className="h-8 w-8 text-slate-600 mx-auto mb-2" />
@@ -769,7 +769,7 @@ function XactimatePanel() {
         </div>
 
         {/* Estimate List */}
-        <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-4">
+        <div className="storm-card p-4">
           <h3 className="text-sm font-semibold text-white mb-3">Uploaded Estimates</h3>
           {estimates.length === 0 ? (
             <p className="text-xs text-slate-500 text-center py-6">No estimates uploaded yet</p>
@@ -781,8 +781,8 @@ function XactimatePanel() {
                   onClick={() => setSelectedEstimate(est)}
                   className={`w-full text-left rounded-lg border p-3 transition-all ${
                     selectedEstimate?.id === est.id
-                      ? 'border-[#6D5CFF] bg-[#6D5CFF]/10'
-                      : 'border-[#1F2937] bg-[#0B0F1A] hover:border-[#374151]'
+                      ? 'border-storm-purple bg-storm-purple/10'
+                      : 'border-storm-border bg-storm-z0 hover:border-storm-border-light'
                   }`}
                 >
                   <p className="text-sm text-white truncate">{est.property_address || est.claim_number}</p>
@@ -802,33 +802,33 @@ function XactimatePanel() {
       </div>
 
       {/* Details */}
-      <div className="lg:col-span-2 rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+      <div className="lg:col-span-2 storm-card p-6">
         {selectedEstimate ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white">{selectedEstimate.property_address}</h3>
               {selectedEstimate.status !== 'analyzed' && (
                 <button onClick={() => analyzeEstimate(selectedEstimate.id)}
-                  className="flex items-center gap-2 rounded-lg bg-[#6D5CFF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#5B4AE8] transition-all">
+                  className="flex items-center gap-2 rounded-lg bg-storm-purple px-4 py-2 text-sm font-semibold text-white hover:bg-storm-purple-hover transition-all">
                   <Sparkles className="h-4 w-4" /> AI Analyze
                 </button>
               )}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+              <div className="rounded-xl bg-storm-z0 border border-storm-border p-3 text-center">
                 <p className="text-lg font-bold text-white">${selectedEstimate.original_rcv?.toLocaleString()}</p>
                 <p className="text-xs text-slate-400">RCV</p>
               </div>
-              <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+              <div className="rounded-xl bg-storm-z0 border border-storm-border p-3 text-center">
                 <p className="text-lg font-bold text-white">${selectedEstimate.original_acv?.toLocaleString()}</p>
                 <p className="text-xs text-slate-400">ACV</p>
               </div>
-              <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+              <div className="rounded-xl bg-storm-z0 border border-storm-border p-3 text-center">
                 <p className="text-lg font-bold text-white">{selectedEstimate.insurance_carrier || '-'}</p>
                 <p className="text-xs text-slate-400">Carrier</p>
               </div>
-              <div className="rounded-lg bg-[#0B0F1A] border border-[#1F2937] p-3 text-center">
+              <div className="rounded-xl bg-storm-z0 border border-storm-border p-3 text-center">
                 <p className="text-lg font-bold text-white">{selectedEstimate.claim_number || '-'}</p>
                 <p className="text-xs text-slate-400">Claim #</p>
               </div>
@@ -855,7 +855,7 @@ function XactimatePanel() {
                     <h4 className="text-sm font-semibold text-white mb-2">Missing Line Items</h4>
                     <div className="space-y-2">
                       {selectedEstimate.ai_analysis.missing_items.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between rounded-lg bg-[#0B0F1A] border border-[#1F2937] px-3 py-2">
+                        <div key={idx} className="flex items-center justify-between rounded-xl bg-storm-z0 border border-storm-border px-3 py-2">
                           <div>
                             <p className="text-sm text-white">{item.item}</p>
                             <p className="text-xs text-slate-500">{item.xactimate_code} · {item.category}</p>
@@ -907,18 +907,18 @@ function SupplementsPanel() {
   }, []);
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-[#6D5CFF]" /></div>;
+    return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-storm-purple" /></div>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-[#1F2937] bg-[#111827] p-6">
+      <div className="storm-card p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-            <ClipboardList className="h-5 w-5 text-[#A78BFA]" />
+            <ClipboardList className="h-5 w-5 text-storm-glow" />
             Generated Supplements
           </h3>
-          <a href="/dashboard/ai-tools" className="flex items-center gap-1 text-sm text-[#A78BFA] hover:text-[#6D5CFF] transition-colors">
+          <a href="/dashboard/ai-tools" className="flex items-center gap-1 text-sm text-storm-glow hover:text-storm-purple transition-colors">
             <Sparkles className="h-3 w-3" /> Generate New
             <ChevronRight className="h-3 w-3" />
           </a>
@@ -929,14 +929,14 @@ function SupplementsPanel() {
             <ClipboardList className="h-12 w-12 text-slate-600 mb-3" />
             <p className="text-sm text-slate-400">No supplements generated yet</p>
             <p className="text-xs text-slate-500 mt-1">Go to AI Tools → Supplement Generator to create one</p>
-            <a href="/dashboard/ai-tools" className="mt-4 flex items-center gap-2 rounded-lg bg-[#6D5CFF] px-4 py-2 text-sm font-semibold text-white hover:bg-[#5B4AE8] transition-all">
+            <a href="/dashboard/ai-tools" className="mt-4 flex items-center gap-2 rounded-lg bg-storm-purple px-4 py-2 text-sm font-semibold text-white hover:bg-storm-purple-hover transition-all">
               <Sparkles className="h-4 w-4" /> Go to Supplement Generator
             </a>
           </div>
         ) : (
           <div className="space-y-3">
             {supplements.map((supp: any, idx: number) => (
-              <div key={supp.id || idx} className="rounded-lg border border-[#1F2937] bg-[#0B0F1A] p-4">
+              <div key={supp.id || idx} className="rounded-lg border border-storm-border bg-storm-z0 p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-white">{supp.title || supp.address || `Supplement #${idx + 1}`}</p>
                   <span className="text-xs text-slate-500">{supp.created_at ? new Date(supp.created_at).toLocaleDateString() : ''}</span>
