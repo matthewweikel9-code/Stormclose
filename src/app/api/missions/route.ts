@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { handleNextRoute, withStatus } from "@/lib/api-middleware";
 
 /**
  * GET /api/missions
@@ -32,90 +33,98 @@ import { createClient } from "@/lib/supabase/server";
 
 // ─── GET: List missions ────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  return handleNextRoute(
+    request,
+    async ({ setUserId }) => {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+      setUserId(user?.id);
 
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status");
-  const days = parseInt(searchParams.get("days") || "30");
-  const limit = parseInt(searchParams.get("limit") || "20");
-
-  try {
-    // Fetch missions
-    let query = (supabase.from("canvass_missions") as any)
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("created_at", new Date(Date.now() - days * 86400000).toISOString())
-      .order("created_at", { ascending: false })
-      .limit(limit);
-
-    if (status) {
-      query = query.eq("status", status);
-    }
-
-    const { data: missions, error: missionsError } = await query;
-
-    if (missionsError) {
-      console.error("[Missions] DB error:", missionsError);
-      return NextResponse.json({ missions: [], stats: getEmptyStats() });
-    }
-
-    // Fetch mission stats
-    let stats = getEmptyStats();
-    try {
-      // @ts-expect-error - get_mission_stats not in generated types
-      const { data: statsData } = await supabase.rpc("get_mission_stats", {
-        p_user_id: user.id,
-        p_days_back: days,
-      });
-      const statsArr = statsData as any;
-      if (statsArr && Array.isArray(statsArr) && statsArr.length > 0) {
-        const s = statsArr[0];
-        stats = {
-          totalMissions: Number(s.total_missions) || 0,
-          activeMissions: Number(s.active_missions) || 0,
-          totalDoorsKnocked: Number(s.total_doors_knocked) || 0,
-          totalNotHome: Number(s.total_not_home) || 0,
-          totalAppointments: Number(s.total_appointments) || 0,
-          totalLeads: Number(s.total_leads) || 0,
-          totalEstimatedPipeline: Number(s.total_estimated_pipeline) || 0,
-          avgDoorsPerMission: Number(s.avg_doors_per_mission) || 0,
-          avgAppointmentsPerMission: Number(s.avg_appointments_per_mission) || 0,
-          appointmentRate: Number(s.appointment_rate) || 0,
-        };
+      if (!user) {
+        return withStatus(401, { error: "Unauthorized" });
       }
-    } catch {
-      // Function may not exist yet
-    }
 
-    return NextResponse.json({
-      success: true,
-      missions: (missions || []).map(formatMission),
-      stats,
-    });
-  } catch (error) {
-    console.error("[Missions] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch missions", details: String(error) },
-      { status: 500 }
-    );
-  }
+      const { searchParams } = new URL(request.url);
+      const status = searchParams.get("status");
+      const days = parseInt(searchParams.get("days") || "30");
+      const limit = parseInt(searchParams.get("limit") || "20");
+
+      try {
+        let query = (supabase.from("canvass_missions") as any)
+          .select("*")
+          .eq("user_id", user.id)
+          .gte("created_at", new Date(Date.now() - days * 86400000).toISOString())
+          .order("created_at", { ascending: false })
+          .limit(limit);
+
+        if (status) {
+          query = query.eq("status", status);
+        }
+
+        const { data: missions, error: missionsError } = await query;
+
+        if (missionsError) {
+          console.error("[Missions] DB error:", missionsError);
+          return { missions: [], stats: getEmptyStats() };
+        }
+
+        let stats = getEmptyStats();
+        try {
+          // @ts-expect-error - get_mission_stats not in generated types
+          const { data: statsData } = await supabase.rpc("get_mission_stats", {
+            p_user_id: user.id,
+            p_days_back: days,
+          });
+          const statsArr = statsData as any;
+          if (statsArr && Array.isArray(statsArr) && statsArr.length > 0) {
+            const s = statsArr[0];
+            stats = {
+              totalMissions: Number(s.total_missions) || 0,
+              activeMissions: Number(s.active_missions) || 0,
+              totalDoorsKnocked: Number(s.total_doors_knocked) || 0,
+              totalNotHome: Number(s.total_not_home) || 0,
+              totalAppointments: Number(s.total_appointments) || 0,
+              totalLeads: Number(s.total_leads) || 0,
+              totalEstimatedPipeline: Number(s.total_estimated_pipeline) || 0,
+              avgDoorsPerMission: Number(s.avg_doors_per_mission) || 0,
+              avgAppointmentsPerMission: Number(s.avg_appointments_per_mission) || 0,
+              appointmentRate: Number(s.appointment_rate) || 0,
+            };
+          }
+        } catch {
+          // Function may not exist yet
+        }
+
+        return {
+          success: true,
+          missions: (missions || []).map(formatMission),
+          stats,
+        };
+      } catch (error) {
+        console.error("[Missions] Error:", error);
+        return withStatus(500, { error: "Failed to fetch missions", details: String(error) });
+      }
+    },
+    { route: "/api/missions" }
+  );
 }
 
 // ─── POST: Create mission ──────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  return handleNextRoute(
+    request,
+    async ({ setUserId }) => {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+      setUserId(user?.id);
 
-  try {
+      if (!user) {
+        return withStatus(401, { error: "Unauthorized" });
+      }
+
+      try {
     const body = await request.json();
     const {
       name,
@@ -129,10 +138,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!name || !centerLat || !centerLng) {
-      return NextResponse.json(
-        { error: "name, centerLat, and centerLng are required" },
-        { status: 400 }
-      );
+      return withStatus(400, { error: "name, centerLat, and centerLng are required" });
     }
 
     // Calculate estimated pipeline from stops
@@ -161,10 +167,7 @@ export async function POST(request: NextRequest) {
 
     if (missionError) {
       console.error("[Missions] Create error:", missionError);
-      return NextResponse.json(
-        { error: "Failed to create mission", details: missionError.message },
-        { status: 500 }
-      );
+      return withStatus(500, { error: "Failed to create mission", details: missionError.message });
     }
 
     // 2. Create mission stops
@@ -204,38 +207,40 @@ export async function POST(request: NextRequest) {
       .eq("mission_id", mission.id)
       .order("stop_order", { ascending: true });
 
-    return NextResponse.json({
+    return {
       success: true,
       mission: formatMission(mission),
       stops: (createdStops || []).map(formatStop),
-    });
-  } catch (error) {
-    console.error("[Missions] Create error:", error);
-    return NextResponse.json(
-      { error: "Failed to create mission", details: String(error) },
-      { status: 500 }
-    );
-  }
+    };
+      } catch (error) {
+        console.error("[Missions] Create error:", error);
+        return withStatus(500, { error: "Failed to create mission", details: String(error) });
+      }
+    },
+    { route: "/api/missions" }
+  );
 }
 
 // ─── PATCH: Update mission ─────────────────────────────────────────────────
 export async function PATCH(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  return handleNextRoute(
+    request,
+    async ({ setUserId }) => {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+      setUserId(user?.id);
 
-  try {
+      if (!user) {
+        return withStatus(401, { error: "Unauthorized" });
+      }
+
+      try {
     const body = await request.json();
     const { missionId, action } = body;
 
     if (!missionId || !action) {
-      return NextResponse.json(
-        { error: "missionId and action are required" },
-        { status: 400 }
-      );
+      return withStatus(400, { error: "missionId and action are required" });
     }
 
     // Verify ownership
@@ -246,7 +251,7 @@ export async function PATCH(request: NextRequest) {
       .single();
 
     if (!mission) {
-      return NextResponse.json({ error: "Mission not found" }, { status: 404 });
+      return withStatus(404, { error: "Mission not found" });
     }
 
     switch (action) {
@@ -283,10 +288,7 @@ export async function PATCH(request: NextRequest) {
         const { stopId, outcome, notes, homeownerName, homeownerPhone, homeownerEmail, appointmentDate } = body;
 
         if (!stopId || !outcome) {
-          return NextResponse.json(
-            { error: "stopId and outcome required for update_stop" },
-            { status: 400 }
-          );
+          return withStatus(400, { error: "stopId and outcome required for update_stop" });
         }
 
         const updateData: Record<string, any> = {
@@ -353,7 +355,7 @@ export async function PATCH(request: NextRequest) {
       }
 
       default:
-        return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+        return withStatus(400, { error: `Unknown action: ${action}` });
     }
 
     // Fetch updated mission with stops
@@ -367,18 +369,18 @@ export async function PATCH(request: NextRequest) {
       .eq("mission_id", missionId)
       .order("stop_order", { ascending: true });
 
-    return NextResponse.json({
+    return {
       success: true,
       mission: formatMission(updated),
       stops: (stops || []).map(formatStop),
-    });
-  } catch (error) {
-    console.error("[Missions] Update error:", error);
-    return NextResponse.json(
-      { error: "Failed to update mission", details: String(error) },
-      { status: 500 }
-    );
-  }
+    };
+      } catch (error) {
+        console.error("[Missions] Update error:", error);
+        return withStatus(500, { error: "Failed to update mission", details: String(error) });
+      }
+    },
+    { route: "/api/missions" }
+  );
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
