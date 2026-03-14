@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { handleNextRoute, withStatus } from "@/lib/api-middleware";
+import { isFeatureEnabled } from "@/lib/featureFlag";
+import { createMissionFromStorm } from "@/services/missionService";
 
 /**
  * GET /api/missions
@@ -137,7 +139,54 @@ export async function POST(request: NextRequest) {
       scheduledDate,
     } = body;
 
-    if (!name || !centerLat || !centerLng) {
+    // mission_v2 path: new storm-driven mission orchestration with idempotency.
+    // Falls back to legacy creation when flag is disabled or required fields are absent.
+    const missionV2Enabled = await isFeatureEnabled(user.id, "mission_v2");
+    const canUseMissionV2 =
+      missionV2Enabled &&
+      typeof stormEventId === "string" &&
+      stormEventId.trim().length > 0 &&
+      typeof body?.signature === "string" &&
+      body.signature.trim().length > 0;
+
+    if (canUseMissionV2) {
+      const result = await createMissionFromStorm(user.id, stormEventId, {
+        signature: body.signature,
+        limit: typeof body?.limit === "number" ? body.limit : undefined,
+        name: typeof name === "string" && name.trim().length > 0 ? name.trim() : undefined,
+        description: typeof description === "string" && description.trim().length > 0 ? description : undefined,
+        scheduledDate: typeof scheduledDate === "string" && scheduledDate.trim().length > 0 ? scheduledDate : null,
+        stormDurationMinutes:
+          typeof body?.stormDurationMinutes === "number" ? body.stormDurationMinutes : undefined,
+      });
+
+      return {
+        success: true,
+        mission: { id: result.missionId, name: name || "Storm Mission", status: "planned" },
+        stops: result.selectedStops.map((stop, index) => ({
+          stopOrder: index + 1,
+          address: stop.address,
+          city: stop.city,
+          state: stop.state,
+          zip: stop.zip,
+          lat: stop.latitude,
+          lng: stop.longitude,
+          ownerName: stop.owner_name,
+          yearBuilt: stop.year_built,
+          squareFeet: stop.square_feet,
+          roofAge: stop.roof_age,
+          estimatedValue: Number(stop.estimated_value) || 0,
+          estimatedClaim: Number(stop.estimated_claim) || 0,
+          propertyType: stop.property_type,
+          outcome: stop.outcome,
+          threatScore: stop.threat_score,
+        })),
+        featureFlag: "mission_v2",
+        created: result.created,
+      };
+    }
+
+    if (!name || !Number.isFinite(centerLat) || !Number.isFinite(centerLng)) {
       return withStatus(400, { error: "name, centerLat, and centerLng are required" });
     }
 
