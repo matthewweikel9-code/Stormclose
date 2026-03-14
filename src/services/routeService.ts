@@ -1,3 +1,7 @@
+import { eventBus } from "@/lib/eventBus";
+import { googleRouteProvider } from "@/integrations/googleRouteProvider";
+import { localTspProvider } from "@/integrations/localTspProvider";
+
 export interface RouteStopInput {
   id?: string;
   address: string;
@@ -5,32 +9,105 @@ export interface RouteStopInput {
   longitude: number;
 }
 
-export interface OptimizedRouteResult {
-  optimizedStops: RouteStopInput[];
+export interface RouteMetrics {
+  providerUsed: string;
+  latencyMs: number;
+  fallbackTriggered: boolean;
+  originalProviderFailed?: string;
+  error?: string;
 }
 
+export interface OptimizedRouteResult {
+  optimizedStops: RouteStopInput[];
+  estimatedDistanceMiles?: number;
+  estimatedDurationMinutes?: number;
+  metrics: RouteMetrics;
+}
+
+export interface IRouteProvider {
+  readonly name: string;
+  readonly maxStops: number;
+  readonly isNetworked: boolean;
+  optimize(stops: RouteStopInput[]): Promise<OptimizedRouteResult>;
+}
+
+type OptimizeOptions = {
+  preferredProvider?: "google" | "local";
+};
+
 export class RouteService {
-  async optimizeRoute(stops: RouteStopInput[]): Promise<OptimizedRouteResult> {
+  constructor(
+    private readonly primaryProvider: IRouteProvider,
+    private readonly fallbackProvider: IRouteProvider
+  ) {}
+
+  async optimize(stops: RouteStopInput[], options: OptimizeOptions = {}): Promise<OptimizedRouteResult> {
     const safeStops = (stops || []).filter(
       (stop) =>
         Number.isFinite(stop.latitude) &&
         Number.isFinite(stop.longitude) &&
-        typeof stop.address === "string"
+        typeof stop.address === "string" &&
+        stop.address.length > 0
     );
 
     if (safeStops.length <= 1) {
-      return { optimizedStops: safeStops };
+      const result: OptimizedRouteResult = {
+        optimizedStops: safeStops,
+        metrics: {
+          providerUsed: this.fallbackProvider.name,
+          latencyMs: 0,
+          fallbackTriggered: false,
+        },
+      };
+      this.emitMetrics(result.metrics);
+      return result;
     }
 
-    const sorted = [...safeStops].sort((a, b) => {
-      if (a.latitude === b.latitude) {
-        return a.longitude - b.longitude;
-      }
-      return a.latitude - b.latitude;
-    });
+    const preferredProvider = options.preferredProvider;
+    if (preferredProvider === "local") {
+      const localResult = await this.fallbackProvider.optimize(safeStops);
+      this.emitMetrics(localResult.metrics);
+      return localResult;
+    }
 
-    return { optimizedStops: sorted };
+    if (safeStops.length > this.primaryProvider.maxStops || !process.env.GOOGLE_DIRECTIONS_API_KEY) {
+      const localResult = await this.fallbackProvider.optimize(safeStops);
+      localResult.metrics = {
+        ...localResult.metrics,
+        fallbackTriggered: true,
+        originalProviderFailed:
+          safeStops.length > this.primaryProvider.maxStops
+            ? "primary_max_stops_exceeded"
+            : "google_api_key_missing",
+      };
+      this.emitMetrics(localResult.metrics);
+      return localResult;
+    }
+
+    try {
+      const primaryResult = await this.primaryProvider.optimize(safeStops);
+      this.emitMetrics(primaryResult.metrics);
+      return primaryResult;
+    } catch (error) {
+      const localResult = await this.fallbackProvider.optimize(safeStops);
+      localResult.metrics = {
+        ...localResult.metrics,
+        fallbackTriggered: true,
+        originalProviderFailed: this.primaryProvider.name,
+        error: error instanceof Error ? error.message : String(error),
+      };
+      this.emitMetrics(localResult.metrics);
+      return localResult;
+    }
+  }
+
+  async optimizeRoute(stops: RouteStopInput[]): Promise<OptimizedRouteResult> {
+    return this.optimize(stops);
+  }
+
+  private emitMetrics(metrics: RouteMetrics) {
+    void eventBus.publish("route.optimized", metrics).catch(() => undefined);
   }
 }
 
-export const routeService = new RouteService();
+export const routeService = new RouteService(googleRouteProvider, localTspProvider);
