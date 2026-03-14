@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateFromPrompt, estimateUsageCostUsd } from "@/lib/ai";
-import { buildContext } from "@/lib/ai/buildContext";
+import { extractModuleParams, resolveAiRequestContext } from "@/lib/ai/requestContract";
 import {
 	buildRepCoachingPrompt,
+	type RepCoachingParams,
 	parseRepCoachingOutput,
 } from "@/lib/ai/modules/repCoaching";
 
@@ -33,7 +34,8 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { repId } = body;
+		const parsed = extractModuleParams<Record<string, unknown>>(body);
+		const repId = typeof parsed.repId === "string" ? parsed.repId : "";
 
 		if (!repId) {
 			return NextResponse.json(
@@ -42,18 +44,29 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const ctx = await buildContext({
-			userId,
-			repContext: body.repContext ?? undefined,
-			tonePreference: body.tone ?? undefined,
+		const ctx = await resolveAiRequestContext(userId, body, {
+			repContext:
+				typeof parsed.repContext === "object" && parsed.repContext !== null
+					? (parsed.repContext as never)
+					: undefined,
+			tonePreference:
+				typeof parsed.tone === "object" && parsed.tone !== null
+					? (parsed.tone as never)
+					: undefined,
 			outputFormat: "markdown",
-			userNotes: body.userNotes ?? undefined,
+			userNotes: typeof parsed.userNotes === "string" ? parsed.userNotes : undefined,
 		});
 
-		const params = {
+		const params: RepCoachingParams = {
 			repId,
-			timeframe: body.timeframe ?? "7d",
-			focusArea: body.focusArea ?? null,
+			timeframe:
+				typeof parsed.timeframe === "string"
+					? (parsed.timeframe as RepCoachingParams["timeframe"])
+					: "7d",
+			focusArea:
+				typeof parsed.focusArea === "string"
+					? (parsed.focusArea as RepCoachingParams["focusArea"])
+					: null,
 		};
 
 		const { system, user } = buildRepCoachingPrompt(ctx, params);

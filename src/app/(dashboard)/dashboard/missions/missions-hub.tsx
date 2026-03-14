@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Bot } from "lucide-react";
 import { useUserRole } from "@/hooks/auth/useUserRole";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -176,6 +177,24 @@ function ActiveMissionRepView({ mission, onRefresh }: { mission: MissionDetail; 
 						<Button size="sm" variant="secondary" onClick={() => submitOutcome("interested")} disabled={loading || !currentStop}>Interested</Button>
 						<Button size="sm" variant="ghost" onClick={() => submitOutcome("not_interested")} disabled={loading || !currentStop}>Not Interested</Button>
 						<Button size="sm" variant="secondary" onClick={() => submitOutcome("follow_up_needed")} disabled={loading || !currentStop}>Follow Up</Button>
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={!currentStop}
+							onClick={() => {
+								if (!currentStop) return;
+								const query = new URLSearchParams({
+									module: "mission_copilot",
+									missionId: mission.mission.id,
+									stopId: currentStop.id,
+									houseId: currentStop.houseId ?? currentStop.id,
+								});
+								window.location.href = `/dashboard/ai-studio?${query.toString()}`;
+							}}
+						>
+							<Bot className="mr-1 h-3.5 w-3.5" />
+							AI Assist
+						</Button>
 					</div>
 				</CardContent>
 			</Card>
@@ -395,7 +414,24 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 											<div className="text-sm font-semibold text-white">#{stop.sequence} {stop.address}</div>
 											<div className="text-xs text-storm-muted">{stop.city ?? ""} {stop.state ?? ""}</div>
 										</div>
-										<Badge variant="outline">{stop.status}</Badge>
+										<div className="flex items-center gap-2">
+											<Button
+												size="sm"
+												variant="ghost"
+												onClick={() => {
+													const query = new URLSearchParams({
+														module: "mission_copilot",
+														missionId: selectedMission.mission.id,
+														stopId: stop.id,
+														houseId: stop.houseId ?? stop.id,
+													});
+													window.location.href = `/dashboard/ai-studio?${query.toString()}`;
+												}}
+											>
+												<Bot className="h-3.5 w-3.5" />
+											</Button>
+											<Badge variant="outline">{stop.status}</Badge>
+										</div>
 									</div>
 								</div>
 							))}

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
 	Sparkles,
 	Brain,
@@ -12,7 +13,6 @@ import {
 	Compass,
 	HandshakeIcon,
 	Zap,
-	ChevronRight,
 	Copy,
 	CheckCircle2,
 	Loader2,
@@ -94,7 +94,7 @@ const MODULE_CARDS: AiModuleCard[] = [
 		icon: "Target",
 		category: "sales",
 		contextSlots: ["company", "house", "tone"],
-		endpoint: "/api/ai/follow-up",
+		endpoint: "/api/ai/follow-up-writer",
 		comingSoon: false,
 	},
 	{
@@ -161,27 +161,50 @@ const CATEGORY_META: Record<
 
 // ── Quick Demo Payloads (for testing each module from the UI) ────────────────
 
-function getQuickDemoPayload(moduleId: AiModuleId): Record<string, unknown> {
+type PrefillContext = {
+	houseId: string | null;
+	missionId: string | null;
+	stopId: string | null;
+	opportunityId: string | null;
+};
+
+function getQuickDemoPayload(
+	moduleId: AiModuleId,
+	prefill: PrefillContext,
+): Record<string, unknown> {
+	const sharedIds = {
+		houseId: prefill.houseId,
+		missionId: prefill.missionId,
+		currentStopId: prefill.stopId,
+		opportunityId: prefill.opportunityId,
+	};
+
 	const payloads: Record<AiModuleId, Record<string, unknown>> = {
-		daily_brief: { briefDate: new Date().toISOString().split("T")[0], force: true },
+		daily_brief: {
+			...sharedIds,
+			briefDate: new Date().toISOString().split("T")[0],
+			force: true,
+		},
 		mission_copilot: {
-			missionId: "demo-mission-1",
+			missionId: prefill.missionId ?? "demo-mission-1",
 			suggestionType: "talking_points",
-			currentStopId: null,
+			currentStopId: prefill.stopId,
 			repQuestion: null,
 		},
 		opportunity_summary: {
-			houseId: "demo-house-1",
+			houseId: prefill.houseId ?? prefill.opportunityId ?? "demo-house-1",
 			includeInsuranceContext: true,
 			includeStormEvidence: true,
 		},
 		objection_response: {
+			...sharedIds,
 			objection: "Your price is too high compared to the other guy.",
 			category: "price",
 			projectType: "roof_replacement",
 			keyBenefits: ["Storm damage expertise", "Insurance claim assistance"],
 		},
 		negotiation_coach: {
+			...sharedIds,
 			scenario: "initial_pricing",
 			situationDescription:
 				"Homeowner received a competitor quote $2,000 lower. We have better materials and warranty.",
@@ -189,6 +212,7 @@ function getQuickDemoPayload(moduleId: AiModuleId): Record<string, unknown> {
 			ourQuote: 14000,
 		},
 		follow_up_writer: {
+			...sharedIds,
 			situation: "post_inspection",
 			channel: "text",
 			homeownerName: "John Smith",
@@ -198,7 +222,8 @@ function getQuickDemoPayload(moduleId: AiModuleId): Record<string, unknown> {
 			touchNumber: 1,
 		},
 		export_summary: {
-			houseId: "demo-house-1",
+			...sharedIds,
+			houseId: prefill.houseId ?? prefill.opportunityId ?? "demo-house-1",
 			includeStormEvidence: true,
 			includeVisitTimeline: true,
 		},
@@ -208,6 +233,7 @@ function getQuickDemoPayload(moduleId: AiModuleId): Record<string, unknown> {
 			focusArea: "general",
 		},
 		zone_summary: {
+			...sharedIds,
 			stormZoneId: "demo-zone-1",
 			includeCompetitiveLandscape: true,
 			includeRevenueProjection: true,
@@ -234,18 +260,40 @@ type ModuleResult = {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function AiStudioHub() {
+	const searchParams = useSearchParams();
+	const prefill = useMemo<PrefillContext>(
+		() => ({
+			houseId: searchParams.get("houseId"),
+			missionId: searchParams.get("missionId"),
+			stopId: searchParams.get("stopId"),
+			opportunityId: searchParams.get("opportunityId"),
+		}),
+		[searchParams],
+	);
+
 	const [activeModule, setActiveModule] = useState<AiModuleId | null>(null);
 	const [loading, setLoading] = useState<AiModuleId | null>(null);
 	const [results, setResults] = useState<Record<string, ModuleResult>>({});
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [copiedId, setCopiedId] = useState<string | null>(null);
 
+	useEffect(() => {
+		const target = searchParams.get("module");
+		if (!target) return;
+		if (MODULE_CARDS.some((card) => card.id === target)) {
+			setActiveModule(target as AiModuleId);
+		}
+	}, [searchParams]);
+
 	const handleRunModule = useCallback(async (card: AiModuleCard) => {
 		setLoading(card.id);
 		setErrors((prev) => ({ ...prev, [card.id]: "" }));
 
 		try {
-			const payload = getQuickDemoPayload(card.id);
+			const payload = {
+				context: null,
+				params: getQuickDemoPayload(card.id, prefill),
+			};
 			const res = await fetch(card.endpoint, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -275,7 +323,7 @@ export function AiStudioHub() {
 		} finally {
 			setLoading(null);
 		}
-	}, []);
+	}, [prefill]);
 
 	const handleCopy = useCallback(
 		(moduleId: string) => {

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateFromPrompt, estimateUsageCostUsd } from "@/lib/ai";
-import { buildContext } from "@/lib/ai/buildContext";
+import { extractModuleParams, resolveAiRequestContext } from "@/lib/ai/requestContract";
 import {
 	buildNegotiationCoachPrompt,
+	type NegotiationCoachParams,
 	parseNegotiationCoachOutput,
 } from "@/lib/ai/modules/negotiationCoach";
 
@@ -33,7 +34,13 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { scenario, situationDescription } = body;
+		const parsed = extractModuleParams<Record<string, unknown>>(body);
+		const scenario =
+			typeof parsed.scenario === "string"
+				? (parsed.scenario as NegotiationCoachParams["scenario"])
+				: null;
+		const situationDescription =
+			typeof parsed.situationDescription === "string" ? parsed.situationDescription : "";
 
 		if (!scenario || !situationDescription) {
 			return NextResponse.json(
@@ -46,23 +53,28 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const ctx = await buildContext({
-			userId,
-			missionId: body.missionId ?? undefined,
-			houseContext: body.houseContext ?? undefined,
-			tonePreference: body.tone ?? undefined,
+		const ctx = await resolveAiRequestContext(userId, body, {
+			missionId: typeof parsed.missionId === "string" ? parsed.missionId : undefined,
+			houseContext:
+				typeof parsed.houseContext === "object" && parsed.houseContext !== null
+					? (parsed.houseContext as never)
+					: undefined,
+			tonePreference:
+				typeof parsed.tone === "object" && parsed.tone !== null
+					? (parsed.tone as never)
+					: undefined,
 			outputFormat: "markdown",
-			userNotes: body.userNotes ?? undefined,
+			userNotes: typeof parsed.userNotes === "string" ? parsed.userNotes : undefined,
 		});
 
-		const params = {
+		const params: NegotiationCoachParams = {
 			scenario,
-			houseId: body.houseId ?? null,
+			houseId: typeof parsed.houseId === "string" ? parsed.houseId : null,
 			situationDescription,
-			homeownerConcern: body.homeownerConcern ?? null,
-			competitorQuote: body.competitorQuote ?? null,
-			ourQuote: body.ourQuote ?? null,
-			insuranceClaimAmount: body.insuranceClaimAmount ?? null,
+			homeownerConcern: typeof parsed.homeownerConcern === "string" ? parsed.homeownerConcern : null,
+			competitorQuote: typeof parsed.competitorQuote === "number" ? parsed.competitorQuote : null,
+			ourQuote: typeof parsed.ourQuote === "number" ? parsed.ourQuote : null,
+			insuranceClaimAmount: typeof parsed.insuranceClaimAmount === "number" ? parsed.insuranceClaimAmount : null,
 		};
 
 		const { system, user } = buildNegotiationCoachPrompt(ctx, params);

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateFromPrompt, estimateUsageCostUsd } from "@/lib/ai";
-import { buildContext } from "@/lib/ai/buildContext";
+import { extractModuleParams, resolveAiRequestContext } from "@/lib/ai/requestContract";
 import {
 	buildZoneSummaryPrompt,
+	type ZoneSummaryParams,
 	parseZoneSummaryOutput,
 } from "@/lib/ai/modules/zoneSummary";
 
@@ -33,7 +34,8 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { stormZoneId } = body;
+		const parsed = extractModuleParams<Record<string, unknown>>(body);
+		const stormZoneId = typeof parsed.stormZoneId === "string" ? parsed.stormZoneId : "";
 
 		if (!stormZoneId) {
 			return NextResponse.json(
@@ -42,21 +44,31 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const ctx = await buildContext({
-			userId,
-			stormContext: body.stormContext ?? undefined,
-			tonePreference: body.tone ?? undefined,
-			outputFormat: body.outputFormat ?? "markdown",
-			userNotes: body.userNotes ?? undefined,
+		const ctx = await resolveAiRequestContext(userId, body, {
+			stormContext:
+				typeof parsed.stormContext === "object" && parsed.stormContext !== null
+					? (parsed.stormContext as never)
+					: undefined,
+			tonePreference:
+				typeof parsed.tone === "object" && parsed.tone !== null
+					? (parsed.tone as never)
+					: undefined,
+			outputFormat:
+				typeof parsed.outputFormat === "string"
+					? (parsed.outputFormat as never)
+					: "markdown",
+			userNotes: typeof parsed.userNotes === "string" ? parsed.userNotes : undefined,
 		});
 
-		const params = {
+		const params: ZoneSummaryParams = {
 			stormZoneId,
-			includeCompetitiveLandscape: body.includeCompetitiveLandscape ?? true,
-			includeRevenueProjection: body.includeRevenueProjection ?? true,
-			includeDeploymentRecommendation:
-				body.includeDeploymentRecommendation ?? true,
-			audience: body.audience ?? "manager",
+			includeCompetitiveLandscape: Boolean(parsed.includeCompetitiveLandscape ?? true),
+			includeRevenueProjection: Boolean(parsed.includeRevenueProjection ?? true),
+			includeDeploymentRecommendation: Boolean(parsed.includeDeploymentRecommendation ?? true),
+			audience:
+				typeof parsed.audience === "string"
+					? (parsed.audience as ZoneSummaryParams["audience"])
+					: "manager",
 		};
 
 		const { system, user } = buildZoneSummaryPrompt(ctx, params);

@@ -708,7 +708,10 @@ describe("AI API routes — envelope shape", () => {
 		const req = new Request("http://localhost/api/ai/daily-brief", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ briefDate: "2026-03-15" }),
+			body: JSON.stringify({
+				context: null,
+				params: { briefDate: "2026-03-15" },
+			}),
 		});
 
 		const res = await POST(req);
@@ -725,7 +728,7 @@ describe("AI API routes — envelope shape", () => {
 		const req = new Request("http://localhost/api/ai/objection-response", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({}), // missing objection
+			body: JSON.stringify({ params: {} }), // missing objection
 		});
 
 		const res = await POST(req);
@@ -740,7 +743,7 @@ describe("AI API routes — envelope shape", () => {
 		const req = new Request("http://localhost/api/ai/mission-copilot", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({}), // missing missionId + suggestionType
+			body: JSON.stringify({ params: {} }), // missing missionId + suggestionType
 		});
 
 		const res = await POST(req);
@@ -755,7 +758,7 @@ describe("AI API routes — envelope shape", () => {
 		const req = new Request("http://localhost/api/ai/negotiation-coach", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ scenario: "initial_pricing" }), // missing situationDescription
+			body: JSON.stringify({ params: { scenario: "initial_pricing" } }), // missing situationDescription
 		});
 
 		const res = await POST(req);
@@ -770,7 +773,22 @@ describe("AI API routes — envelope shape", () => {
 		const req = new Request("http://localhost/api/ai/follow-up", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ homeownerName: "John" }), // missing lastInteraction + desiredNextAction
+			body: JSON.stringify({ params: { homeownerName: "John" } }), // missing lastInteraction + desiredNextAction
+		});
+
+		const res = await POST(req);
+		const json = await res.json();
+
+		expect(res.status).toBe(400);
+		expect(json.error).toContain("homeownerName, lastInteraction, and desiredNextAction are required");
+	});
+
+	it("follow-up-writer alias route validates required fields", async () => {
+		const { POST } = await importRoute("../src/app/api/ai/follow-up-writer/route");
+		const req = new Request("http://localhost/api/ai/follow-up-writer", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ params: { homeownerName: "John" } }),
 		});
 
 		const res = await POST(req);
@@ -785,7 +803,7 @@ describe("AI API routes — envelope shape", () => {
 		const req = new Request("http://localhost/api/ai/export-summary", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({}), // missing houseId
+			body: JSON.stringify({ params: {} }), // missing houseId
 		});
 
 		const res = await POST(req);
@@ -800,7 +818,7 @@ describe("AI API routes — envelope shape", () => {
 		const req = new Request("http://localhost/api/ai/rep-coaching", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({}), // missing repId
+			body: JSON.stringify({ params: {} }), // missing repId
 		});
 
 		const res = await POST(req);
@@ -815,7 +833,7 @@ describe("AI API routes — envelope shape", () => {
 		const req = new Request("http://localhost/api/ai/zone-summary", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({}), // missing stormZoneId
+			body: JSON.stringify({ params: {} }), // missing stormZoneId
 		});
 
 		const res = await POST(req);
@@ -823,5 +841,20 @@ describe("AI API routes — envelope shape", () => {
 
 		expect(res.status).toBe(400);
 		expect(json.error).toContain("stormZoneId is required");
+	});
+
+	it("opportunity-summary route validates required fields", async () => {
+		const { POST } = await importRoute("../src/app/api/ai/opportunity-summary/route");
+		const req = new Request("http://localhost/api/ai/opportunity-summary", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ params: {} }),
+		});
+
+		const res = await POST(req);
+		const json = await res.json();
+
+		expect(res.status).toBe(400);
+		expect(json.error).toContain("houseId is required");
 	});
 });

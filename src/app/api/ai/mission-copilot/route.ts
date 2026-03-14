@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateFromPrompt, estimateUsageCostUsd } from "@/lib/ai";
-import { buildContext } from "@/lib/ai/buildContext";
+import { extractModuleParams, resolveAiRequestContext } from "@/lib/ai/requestContract";
 import {
 	buildMissionCopilotPrompt,
+	type CopilotSuggestionType,
 	parseMissionCopilotOutput,
 } from "@/lib/ai/modules/missionCopilot";
 
@@ -33,7 +34,12 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { missionId, suggestionType, currentStopId, repQuestion } = body;
+		const parsed = extractModuleParams<Record<string, unknown>>(body);
+		const missionId = typeof parsed.missionId === "string" ? parsed.missionId : "";
+		const suggestionType =
+			typeof parsed.suggestionType === "string" ? (parsed.suggestionType as CopilotSuggestionType) : null;
+		const currentStopId = typeof parsed.currentStopId === "string" ? parsed.currentStopId : null;
+		const repQuestion = typeof parsed.repQuestion === "string" ? parsed.repQuestion : null;
 
 		if (!missionId || !suggestionType) {
 			return NextResponse.json(
@@ -42,12 +48,14 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const ctx = await buildContext({
-			userId,
+		const ctx = await resolveAiRequestContext(userId, body, {
 			missionId,
-			tonePreference: body.tone ?? undefined,
+			tonePreference:
+				typeof parsed.tone === "object" && parsed.tone !== null
+					? (parsed.tone as never)
+					: undefined,
 			outputFormat: "markdown",
-			userNotes: body.userNotes ?? undefined,
+			userNotes: typeof parsed.userNotes === "string" ? parsed.userNotes : undefined,
 		});
 
 		const params = {

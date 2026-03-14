@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateFromPrompt, estimateUsageCostUsd } from "@/lib/ai";
-import { buildContext } from "@/lib/ai/buildContext";
+import { extractModuleParams, resolveAiRequestContext } from "@/lib/ai/requestContract";
 import {
 	buildFollowUpWriterPrompt,
+	type FollowUpWriterParams,
 	parseFollowUpWriterOutput,
 } from "@/lib/ai/modules/followUpWriter";
 
@@ -33,7 +34,13 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { homeownerName, lastInteraction, desiredNextAction } = body;
+		const parsed = extractModuleParams<Record<string, unknown>>(body);
+		const homeownerName =
+			typeof parsed.homeownerName === "string" ? parsed.homeownerName : "";
+		const lastInteraction =
+			typeof parsed.lastInteraction === "string" ? parsed.lastInteraction : "";
+		const desiredNextAction =
+			typeof parsed.desiredNextAction === "string" ? parsed.desiredNextAction : "";
 
 		if (!homeownerName || !lastInteraction || !desiredNextAction) {
 			return NextResponse.json(
@@ -46,25 +53,38 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const ctx = await buildContext({
-			userId,
-			missionId: body.missionId ?? undefined,
-			houseContext: body.houseContext ?? undefined,
-			tonePreference: body.tone ?? undefined,
+		const ctx = await resolveAiRequestContext(userId, body, {
+			missionId: typeof parsed.missionId === "string" ? parsed.missionId : undefined,
+			houseContext:
+				typeof parsed.houseContext === "object" && parsed.houseContext !== null
+					? (parsed.houseContext as never)
+					: undefined,
+			tonePreference:
+				typeof parsed.tone === "object" && parsed.tone !== null
+					? (parsed.tone as never)
+					: undefined,
 			outputFormat: "plain_text",
-			userNotes: body.userNotes ?? undefined,
+			userNotes: typeof parsed.userNotes === "string" ? parsed.userNotes : undefined,
 		});
 
-		const params = {
-			situation: body.situation ?? "post_inspection",
-			channel: body.channel ?? "text",
-			houseId: body.houseId ?? null,
+		const params: FollowUpWriterParams = {
+			situation:
+				typeof parsed.situation === "string"
+					? (parsed.situation as FollowUpWriterParams["situation"])
+					: "post_inspection",
+			channel:
+				typeof parsed.channel === "string"
+					? (parsed.channel as FollowUpWriterParams["channel"])
+					: "text",
+			houseId: typeof parsed.houseId === "string" ? parsed.houseId : null,
 			homeownerName,
 			lastInteraction,
 			desiredNextAction,
-			daysSinceLastContact: body.daysSinceLastContact ?? 1,
-			touchNumber: body.touchNumber ?? 1,
-			customInstructions: body.customInstructions ?? null,
+			daysSinceLastContact:
+				typeof parsed.daysSinceLastContact === "number" ? parsed.daysSinceLastContact : 1,
+			touchNumber: typeof parsed.touchNumber === "number" ? parsed.touchNumber : 1,
+			customInstructions:
+				typeof parsed.customInstructions === "string" ? parsed.customInstructions : null,
 		};
 
 		const { system, user } = buildFollowUpWriterPrompt(ctx, params);

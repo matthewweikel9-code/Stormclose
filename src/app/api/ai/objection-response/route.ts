@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateFromPrompt, estimateUsageCostUsd } from "@/lib/ai";
-import { buildContext } from "@/lib/ai/buildContext";
+import { extractModuleParams, resolveAiRequestContext } from "@/lib/ai/requestContract";
 import {
 	buildObjectionResponsePrompt,
+	type ObjectionResponseParams,
 	parseObjectionResponseOutput,
 } from "@/lib/ai/modules/objectionResponse";
 
@@ -33,7 +34,8 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { objection } = body;
+		const parsed = extractModuleParams<Record<string, unknown>>(body);
+		const objection = typeof parsed.objection === "string" ? parsed.objection : "";
 
 		if (!objection) {
 			return NextResponse.json(
@@ -42,28 +44,40 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const ctx = await buildContext({
-			userId,
-			missionId: body.missionId ?? undefined,
-			houseContext: body.houseContext ?? undefined,
-			tonePreference: body.tone ?? undefined,
+		const ctx = await resolveAiRequestContext(userId, body, {
+			missionId: typeof parsed.missionId === "string" ? parsed.missionId : undefined,
+			houseContext:
+				typeof parsed.houseContext === "object" && parsed.houseContext !== null
+					? (parsed.houseContext as never)
+					: undefined,
+			tonePreference:
+				typeof parsed.tone === "object" && parsed.tone !== null
+					? (parsed.tone as never)
+					: undefined,
 			outputFormat: "markdown",
-			userNotes: body.userNotes ?? undefined,
+			userNotes: typeof parsed.userNotes === "string" ? parsed.userNotes : undefined,
 		});
 
-		const params = {
+		const params: ObjectionResponseParams = {
 			objection,
-			category: body.category ?? null,
-			templateId: body.templateId ?? null,
-			homeownerName: body.homeownerName ?? null,
-			projectType: body.projectType ?? "roof_replacement",
-			keyBenefits: body.keyBenefits ?? [
+			category: typeof parsed.category === "string" ? (parsed.category as ObjectionResponseParams["category"]) : null,
+			templateId: typeof parsed.templateId === "string" ? parsed.templateId : null,
+			homeownerName: typeof parsed.homeownerName === "string" ? parsed.homeownerName : null,
+			projectType: typeof parsed.projectType === "string" ? parsed.projectType : "roof_replacement",
+			keyBenefits: Array.isArray(parsed.keyBenefits)
+				? parsed.keyBenefits.map(String)
+				: [
 				"Storm damage expertise",
 				"Insurance claim assistance",
 				"Local trusted contractor",
 			],
-			evidencePoints: body.evidencePoints ?? [],
-			tone: body.objectionTone ?? "consultative",
+			evidencePoints: Array.isArray(parsed.evidencePoints)
+				? parsed.evidencePoints.map(String)
+				: [],
+			tone:
+				typeof parsed.objectionTone === "string"
+					? (parsed.objectionTone as ObjectionResponseParams["tone"])
+					: "consultative",
 		};
 
 		const { system, user } = buildObjectionResponsePrompt(ctx, params);

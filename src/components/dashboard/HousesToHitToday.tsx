@@ -85,9 +85,21 @@ export function HousesToHitTodayWidget({ houses }: HousesToHitTodayProps) {
 											<Button size="sm" variant="ghost" title="Send to JobNimbus">
 												<Send className="h-3.5 w-3.5" />
 											</Button>
-											<Button size="sm" variant="ghost" title="AI Assist">
+											<Button
+												size="sm"
+												variant="ghost"
+												title="AI Assist"
+												onClick={() => {
+													const query = new URLSearchParams({
+														module: "mission_copilot",
+														houseId: house.id,
+													});
+													window.location.href = `/dashboard/ai-studio?${query.toString()}`;
+												}}
+											>
 												<Bot className="h-3.5 w-3.5" />
 											</Button>
+											
 										</div>
 									</td>
 								</tr>

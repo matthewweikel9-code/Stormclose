@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateFromPrompt, estimateUsageCostUsd } from "@/lib/ai";
-import { buildContext } from "@/lib/ai/buildContext";
+import { extractModuleParams, resolveAiRequestContext } from "@/lib/ai/requestContract";
 import {
 	buildDailyBriefPrompt,
 	parseDailyBriefOutput,
@@ -33,16 +33,22 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const briefDate = body.briefDate ?? new Date().toISOString().split("T")[0];
-		const focusAreas = body.focusAreas ?? null;
-		const force = body.force ?? false;
+		const params = extractModuleParams<Record<string, unknown>>(body);
+		const briefDate =
+			typeof params.briefDate === "string"
+				? params.briefDate
+				: new Date().toISOString().split("T")[0];
+		const focusAreas = typeof params.focusAreas === "string" ? params.focusAreas : null;
+		const force = Boolean(params.force ?? false);
 
-		const ctx = await buildContext({
-			userId,
-			missionId: body.missionId ?? undefined,
-			tonePreference: body.tone ?? undefined,
-			outputFormat: body.outputFormat ?? "markdown",
-			userNotes: body.userNotes ?? undefined,
+		const ctx = await resolveAiRequestContext(userId, body, {
+			missionId: typeof params.missionId === "string" ? params.missionId : undefined,
+			tonePreference:
+				typeof params.tone === "object" && params.tone !== null
+					? (params.tone as never)
+					: undefined,
+			outputFormat: typeof params.outputFormat === "string" ? (params.outputFormat as never) : "markdown",
+			userNotes: typeof params.userNotes === "string" ? params.userNotes : undefined,
 		});
 
 		const { system, user } = buildDailyBriefPrompt(ctx, {

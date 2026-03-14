@@ -1,8 +1,9 @@
 "use client";
 
-import { TrendingUp } from "lucide-react";
+import { Bot, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { RecentQualifiedOpportunity } from "@/types/dashboard";
 
 interface RecentQualifiedOppsProps {
@@ -31,7 +32,24 @@ export function RecentQualifiedOppsWidget({ opportunities }: RecentQualifiedOpps
 					<div key={opportunity.id} className="rounded-xl border border-storm-border bg-storm-z1 p-3">
 						<div className="mb-1 flex items-center justify-between gap-2">
 							<p className="text-sm font-medium text-white">{opportunity.address}</p>
-							<Badge variant={exportStatusVariant(opportunity.exportStatus)}>{opportunity.exportStatus.replaceAll("_", " ")}</Badge>
+							<div className="flex items-center gap-1.5">
+								<Badge variant={exportStatusVariant(opportunity.exportStatus)}>{opportunity.exportStatus.replaceAll("_", " ")}</Badge>
+								<Button
+									size="sm"
+									variant="ghost"
+									title="AI Assist"
+									onClick={() => {
+										const query = new URLSearchParams({
+											module: "opportunity_summary",
+											opportunityId: opportunity.id,
+											houseId: opportunity.id,
+										});
+										window.location.href = `/dashboard/ai-studio?${query.toString()}`;
+									}}
+								>
+									<Bot className="h-3.5 w-3.5" />
+								</Button>
+							</div>
 						</div>
 						<p className="text-xs text-storm-muted">{opportunity.repName} • score {opportunity.opportunityScore}</p>
 					</div>

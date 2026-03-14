@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateFromPrompt, estimateUsageCostUsd } from "@/lib/ai";
-import { buildContext } from "@/lib/ai/buildContext";
+import { extractModuleParams, resolveAiRequestContext } from "@/lib/ai/requestContract";
 import {
 	buildOpportunitySummaryPrompt,
+	type OpportunitySummaryParams,
 	parseOpportunitySummaryOutput,
 } from "@/lib/ai/modules/opportunitySummary";
 
@@ -33,7 +34,8 @@ export async function POST(request: NextRequest) {
 		}
 
 		const body = await request.json();
-		const { houseId } = body;
+		const parsed = extractModuleParams<Record<string, unknown>>(body);
+		const houseId = typeof parsed.houseId === "string" ? parsed.houseId : "";
 
 		if (!houseId) {
 			return NextResponse.json(
@@ -42,22 +44,38 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const ctx = await buildContext({
-			userId,
-			missionId: body.missionId ?? undefined,
-			houseContext: body.houseContext ?? undefined,
-			stormContext: body.stormContext ?? undefined,
-			tonePreference: body.tone ?? undefined,
-			outputFormat: body.outputFormat ?? "markdown",
-			userNotes: body.userNotes ?? undefined,
+		const ctx = await resolveAiRequestContext(userId, body, {
+			missionId: typeof parsed.missionId === "string" ? parsed.missionId : undefined,
+			houseContext:
+				typeof parsed.houseContext === "object" && parsed.houseContext !== null
+					? (parsed.houseContext as never)
+					: undefined,
+			stormContext:
+				typeof parsed.stormContext === "object" && parsed.stormContext !== null
+					? (parsed.stormContext as never)
+					: undefined,
+			tonePreference:
+				typeof parsed.tone === "object" && parsed.tone !== null
+					? (parsed.tone as never)
+					: undefined,
+			outputFormat:
+				typeof parsed.outputFormat === "string"
+					? (parsed.outputFormat as never)
+					: "markdown",
+			userNotes: typeof parsed.userNotes === "string" ? parsed.userNotes : undefined,
 		});
 
-		const params = {
+		const params: OpportunitySummaryParams = {
 			houseId,
-			includeInsuranceContext: body.includeInsuranceContext ?? true,
-			includeStormEvidence: body.includeStormEvidence ?? true,
-			customSections: body.customSections ?? [],
-			outputFormat: body.outputFormat ?? "markdown",
+			includeInsuranceContext: Boolean(parsed.includeInsuranceContext ?? true),
+			includeStormEvidence: Boolean(parsed.includeStormEvidence ?? true),
+			customSections: Array.isArray(parsed.customSections)
+				? parsed.customSections.map(String)
+				: [],
+			outputFormat:
+				typeof parsed.outputFormat === "string"
+					? (parsed.outputFormat as OpportunitySummaryParams["outputFormat"])
+					: "markdown",
 		};
 
 		const { system, user } = buildOpportunitySummaryPrompt(ctx, params);
