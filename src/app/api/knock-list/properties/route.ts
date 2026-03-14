@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { handleNextRoute, withStatus } from "@/lib/api-middleware";
-import { searchPropertiesInArea, calculateRoofAge, estimateClaimValue, CoreLogicProperty } from "@/lib/corelogic";
+import { calculateRoofAge, estimateClaimValue, CoreLogicProperty } from "@/lib/corelogic";
+import { searchPropertiesInAreaCached } from "@/integrations/corelogicCachedClient";
 import { getHailReports } from "@/lib/xweather";
 
 export async function GET(request: NextRequest) {
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
 
       try {
         let properties: KnockListProperty[] = [];
+        let propertySource: "none" | "corelogic" | "corelogic_cached" | "fallback" = "none";
         let stormData: any = null;
 
         // Try to get real storm data from Xweather
@@ -43,13 +45,14 @@ export async function GET(request: NextRequest) {
 
         // CoreLogic property search
         try {
-          const clProperties = await searchPropertiesInArea(lat, lng, radius, {
+          const { properties: clProperties, source } = await searchPropertiesInAreaCached(lat, lng, radius, {
             propertyType: "SFR",
           });
 
           properties = clProperties.slice(0, 50).map((prop, i) =>
             formatToKnockList(prop, i, lat, lng, stormData)
           );
+          propertySource = source;
         } catch (e) {
           console.log("CoreLogic not available:", e);
         }
@@ -58,7 +61,7 @@ export async function GET(request: NextRequest) {
         if (properties.length === 0) {
           return {
             properties: [],
-            source: "none",
+            source: propertySource,
             stormData,
             location: { lat, lng, radius },
             message: "No residential properties found in this area. Try a different location or larger radius.",
@@ -67,7 +70,7 @@ export async function GET(request: NextRequest) {
 
         return {
           properties,
-          source: "corelogic",
+          source: propertySource,
           stormData,
           location: { lat, lng, radius },
         };
