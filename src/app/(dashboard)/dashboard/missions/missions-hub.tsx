@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bot } from "lucide-react";
+import { Bot, FileText } from "lucide-react";
 import { useUserRole } from "@/hooks/auth/useUserRole";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -404,6 +404,22 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 								await fetch(`/api/missions/${selectedMission.mission.id}/rebalance`, { method: "POST" });
 								await fetchMissionDetail(selectedMission.mission.id);
 							}}>Rebalance</Button>
+							<Button
+								size="sm"
+								variant="secondary"
+								onClick={() => {
+									const query = new URLSearchParams({
+										action: "generate",
+										type: "mission_recap",
+										contextType: "mission",
+										contextId: selectedMission.mission.id,
+									});
+									window.location.href = `/dashboard/documents?${query.toString()}`;
+								}}
+							>
+								<FileText className="mr-1 h-3.5 w-3.5" />
+								Generate Document
+							</Button>
 						</div>
 
 						<div className="grid gap-2">
@@ -429,6 +445,21 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 												}}
 											>
 												<Bot className="h-3.5 w-3.5" />
+											</Button>
+											<Button
+												size="sm"
+												variant="ghost"
+												onClick={() => {
+													const query = new URLSearchParams({
+														action: "generate",
+														type: "homeowner_follow_up_letter",
+														contextType: "house",
+														contextId: stop.houseId ?? stop.id,
+													});
+													window.location.href = `/dashboard/documents?${query.toString()}`;
+												}}
+											>
+												<FileText className="h-3.5 w-3.5" />
 											</Button>
 											<Badge variant="outline">{stop.status}</Badge>
 										</div>

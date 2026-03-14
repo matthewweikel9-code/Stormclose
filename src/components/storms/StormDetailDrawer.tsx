@@ -66,6 +66,22 @@ export function StormDetailDrawer({ zoneId, onClose }: StormDetailDrawerProps) {
 
 				{detail ? (
 					<div className="grid gap-4">
+						<div className="flex items-center justify-end">
+							<Button
+								size="sm"
+								onClick={() => {
+									const query = new URLSearchParams({
+										action: "generate",
+										type: "storm_impact_summary",
+										contextType: "storm_zone",
+										contextId: detail.zone.id,
+									});
+									window.location.href = `/dashboard/documents?${query.toString()}`;
+								}}
+							>
+								Generate Document
+							</Button>
+						</div>
 						<div className="rounded-xl border border-storm-border bg-storm-z1 p-4">
 							<div className="flex items-center justify-between">
 								<h4 className="text-sm font-semibold text-white">{detail.zone.name}</h4>

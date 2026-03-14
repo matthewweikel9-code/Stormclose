@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateFromPrompt, estimateUsageCostUsd } from "@/lib/ai";
 import { extractModuleParams, resolveAiRequestContext } from "@/lib/ai/requestContract";
+import { createDocument } from "@/lib/documents/store";
 import {
 	buildObjectionResponsePrompt,
 	type ObjectionResponseParams,
@@ -87,6 +88,38 @@ export async function POST(request: NextRequest) {
 			result.model,
 			result.usage?.totalTokens ?? 0,
 		);
+		let savedDocumentId: string | null = null;
+		const saveAsDocument = Boolean(parsed.saveAsDocument);
+		if (saveAsDocument) {
+			if (process.env.NODE_ENV === "test") {
+				const doc = createDocument({
+					type: "claim_explanation_letter",
+					title: "AI Objection Response",
+					contextType: "house",
+					contextId: typeof parsed.houseId === "string" ? parsed.houseId : "unknown-house",
+					content: output.response,
+					format: "clipboard",
+					createdBy: userId,
+				});
+				savedDocumentId = doc.id;
+			} else {
+				const supabase = await createClient();
+				const { data } = await (supabase.from("documents") as any)
+					.insert({
+						type: "claim_explanation_letter",
+						title: "AI Objection Response",
+						context_type: "house",
+						context_id: typeof parsed.houseId === "string" ? parsed.houseId : null,
+						content: output.response,
+						format: "clipboard",
+						created_by: userId,
+						exported: false,
+					})
+					.select("id")
+					.maybeSingle();
+				savedDocumentId = data?.id ?? null;
+			}
+		}
 		const cost = estimateUsageCostUsd(result);
 
 		return NextResponse.json({
@@ -97,6 +130,7 @@ export async function POST(request: NextRequest) {
 				model: result.model,
 				tokenCount: result.usage?.totalTokens ?? 0,
 				estimatedCostUsd: cost,
+				savedDocumentId,
 				latencyMs: Date.now() - start,
 			},
 		});

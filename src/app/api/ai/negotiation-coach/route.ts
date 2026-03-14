@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateFromPrompt, estimateUsageCostUsd } from "@/lib/ai";
 import { extractModuleParams, resolveAiRequestContext } from "@/lib/ai/requestContract";
+import { createDocument } from "@/lib/documents/store";
 import {
 	buildNegotiationCoachPrompt,
 	type NegotiationCoachParams,
@@ -84,6 +85,47 @@ export async function POST(request: NextRequest) {
 			result.model,
 			result.usage?.totalTokens ?? 0,
 		);
+		let savedDocumentId: string | null = null;
+		const saveAsDocument = Boolean(parsed.saveAsDocument);
+		if (saveAsDocument) {
+			const documentContent = [
+				`# Negotiation Strategy`,
+				"",
+				output.strategy,
+				"",
+				"## Talking Points",
+				...output.talkingPoints.map((item) => `- ${item}`),
+			].join("\n");
+
+			if (process.env.NODE_ENV === "test") {
+				const doc = createDocument({
+					type: "rep_field_recap",
+					title: "AI Negotiation Strategy",
+					contextType: "house",
+					contextId: typeof parsed.houseId === "string" ? parsed.houseId : "unknown-house",
+					content: documentContent,
+					format: "clipboard",
+					createdBy: userId,
+				});
+				savedDocumentId = doc.id;
+			} else {
+				const supabase = await createClient();
+				const { data } = await (supabase.from("documents") as any)
+					.insert({
+						type: "rep_field_recap",
+						title: "AI Negotiation Strategy",
+						context_type: "house",
+						context_id: typeof parsed.houseId === "string" ? parsed.houseId : null,
+						content: documentContent,
+						format: "clipboard",
+						created_by: userId,
+						exported: false,
+					})
+					.select("id")
+					.maybeSingle();
+				savedDocumentId = data?.id ?? null;
+			}
+		}
 		const cost = estimateUsageCostUsd(result);
 
 		return NextResponse.json({
@@ -94,6 +136,7 @@ export async function POST(request: NextRequest) {
 				model: result.model,
 				tokenCount: result.usage?.totalTokens ?? 0,
 				estimatedCostUsd: cost,
+				savedDocumentId,
 				latencyMs: Date.now() - start,
 			},
 		});

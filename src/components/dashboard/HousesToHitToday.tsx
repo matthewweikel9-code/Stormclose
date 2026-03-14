@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Eye, Plus, Send, UserPlus } from "lucide-react";
+import { Bot, Eye, FileText, Plus, Send, UserPlus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -98,6 +98,22 @@ export function HousesToHitTodayWidget({ houses }: HousesToHitTodayProps) {
 												}}
 											>
 												<Bot className="h-3.5 w-3.5" />
+											</Button>
+											<Button
+												size="sm"
+												variant="ghost"
+												title="Generate Document"
+												onClick={() => {
+													const query = new URLSearchParams({
+														action: "generate",
+														type: "homeowner_follow_up_letter",
+														contextType: "house",
+														contextId: house.id,
+													});
+													window.location.href = `/dashboard/documents?${query.toString()}`;
+												}}
+											>
+												<FileText className="h-3.5 w-3.5" />
 											</Button>
 											
 										</div>

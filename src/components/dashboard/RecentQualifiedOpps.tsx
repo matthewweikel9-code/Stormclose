@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, TrendingUp } from "lucide-react";
+import { Bot, FileText, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,22 @@ export function RecentQualifiedOppsWidget({ opportunities }: RecentQualifiedOpps
 									}}
 								>
 									<Bot className="h-3.5 w-3.5" />
+								</Button>
+								<Button
+									size="sm"
+									variant="ghost"
+									title="Generate Document"
+									onClick={() => {
+										const query = new URLSearchParams({
+											action: "generate",
+											type: "qualified_opportunity_handoff",
+											contextType: "opportunity",
+											contextId: opportunity.id,
+										});
+										window.location.href = `/dashboard/documents?${query.toString()}`;
+									}}
+								>
+									<FileText className="h-3.5 w-3.5" />
 								</Button>
 							</div>
 						</div>
