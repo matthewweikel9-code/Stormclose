@@ -1,11 +1,5 @@
-import { PhasePlaceholder } from "@/components/dashboard/PhasePlaceholder";
+import { AiStudioHub } from "./ai-studio-hub";
 
 export default function AiStudioPage() {
-	return (
-		<PhasePlaceholder
-			title="AI Studio"
-			phase={4}
-			description="Contextual AI modules for mission copilot, objections, negotiation, summaries, and templates will live here."
-		/>
-	);
+	return <AiStudioHub />;
 }
