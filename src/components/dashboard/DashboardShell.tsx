@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopNav } from "./TopNav";
 import { getDaysRemaining, type SubscriptionTier } from "@/lib/subscriptions/tiers";
+import type { UserRole } from "@/lib/auth/roles";
 
 interface DashboardShellProps {
 	children: ReactNode;
@@ -13,6 +14,7 @@ interface DashboardShellProps {
 	subscriptionStatus: string;
 	tier?: SubscriptionTier;
 	trialEnd?: string | null;
+	userRole: UserRole;
 }
 
 export function DashboardShell({
@@ -21,6 +23,7 @@ export function DashboardShell({
 	subscriptionStatus,
 	tier = "free",
 	trialEnd,
+	userRole,
 }: DashboardShellProps) {
 	const daysUntilTrialEnd = trialEnd ? getDaysRemaining(trialEnd) : null;
 
@@ -30,6 +33,7 @@ export function DashboardShell({
 			<Sidebar 
 				subscriptionTier={tier}
 				daysUntilTrialEnd={daysUntilTrialEnd}
+				userRole={userRole}
 			/>
 
 			{/* Main content — offset for collapsed sidebar */}

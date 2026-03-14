@@ -7,16 +7,44 @@ import { Logo } from "@/components/landing/Logo";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { TIER_DISPLAY_NAMES, type SubscriptionTier } from "@/lib/subscriptions/tiers";
+import {
+	CloudLightning,
+	FileText,
+	LayoutDashboard,
+	Monitor,
+	Navigation,
+	Settings,
+	Sparkles,
+	Upload,
+	Users,
+	type LucideIcon,
+} from "lucide-react";
+import { getNavItemsForRole } from "@/config/navigation";
+import type { UserRole } from "@/lib/auth/roles";
 
 export interface SidebarProps {
 	subscriptionTier?: SubscriptionTier;
 	daysUntilTrialEnd?: number | null;
+	userRole: UserRole;
 }
 
-export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: SidebarProps) {
+const iconMap: Record<string, LucideIcon> = {
+	LayoutDashboard,
+	CloudLightning,
+	Navigation,
+	Users,
+	Monitor,
+	Sparkles,
+	FileText,
+	Upload,
+	Settings,
+};
+
+export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd, userRole }: SidebarProps) {
 	const pathname = usePathname();
 	const [expanded, setExpanded] = useState(false);
 	const displayTier = TIER_DISPLAY_NAMES[subscriptionTier] || "Free";
+	const navItems = getNavItemsForRole(userRole);
 
 	const getTierBadgeVariant = (): "success" | "warning" | "purple" | "default" => {
 		switch (subscriptionTier) {
@@ -26,72 +54,6 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 			default: return "default";
 		}
 	};
-
-	const navItems = [
-		{
-			label: "Revenue Hub",
-			href: "/dashboard",
-			exact: true,
-			icon: (
-				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-				</svg>
-			),
-		},
-		{
-			label: "Storm Ops",
-			href: "/dashboard/command-center",
-			icon: (
-				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-				</svg>
-			),
-			badge: "LIVE",
-			badgeVariant: "live" as const,
-		},
-		{
-			label: "AI Assistant",
-			href: "/dashboard/ai-tools",
-			icon: (
-				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-				</svg>
-			),
-			badge: "AI",
-			badgeVariant: "purple" as const,
-		},
-		{
-			label: "Deal Desk",
-			href: "/dashboard/documents",
-			icon: (
-				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-				</svg>
-			),
-		},
-		{
-			label: "Team",
-			href: "/dashboard/team",
-			icon: (
-				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-				</svg>
-			),
-			badge: "Enterprise",
-			badgeVariant: "success" as const,
-			requiresEnterprise: true,
-		},
-		{
-			label: "Settings",
-			href: "/settings/billing",
-			icon: (
-				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-				</svg>
-			),
-		},
-	];
 
 	return (
 		<aside
@@ -126,11 +88,10 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 			{/* Navigation */}
 			<nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 space-y-1">
 				{navItems.map((item) => {
+					const IconComponent = iconMap[item.icon] || LayoutDashboard;
 					const isActive = item.exact
 						? pathname === item.href
 						: pathname.startsWith(item.href);
-
-					const isLocked = item.requiresEnterprise && subscriptionTier !== "enterprise";
 
 					const navContent = (
 						<>
@@ -144,12 +105,10 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 								className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${
 									isActive
 										? "bg-storm-purple/15 text-storm-glow"
-										: isLocked
-										? "bg-storm-z1 text-storm-subtle/50"
 										: "bg-storm-z1 text-storm-subtle group-hover:bg-storm-z2 group-hover:text-storm-muted"
 								}`}
 							>
-								{item.icon}
+								<IconComponent className="h-5 w-5" strokeWidth={1.75} />
 							</span>
 
 							{/* Label — slides in when expanded */}
@@ -159,38 +118,17 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 								}`}
 							>
 								<span
-									className={`text-sm font-medium truncate ${
-										isActive ? "text-white" : isLocked ? "text-storm-subtle/50" : ""
-									}`}
+									className={`text-sm font-medium truncate ${isActive ? "text-white" : ""}`}
 								>
 									{item.label}
 								</span>
-								{item.badge && expanded && (
-									<Badge variant={item.badgeVariant || "default"} className="ml-2">
-										{item.badge === "LIVE" && <span className="status-dot-live mr-1" />}
-										{item.badge}
-									</Badge>
+								{item.label === "AI Studio" && expanded && <Badge variant="purple" className="ml-2">AI</Badge>}
+								{item.badgeEndpoint && item.label !== "AI Studio" && expanded && (
+									<span className="ml-2 h-2 w-2 rounded-full bg-storm-subtle/70" />
 								)}
 							</div>
 						</>
 					);
-
-					// Locked team item
-					if (isLocked) {
-						const inner = (
-							<div className="group relative flex items-center rounded-xl px-2 py-2.5 text-sm font-medium text-storm-subtle/50 cursor-not-allowed">
-								{navContent}
-							</div>
-						);
-
-						return expanded ? (
-							<div key={item.href}>{inner}</div>
-						) : (
-							<Tooltip key={item.href} content="🔒 Enterprise Only" side="right">
-								{inner}
-							</Tooltip>
-						);
-					}
 
 					const link = (
 						<Link
