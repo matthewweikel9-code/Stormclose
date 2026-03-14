@@ -1,11 +1,20 @@
-import { PhasePlaceholder } from "@/components/dashboard/PhasePlaceholder";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { MissionControlHub } from "./mission-control-hub";
 
 export default function MissionControlPage() {
-	return (
-		<PhasePlaceholder
-			title="Mission Control"
-			phase={3}
-			description="Fullscreen office command center and TV mode with live operations will be introduced in this phase."
-		/>
-	);
+	return <MissionControlPageContent />;
+}
+
+async function MissionControlPageContent() {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) {
+		redirect("/login");
+	}
+
+	return <MissionControlHub />;
 }
