@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { metrics } from "@/lib/metrics";
 
 type RequestLike = Request & {
 	nextUrl?: { pathname: string };
@@ -147,6 +148,14 @@ export async function handleNextRoute(
 		}
 
 		if (isStatusBody(result)) {
+			if (result.status >= 400) {
+				metrics.increment("api_error_rate", 1, {
+					route,
+					method: request.method || "UNKNOWN",
+					status: result.status,
+					type: "status_body",
+				});
+			}
 			return NextResponse.json(result.body, { status: result.status });
 		}
 
@@ -154,6 +163,12 @@ export async function handleNextRoute(
 	} catch (error) {
 		logRequest({ route, userId, method: request.method });
 		const mapped = toHttpError(error);
+		metrics.increment("api_error_rate", 1, {
+			route,
+			method: request.method || "UNKNOWN",
+			status: mapped.statusCode,
+			type: mapped.code,
+		});
 		return NextResponse.json(fail(mapped.code, mapped.message), { status: mapped.statusCode });
 	}
 }

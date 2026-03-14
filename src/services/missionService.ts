@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { calculateThreatScore } from "@/lib/threatScore";
 import { eventBus, type EventBus } from "@/lib/eventBus";
+import { metrics } from "@/lib/metrics";
 import { ParcelCacheService } from "@/services/parcelCacheService";
 import { routeService, type RouteService } from "@/services/routeService";
 
@@ -350,6 +351,11 @@ export class MissionService {
       radiusMiles,
       scheduledDate: options.scheduledDate || null,
       stops: selectedStops,
+    });
+
+    metrics.increment("mission_creation_success", 1, {
+      created: txResult.created,
+      stop_count: selectedStops.length,
     });
 
     await this.bus.publish("mission_created", {

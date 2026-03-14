@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { CoreLogicError, CoreLogicProperty, searchPropertiesInArea } from "@/lib/corelogic";
+import { metrics } from "@/lib/metrics";
 import { ParcelCacheService } from "@/services/parcelCacheService";
 
 type CorelogicSource = "corelogic" | "corelogic_cached" | "fallback";
@@ -50,6 +51,12 @@ export async function searchPropertiesInAreaCached(
 			source: "corelogic_cached",
 		};
 	}
+
+	metrics.increment("corelogic_cache_miss", 1, {
+		reason: cachedProperties.length < CACHE_MIN_COUNT_THRESHOLD ? "below_threshold" : "stale",
+		cached_count: cachedProperties.length,
+		stale,
+	});
 
 	try {
 		const freshProperties = await searchPropertiesInArea(lat, lng, radiusMiles, filters);

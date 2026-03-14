@@ -1,4 +1,5 @@
 import { eventBus } from "@/lib/eventBus";
+import { metrics as metricsEmitter } from "@/lib/metrics";
 import { googleRouteProvider } from "@/integrations/googleRouteProvider";
 import { localTspProvider } from "@/integrations/localTspProvider";
 
@@ -106,8 +107,23 @@ export class RouteService {
     return this.optimize(stops);
   }
 
-  private emitMetrics(metrics: RouteMetrics) {
-    void eventBus.publish("route.optimized", metrics).catch(() => undefined);
+  private emitMetrics(routeMetrics: RouteMetrics) {
+    if (routeMetrics.fallbackTriggered) {
+      const reason = routeMetrics.originalProviderFailed || "unknown";
+      const provider = routeMetrics.providerUsed || "unknown";
+      const errorType = routeMetrics.error ? "provider_error" : "provider_policy";
+
+      // route_provider_fallbacks: how often we have to leave primary route optimization
+      // due to provider failures, quota limits, missing keys, or configured constraints.
+      // This metric is critical for route quality/cost reliability dashboards.
+      metricsEmitter.increment("route_provider_fallbacks", 1, {
+        reason,
+        provider,
+        error_type: errorType,
+      });
+    }
+
+    void eventBus.publish("route.optimized", routeMetrics).catch(() => undefined);
   }
 }
 
