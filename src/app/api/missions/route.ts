@@ -197,7 +197,14 @@ export async function POST(request: NextRequest) {
 
       if (stopsError) {
         console.error("[Missions] Stops insert error:", stopsError);
-        // Mission was created, stops failed — don't roll back, just warn
+        // Roll back the orphaned mission
+        await (supabase.from("canvass_missions") as any)
+          .delete()
+          .eq("id", mission.id);
+        return withStatus(500, {
+          error: "Failed to create mission stops — mission rolled back",
+          details: stopsError.message,
+        });
       }
     }
 
@@ -256,16 +263,30 @@ export async function PATCH(request: NextRequest) {
 
     switch (action) {
       case "start": {
-        await (supabase.from("canvass_missions") as any)
+        if (mission.status !== "planned") {
+          return withStatus(409, { error: `Cannot start mission in '${mission.status}' state` });
+        }
+        const { error: startErr } = await (supabase.from("canvass_missions") as any)
           .update({ status: "in_progress", started_at: new Date().toISOString() })
-          .eq("id", missionId);
+          .eq("id", missionId)
+          .eq("status", "planned"); // optimistic lock
+        if (startErr) {
+          return withStatus(500, { error: "Failed to start mission", details: startErr.message });
+        }
         break;
       }
 
       case "complete": {
-        await (supabase.from("canvass_missions") as any)
+        if (mission.status !== "in_progress") {
+          return withStatus(409, { error: `Cannot complete mission in '${mission.status}' state` });
+        }
+        const { error: completeErr } = await (supabase.from("canvass_missions") as any)
           .update({ status: "completed", completed_at: new Date().toISOString() })
-          .eq("id", missionId);
+          .eq("id", missionId)
+          .eq("status", "in_progress"); // optimistic lock
+        if (completeErr) {
+          return withStatus(500, { error: "Failed to complete mission", details: completeErr.message });
+        }
 
         // Update stats from stops
         try {
@@ -278,9 +299,16 @@ export async function PATCH(request: NextRequest) {
       }
 
       case "cancel": {
-        await (supabase.from("canvass_missions") as any)
+        if (mission.status === "completed" || mission.status === "cancelled") {
+          return withStatus(409, { error: `Cannot cancel mission in '${mission.status}' state` });
+        }
+        const { error: cancelErr } = await (supabase.from("canvass_missions") as any)
           .update({ status: "cancelled" })
-          .eq("id", missionId);
+          .eq("id", missionId)
+          .not("status", "in", '("completed","cancelled")'); // optimistic lock
+        if (cancelErr) {
+          return withStatus(500, { error: "Failed to cancel mission", details: cancelErr.message });
+        }
         break;
       }
 
@@ -301,33 +329,41 @@ export async function PATCH(request: NextRequest) {
         if (homeownerEmail) updateData.homeowner_email = homeownerEmail;
         if (appointmentDate) updateData.appointment_date = appointmentDate;
 
-        await (supabase.from("mission_stops") as any)
+        const { error: stopUpdateErr } = await (supabase.from("mission_stops") as any)
           .update(updateData)
           .eq("id", stopId)
           .eq("user_id", user.id);
 
-        // If appointment set, auto-create a lead
-        if (outcome === "appointment_set" || outcome === "inspection_set") {
-          const { data: stop } = await (supabase.from("mission_stops") as any)
-            .select("*")
-            .eq("id", stopId)
-            .single();
+        if (stopUpdateErr) {
+          return withStatus(500, { error: "Failed to update stop", details: stopUpdateErr.message });
+        }
 
-          if (stop && !stop.lead_id) {
-            const { data: newLead } = await (supabase
+        // If appointment set, auto-create a lead (race-safe)
+        if (outcome === "appointment_set" || outcome === "inspection_set") {
+          // Atomically claim the stop for lead creation (only if lead_id IS NULL)
+          // This prevents duplicate leads from concurrent requests
+          const { data: claimedStop, error: claimErr } = await (supabase.from("mission_stops") as any)
+            .update({ lead_id: '00000000-0000-0000-0000-000000000000' }) // sentinel
+            .eq("id", stopId)
+            .is("lead_id", null)
+            .select("*")
+            .maybeSingle();
+
+          if (claimedStop && !claimErr) {
+            const { data: newLead, error: leadErr } = await (supabase
               .from("leads") as any)
               .insert({
                 user_id: user.id,
-                address: stop.address,
-                city: stop.city,
-                state: stop.state,
-                zip: stop.zip,
-                latitude: stop.latitude,
-                longitude: stop.longitude,
-                year_built: stop.year_built,
-                square_feet: stop.square_feet,
-                roof_age: stop.roof_age,
-                estimated_claim: stop.estimated_claim,
+                address: claimedStop.address,
+                city: claimedStop.city,
+                state: claimedStop.state,
+                zip: claimedStop.zip,
+                latitude: claimedStop.latitude,
+                longitude: claimedStop.longitude,
+                year_built: claimedStop.year_built,
+                square_feet: claimedStop.square_feet,
+                roof_age: claimedStop.roof_age,
+                estimated_claim: claimedStop.estimated_claim,
                 status: outcome === "inspection_set" ? "inspected" : "appointment_set",
                 source: "canvass_mission",
                 notes: `Mission stop. ${notes || ""}`.trim(),
@@ -335,13 +371,20 @@ export async function PATCH(request: NextRequest) {
               .select("id")
               .single();
 
-            if (newLead as any) {
-              // Link lead to stop
+            if (newLead && !leadErr) {
+              // Link real lead to stop (replace sentinel)
               await (supabase.from("mission_stops") as any)
                 .update({ lead_id: (newLead as any).id })
                 .eq("id", stopId);
+            } else {
+              // Lead creation failed — clear sentinel so it can be retried
+              await (supabase.from("mission_stops") as any)
+                .update({ lead_id: null })
+                .eq("id", stopId);
+              console.error("[Missions] Lead creation failed:", leadErr);
             }
           }
+          // If claimedStop is null, another request already claimed it — skip (idempotent)
         }
 
         // Update mission stats

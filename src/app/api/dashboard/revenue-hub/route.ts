@@ -375,19 +375,27 @@ export async function POST(request: NextRequest) {
 		const body = await request.json();
 		const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
 
+		// Validate & sanitize goal fields
+		const safeNumber = (v: unknown, min: number, max: number, fallback: number): number => {
+			const n = Number(v);
+			return Number.isFinite(n) && n >= min && n <= max ? n : fallback;
+		};
+
+		const goalPayload = {
+			user_id: user.id,
+			month: monthStart,
+			monthly_revenue_goal: safeNumber(body.monthly_revenue_goal, 0, 10_000_000, 25000),
+			commission_rate: safeNumber(body.commission_rate, 0, 1, 0.10),
+			daily_door_knock_goal: safeNumber(body.daily_door_knock_goal, 0, 500, 30),
+			daily_call_goal: safeNumber(body.daily_call_goal, 0, 500, 20),
+			weekly_appointment_goal: safeNumber(body.weekly_appointment_goal, 0, 200, 10),
+			monthly_deal_goal: safeNumber(body.monthly_deal_goal, 0, 200, 4),
+			updated_at: new Date().toISOString(),
+		};
+
 		const { error } = await (supabase
 			.from("user_goals") as any)
-			.upsert({
-				user_id: user.id,
-				month: monthStart,
-				monthly_revenue_goal: body.monthly_revenue_goal,
-				commission_rate: body.commission_rate,
-				daily_door_knock_goal: body.daily_door_knock_goal,
-				daily_call_goal: body.daily_call_goal,
-				weekly_appointment_goal: body.weekly_appointment_goal,
-				monthly_deal_goal: body.monthly_deal_goal,
-				updated_at: new Date().toISOString(),
-			}, { onConflict: "user_id,month" });
+			.upsert(goalPayload, { onConflict: "user_id,month" });
 
 		if (error) throw error;
 
