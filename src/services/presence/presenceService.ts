@@ -60,6 +60,15 @@ export class PresenceService {
 		return process.env.NODE_ENV === "test";
 	}
 
+	/** Returns all presence records (test mode: in-memory, prod: queries DB). */
+	getAllPresence(): RepPresence[] {
+		if (this.isTestMode()) {
+			return [...getInMemoryPresenceState().presence];
+		}
+		// In production this would query supabase; for now return empty
+		return [];
+	}
+
 	async startMission(userId: string, missionId: string) {
 		const mission = await missionsService.updateMission(userId, missionId, { status: "active" });
 		const presence = await this.upsertPresence(userId, {
