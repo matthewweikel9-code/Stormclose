@@ -1,11 +1,5 @@
-import { PhasePlaceholder } from "@/components/dashboard/PhasePlaceholder";
+import { Phase9ExportsPage } from "@/components/exports/Phase9ExportsPage";
 
 export default function ExportsPage() {
-	return (
-		<PhasePlaceholder
-			title="Exports"
-			phase={3}
-			description="JobNimbus export queue, retry handling, and handoff summaries will be available on this screen."
-		/>
-	);
+	return <Phase9ExportsPage />;
 }

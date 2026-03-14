@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { listExports } from "@/lib/exports/store";
 import { missionsService } from "@/services/missions/missionService";
 import { presenceService } from "@/services/presence/presenceService";
 import type {
@@ -106,7 +107,6 @@ export async function GET(request: NextRequest) {
 		const activeMissions = missions.filter((m) => m.status === "active");
 		let totalHousesLeft = 0;
 		let totalQualified = 0;
-		let totalSentToJN = 0;
 		let totalHousesHit = 0;
 
 		for (const mission of activeMissions) {
@@ -120,10 +120,21 @@ export async function GET(request: NextRequest) {
 				if (stop.status === "interested") {
 					totalQualified++;
 				}
-				if (stop.status === "sent_to_jobnimbus") {
-					totalSentToJN++;
-				}
 			}
+		}
+
+		let totalSentToJN = 0;
+		if (process.env.NODE_ENV === "test") {
+			totalSentToJN = listExports({ limit: 500 }).exportedTodayCount;
+		} else {
+			const supabase = await createClient();
+			const startOfDay = new Date();
+			startOfDay.setUTCHours(0, 0, 0, 0);
+			const { count } = await (supabase.from("opportunity_exports") as any)
+				.select("id", { count: "exact", head: true })
+				.eq("status", "exported")
+				.gte("exported_at", startOfDay.toISOString());
+			totalSentToJN = count ?? 0;
 		}
 
 		const activeReps = reps.filter(
