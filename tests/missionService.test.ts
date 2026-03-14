@@ -124,4 +124,33 @@ describe("MissionService.createMissionFromStorm (unit)", () => {
       })
     ).rejects.toThrow("Storm event not found");
   });
+
+  it("throws when zero residential parcels are found", async () => {
+    const service = new MissionService(
+      {
+        getStormById: vi.fn().mockResolvedValue({
+          id: "storm-1",
+          latitude: 35.5,
+          longitude: -97.5,
+          impact_radius_miles: 1,
+          hail_size_inches: 1.0,
+          wind_speed_mph: 50,
+          event_occurred_at: "2026-03-10T00:00:00Z",
+        }),
+        createMissionWithStopsTx: vi.fn(),
+      } as any,
+      {
+        // All parcels are commercial — filter leaves nothing
+        getParcelsInPolygon: vi.fn().mockResolvedValue([
+          { parcel_id: "c1", address: "1 Mall Dr", lat: 35.5, lng: -97.5, property_type: "commercial" },
+        ]),
+      } as any,
+      { optimizeRoute: vi.fn() } as any,
+      new EventBus()
+    );
+
+    await expect(
+      service.createMissionFromStorm("user-1", "storm-1", { signature: "sig-empty" })
+    ).rejects.toThrow("No residential parcels found within the storm polygon");
+  });
 });

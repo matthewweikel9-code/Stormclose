@@ -43,7 +43,7 @@ describe("corelogicCachedClient", () => {
 				roof_age: 10,
 				property_value: 200000,
 				last_seen: new Date().toISOString(),
-			}))
+			})) as unknown as never
 		);
 
 		const result = await searchPropertiesInAreaCached(35.4, -97.5, 1, { propertyType: "SFR" });
@@ -64,7 +64,7 @@ describe("corelogicCachedClient", () => {
 				property_value: 200000,
 				last_seen: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
 			},
-		]);
+		] as unknown as never);
 
 		mockedSearch.mockResolvedValue([
 			{
@@ -106,7 +106,7 @@ describe("corelogicCachedClient", () => {
 
 	it("returns fallback when forced fallback enabled and cache empty", async () => {
 		process.env.CORELOGIC_USE_FALLBACK = "true";
-		mockedCacheGet.mockResolvedValue([]);
+		mockedCacheGet.mockResolvedValue([] as unknown as never);
 
 		const result = await searchPropertiesInAreaCached(35.4, -97.5, 1);
 

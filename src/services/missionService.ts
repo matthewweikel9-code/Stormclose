@@ -119,7 +119,7 @@ class SupabaseMissionPersistence implements MissionPersistence {
   }): Promise<{ missionId: string; created: boolean }> {
     const supabase = await createClient();
 
-    const { data, error } = await (supabase.rpc("create_mission_with_stops", {
+    const { data, error } = await (supabase.rpc as any)("create_mission_with_stops", {
       p_user_id: params.userId,
       p_storm_event_id: params.stormId,
       p_signature: params.signature,
@@ -130,7 +130,7 @@ class SupabaseMissionPersistence implements MissionPersistence {
       p_radius_miles: params.radiusMiles,
       p_scheduled_date: params.scheduledDate,
       p_stops: params.stops,
-    } as any));
+    });
 
     if (error) {
       throw error;
@@ -253,6 +253,12 @@ export class MissionService {
     const centerLng = toFiniteNumber(storm.longitude, 0);
     const radiusMiles = clamp(toFiniteNumber(storm.impact_radius_miles, 1), 0.1, 50);
 
+    if (!Number.isFinite(storm.latitude) || !Number.isFinite(storm.longitude)) {
+      console.warn(
+        `[MissionService] Storm ${safeStormId} has missing lat/lng — defaulting to 0,0. Check storm_events_cache data.`
+      );
+    }
+
     const polygonWKT =
       storm.polygon_wkt ||
       toWKTFromUnknownGeometry(storm.polygon) ||
@@ -261,6 +267,10 @@ export class MissionService {
 
     const parcels = (await this.parcelService.getParcelsInPolygon(polygonWKT)) || [];
     const residentialParcels = parcels.filter(isResidential);
+
+    if (residentialParcels.length === 0) {
+      throw new Error("No residential parcels found within the storm polygon");
+    }
 
     const values = residentialParcels
       .map((parcel) => toFiniteNumber(parcel.property_value, Number.NaN))
@@ -297,7 +307,8 @@ export class MissionService {
           roofAgeYears,
         });
 
-        const estimatedClaim = Math.round(Math.max(0, estimatedValue * 0.12 * (threatScore / 100)));
+        const rawClaim = estimatedValue * 0.12 * (threatScore / 100);
+        const estimatedClaim = Number.isFinite(rawClaim) ? Math.round(Math.max(0, rawClaim)) : 0;
 
         return {
           address: String(parcel.address),

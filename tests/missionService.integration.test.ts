@@ -102,11 +102,12 @@ describe("MissionService.createMissionFromStorm (integration-style)", () => {
     };
 
     const routeSvc = {
-      optimizeRoute: vi.fn().mockResolvedValue({ optimizedStops: [] }),
+      // Returns a minimal OptimizedRouteResult-compatible shape
+      optimizeRoute: vi.fn<() => Promise<{ optimizedStops: unknown[] }>>().mockResolvedValue({ optimizedStops: [] }),
     };
 
     const events: any[] = [];
-    bus.subscribe("mission_created", (payload) => events.push(payload));
+    bus.subscribe("mission_created", (payload) => void events.push(payload));
 
     const service = new MissionService(
       persistence as any,

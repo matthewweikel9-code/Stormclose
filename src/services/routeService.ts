@@ -51,10 +51,11 @@ export class RouteService {
     );
 
     if (safeStops.length <= 1) {
+      // No optimization needed for 0 or 1 stop — return as-is without invoking any provider.
       const result: OptimizedRouteResult = {
         optimizedStops: safeStops,
         metrics: {
-          providerUsed: this.fallbackProvider.name,
+          providerUsed: "passthrough",
           latencyMs: 0,
           fallbackTriggered: false,
         },

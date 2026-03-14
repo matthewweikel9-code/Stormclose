@@ -85,4 +85,17 @@ describe("RouteService", () => {
     expect(fallback.optimize).toHaveBeenCalledTimes(1);
     expect(result.metrics.originalProviderFailed).toBe("primary_max_stops_exceeded");
   });
+
+  it("returns passthrough metrics for 0 or 1 stops without calling any provider", async () => {
+    const primary = createProvider("google_primary");
+    const fallback = createProvider("local_fallback", { isNetworked: false });
+    const service = new RouteService(primary, fallback);
+
+    const result = await service.optimize([sampleStops[0]]);
+
+    expect(primary.optimize).not.toHaveBeenCalled();
+    expect(fallback.optimize).not.toHaveBeenCalled();
+    expect(result.metrics.providerUsed).toBe("passthrough");
+    expect(result.metrics.fallbackTriggered).toBe(false);
+  });
 });

@@ -58,6 +58,13 @@ function nearestNeighborSeed(stops: RouteStopInput[]): RouteStopInput[] {
   return ordered;
 }
 
+/**
+ * Applies iterative 2-opt swaps to improve an initial tour.
+ *
+ * Time complexity: O(n² × maxIterations). For n > ~100 this will block the
+ * Node.js event loop. If mission sizes routinely exceed 150 stops, move this
+ * to a worker_thread or switch to a streaming heuristic.
+ */
 function twoOpt(stops: RouteStopInput[], maxIterations = 200): RouteStopInput[] {
   if (stops.length <= 3) {
     return [...stops];

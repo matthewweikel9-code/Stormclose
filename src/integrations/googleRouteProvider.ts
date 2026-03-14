@@ -107,7 +107,7 @@ export class GoogleRouteProvider implements IRouteProvider {
 
     return {
       optimizedStops,
-      estimatedDistanceMiles: totalMeters / 1609.344,
+      estimatedDistanceMiles: Math.round((totalMeters / 1609.344) * 100) / 100,
       estimatedDurationMinutes: Math.round(totalSeconds / 60),
       metrics: {
         providerUsed: this.name,

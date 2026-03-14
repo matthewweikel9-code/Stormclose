@@ -1,4 +1,5 @@
-export type EventHandler<T = unknown> = (payload: T) => void | Promise<void>;
+// Handlers may return void, a Promise, or any value — the bus discards the return.
+export type EventHandler<T = unknown> = (payload: T) => unknown;
 
 export class EventBus {
   private handlers = new Map<string, Set<EventHandler>>();
@@ -26,7 +27,13 @@ export class EventBus {
     }
 
     for (const handler of eventHandlers) {
-      await Promise.resolve(handler(payload));
+      try {
+        await Promise.resolve(handler(payload));
+      } catch (err) {
+        // Isolate handler failures so one bad subscriber cannot block others
+        // or surface unhandled promise rejections to the caller.
+        console.error(`[EventBus] Handler for "${eventName}" threw:`, err);
+      }
     }
   }
 

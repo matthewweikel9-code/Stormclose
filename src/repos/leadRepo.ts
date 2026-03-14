@@ -60,7 +60,9 @@ export class SupabaseLeadRepo implements LeadRepo {
     }
 
     if (filters.search) {
-      const safeSearch = `%${filters.search}%`;
+      // Escape ilike special characters so user input is treated as a literal substring.
+      const escapedSearch = filters.search.replace(/[%_\\]/g, "\\$&");
+      const safeSearch = `%${escapedSearch}%`;
       query = query.or(`address.ilike.${safeSearch},homeowner_name.ilike.${safeSearch}`);
     }
 
