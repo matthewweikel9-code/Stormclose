@@ -1,11 +1,18 @@
-import { PhasePlaceholder } from "@/components/dashboard/PhasePlaceholder";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { StormsIntelligence } from "./storms-intelligence";
 
-export default function StormsPage() {
-	return (
-		<PhasePlaceholder
-			title="Storms"
-			phase={1}
-			description="Storm intelligence and opportunity zones will land here, including live storm map, timeline, and AI recommendations."
-		/>
-	);
+export default async function StormsPage() {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) {
+		redirect("/login");
+	}
+
+	const metadataRole = typeof user.user_metadata?.role === "string" ? user.user_metadata.role : null;
+
+	return <StormsIntelligence metadataRole={metadataRole} />;
 }
