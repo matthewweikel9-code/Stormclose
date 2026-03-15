@@ -1,67 +1,81 @@
-type DailyBriefContext = Record<string, unknown>;
+// ── Daily Brief Generator Module ─────────────────────────────────────────────
 
-type BuildDailyBriefOptions = {
+import type { AiContext } from "@/types/ai-context";
+import { buildSystemSections } from "@/lib/ai/promptBuilder";
+
+export interface DailyBriefParams {
 	briefDate: string;
 	focusAreas: string | null;
 	force: boolean;
-};
+}
 
-type DailyBriefOutput = {
+export interface DailyBriefOutput {
 	summary: string;
-	highlights: Array<{ category: string; text: string; href?: string }>;
+	highlights: Array<{
+		category: "storm" | "mission" | "team" | "export" | "opportunity";
+		text: string;
+		href: string | null;
+	}>;
 	generatedAt: string;
 	model: string;
 	tokenCount: number;
-};
+}
 
-export function buildDailyBriefPrompt(context: DailyBriefContext, options: BuildDailyBriefOptions) {
+export function buildDailyBriefPrompt(
+	ctx: AiContext,
+	params: DailyBriefParams,
+): { system: string; user: string } {
+	const contextSections = buildSystemSections(ctx);
+
 	const system = [
-		"You are StormClose's operations co-pilot.",
-		"Return a concise daily operational brief for a roofing sales + field team.",
-		"Prefer practical recommendations and clear sequencing.",
-		"If inputs are sparse, produce a useful fallback brief.",
-	].join(" ");
+		"You are an AI operations analyst for a roofing storm sales company.",
+		"Generate a morning operations brief summarizing storm activity, mission status, team coverage, and export throughput.",
+		"Output valid JSON matching this schema: { summary: string (markdown, 2-4 paragraphs), highlights: Array<{ category, text, href }> }.",
+		"Categories: storm, mission, team, export, opportunity.",
+		"Keep href null unless you can reference a real route.",
+		"Maximum 1500 tokens in your response.",
+		"",
+		contextSections,
+	].join("\n");
 
 	const user = [
-		`Brief Date: ${options.briefDate}`,
-		`Focus Areas: ${options.focusAreas ?? "General operations"}`,
-		`Force Refresh: ${options.force ? "yes" : "no"}`,
-		"Context:",
-		JSON.stringify(context, null, 2),
-		"",
-		"Output format:",
-		"1) One paragraph summary.",
-		"2) 3-6 bullet highlights with action-oriented language.",
-	].join("\n");
+		`Generate the daily operations brief for ${params.briefDate}.`,
+		params.focusAreas ? `Focus areas: ${params.focusAreas}` : null,
+		"Return only valid JSON. No markdown code fences.",
+	]
+		.filter(Boolean)
+		.join("\n");
 
 	return { system, user };
 }
 
-function extractHighlights(content: string) {
-	const lines = content
-		.split("\n")
-		.map((line) => line.trim())
-		.filter(Boolean)
-		.filter((line) => /^[-*•]/.test(line));
-
-	return lines.slice(0, 6).map((line) => ({
-		category: "operations",
-		text: line.replace(/^[-*•]\s*/, ""),
-	}));
-}
-
-export function parseDailyBriefOutput(content: string, model: string, tokenCount: number): DailyBriefOutput {
-	const summary = content.trim();
-	const highlights = extractHighlights(content);
-
-	return {
-		summary:
-			summary.length > 0
-				? summary
-				: "No AI summary was generated. Continue current mission and export priorities.",
-		highlights,
-		generatedAt: new Date().toISOString(),
-		model,
-		tokenCount,
-	};
+export function parseDailyBriefOutput(
+	raw: string,
+	model: string,
+	tokenCount: number,
+): DailyBriefOutput {
+	try {
+		const parsed = JSON.parse(raw);
+		return {
+			summary: String(parsed.summary ?? raw),
+			highlights: Array.isArray(parsed.highlights)
+				? parsed.highlights.map((h: Record<string, unknown>) => ({
+						category: String(h.category ?? "opportunity"),
+						text: String(h.text ?? ""),
+						href: h.href ? String(h.href) : null,
+					}))
+				: [],
+			generatedAt: new Date().toISOString(),
+			model,
+			tokenCount,
+		};
+	} catch {
+		return {
+			summary: raw,
+			highlights: [],
+			generatedAt: new Date().toISOString(),
+			model,
+			tokenCount,
+		};
+	}
 }

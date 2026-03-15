@@ -1,0 +1,7 @@
+{
+	"stormIntensity": 0.3,
+	"recency": 0.25,
+	"density": 0.2,
+	"unworkedRatio": 0.15,
+	"avgHouseScore": 0.1
+}

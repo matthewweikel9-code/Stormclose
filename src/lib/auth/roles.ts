@@ -1,12 +1,16 @@
-export type UserRole = "owner" | "manager" | "rep" | "office_admin";
+export const USER_ROLES = ["owner", "manager", "rep", "office_admin"] as const;
+
+export type UserRole = (typeof USER_ROLES)[number];
 
 export function normalizeUserRole(role: string | null | undefined): UserRole {
-	const normalized = (role ?? "").trim().toLowerCase();
-
-	if (normalized === "owner") return "owner";
-	if (normalized === "manager") return "manager";
-	if (normalized === "office_admin" || normalized === "office-admin" || normalized === "admin") {
-		return "office_admin";
+	if (!role) {
+		return "manager";
 	}
-	return "rep";
+
+	const normalized = role.trim().toLowerCase();
+	if (normalized === "owner" || normalized === "manager" || normalized === "rep" || normalized === "office_admin") {
+		return normalized;
+	}
+
+	return "manager";
 }

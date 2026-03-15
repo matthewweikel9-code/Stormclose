@@ -1,79 +1,283 @@
-export type DashboardTodayData = {
-	kpi: {
-		housesToHitCount: number;
-		activeMissionCount: number;
-		repsInFieldCount: number;
-		exportsTodayCount: number;
-	};
-	aiDailyBrief: {
-		summary: string;
-		highlights: Array<{ category: string; text: string; href?: string }>;
-		generatedAt: string;
-		model: string;
-		tokenCount: number;
-	};
-	housesToHitToday: Array<Record<string, unknown>>;
-	topStormZones: Array<Record<string, unknown>>;
-	aiDeploymentPlan: Record<string, unknown>;
-	liveTeamSnapshot: Record<string, unknown>;
-	unassignedHotClusters: Array<Record<string, unknown>>;
-	recentQualifiedOpps: Array<Record<string, unknown>>;
-	exportQueueSummary: {
-		readyCount: number;
-		exportedTodayCount: number;
-		failedCount: number;
-		retryQueueCount: number;
-		successRatePercent: number;
-		recentExports: Array<{
-			id: string;
-			address: string;
-			status: "success" | "retrying" | "pending" | "failed";
-			exportedAt: string;
-			errorMessage?: string;
-		}>;
-	};
-	dataHealth: Record<string, unknown>;
-};
+import type { DashboardTodayData } from "@/types/dashboard";
+
+const now = new Date();
 
 export function getDashboardTodayMockData(): DashboardTodayData {
-	const now = new Date().toISOString();
-
 	return {
 		kpi: {
-			housesToHitCount: 0,
-			activeMissionCount: 0,
-			repsInFieldCount: 0,
-			exportsTodayCount: 0,
+			housesToHitCount: 42,
+			activeMissionCount: 6,
+			repsInFieldCount: 11,
+			exportsTodayCount: 9,
 		},
 		aiDailyBrief: {
-			summary: "No brief generated yet. Data will appear once missions and weather signals are available.",
-			highlights: [],
-			generatedAt: now,
-			model: "fallback",
-			tokenCount: 0,
+			summary:
+				"Priority is the North Dallas Hail Corridor where severity remains high and 18 unworked targets are clustered within 2.5 miles. Field coverage is healthy, but two high-value pockets remain unassigned. Export throughput is stable with one retry required this morning.",
+			highlights: [
+				{ category: "storm", text: "North Dallas zone remains highest value", href: "/dashboard/storms" },
+				{ category: "mission", text: "6 active missions are 61% complete", href: "/dashboard/missions" },
+				{ category: "export", text: "1 failed export needs retry", href: "/dashboard/exports" },
+			],
+			generatedAt: now.toISOString(),
+			model: "gpt-4o",
+			tokenCount: 1834,
 		},
-		housesToHitToday: [],
-		topStormZones: [],
+		housesToHitToday: [
+			{
+				id: "house_1",
+				address: "1201 Elm St",
+				neighborhood: "Uptown",
+				city: "Dallas",
+				state: "TX",
+				zip: "75201",
+				stormZoneId: "zone_1",
+				stormZoneName: "North Dallas Hail Corridor",
+				opportunityScore: 92,
+				scoreTier: "hot",
+				stormAgeDays: 2,
+				stormSeverity: "extreme",
+				estimatedValueBand: "$20k–$40k",
+				assignedRepId: "rep_1",
+				assignedRepName: "Maya Lopez",
+				missionId: "mission_1",
+				status: "targeted",
+				distanceMiles: 1.2,
+				aiRankingReason: "Recent 2.1in hail impact with high roof-age vulnerability and top claim potential.",
+				lat: 32.787,
+				lng: -96.799,
+				yearBuilt: 1999,
+				roofAge: 18,
+				assessedValue: 540000,
+			},
+			{
+				id: "house_2",
+				address: "8842 Preston Rd",
+				neighborhood: "Preston Hollow",
+				city: "Dallas",
+				state: "TX",
+				zip: "75225",
+				stormZoneId: "zone_1",
+				stormZoneName: "North Dallas Hail Corridor",
+				opportunityScore: 87,
+				scoreTier: "hot",
+				stormAgeDays: 2,
+				stormSeverity: "severe",
+				estimatedValueBand: "$40k+",
+				assignedRepId: null,
+				assignedRepName: null,
+				missionId: null,
+				status: "new",
+				distanceMiles: 2.9,
+				aiRankingReason: "Large parcel value and severe hail path overlap with no prior outreach attempt.",
+				lat: 32.877,
+				lng: -96.804,
+				yearBuilt: 2004,
+				roofAge: 13,
+				assessedValue: 870000,
+			},
+			{
+				id: "house_3",
+				address: "4013 Belmont Ave",
+				neighborhood: "Lower Greenville",
+				city: "Dallas",
+				state: "TX",
+				zip: "75206",
+				stormZoneId: "zone_2",
+				stormZoneName: "East Dallas Wind Belt",
+				opportunityScore: 73,
+				scoreTier: "warm",
+				stormAgeDays: 3,
+				stormSeverity: "moderate",
+				estimatedValueBand: "$10k–$20k",
+				assignedRepId: "rep_3",
+				assignedRepName: "Jordan Price",
+				missionId: "mission_2",
+				status: "attempted",
+				distanceMiles: 0.8,
+				aiRankingReason: "Strong wind score with high proximity to active rep route and favorable revisit window.",
+				lat: 32.823,
+				lng: -96.771,
+				yearBuilt: 1988,
+				roofAge: 21,
+				assessedValue: 390000,
+			},
+		],
+		topStormZones: [
+			{
+				id: "zone_1",
+				name: "North Dallas Hail Corridor",
+				score: 90,
+				severity: "extreme",
+				houseCount: 118,
+				unworkedHouseCount: 44,
+				stormAgeDays: 2,
+				lat: 32.86,
+				lng: -96.8,
+				geometry: null,
+				activeMissionCount: 3,
+			},
+			{
+				id: "zone_2",
+				name: "East Dallas Wind Belt",
+				score: 76,
+				severity: "severe",
+				houseCount: 84,
+				unworkedHouseCount: 31,
+				stormAgeDays: 3,
+				lat: 32.82,
+				lng: -96.77,
+				geometry: null,
+				activeMissionCount: 2,
+			},
+		],
 		aiDeploymentPlan: {
-			actions: [],
+			generated: true,
+			generatedAt: now.toISOString(),
+			status: "pending_approval",
+			assignments: [
+				{
+					repId: "rep_1",
+					repName: "Maya Lopez",
+					stormZoneId: "zone_1",
+					stormZoneName: "North Dallas Hail Corridor",
+					estimatedHouseCount: 14,
+					missionCreated: true,
+					missionId: "mission_1",
+				},
+				{
+					repId: "rep_2",
+					repName: "Alex Chen",
+					stormZoneId: "zone_2",
+					stormZoneName: "East Dallas Wind Belt",
+					estimatedHouseCount: 11,
+					missionCreated: false,
+					missionId: null,
+				},
+			],
+			reasoning:
+				"Assignments prioritize severity-first coverage while minimizing drive-time based on live rep proximity.",
 		},
 		liveTeamSnapshot: {
-			activeReps: 0,
-			availableReps: 0,
+			totalReps: 14,
+			repsInField: 11,
+			repsIdle: 2,
+			repsUndeployed: 3,
+			reps: [
+				{
+					id: "rep_1",
+					name: "Maya Lopez",
+					avatarUrl: null,
+					fieldStatus: "active",
+					activeMissionId: "mission_1",
+					activeMissionName: "North Dallas Morning Push",
+					housesCompleted: 9,
+					housesRemaining: 12,
+					lastHeartbeatSecondsAgo: 28,
+				},
+				{
+					id: "rep_2",
+					name: "Alex Chen",
+					avatarUrl: null,
+					fieldStatus: "idle",
+					activeMissionId: "mission_3",
+					activeMissionName: "Lakewood Sweep",
+					housesCompleted: 4,
+					housesRemaining: 16,
+					lastHeartbeatSecondsAgo: 620,
+				},
+			],
 		},
-		unassignedHotClusters: [],
-		recentQualifiedOpps: [],
+		unassignedHotClusters: [
+			{
+				id: "cluster_1",
+				label: "Lakewood North Pocket",
+				stormZoneId: "zone_2",
+				stormZoneName: "East Dallas Wind Belt",
+				unworkedHouseCount: 7,
+				avgOpportunityScore: 81,
+				lat: 32.831,
+				lng: -96.748,
+				nearestRepDistanceMiles: 1.7,
+				nearestRepName: "Jordan Price",
+			},
+		],
+		recentQualifiedOpps: [
+			{
+				id: "opp_1",
+				address: "2512 Vickery Blvd",
+				city: "Dallas",
+				state: "TX",
+				opportunityScore: 84,
+				estimatedValueBand: "$20k–$40k",
+				repName: "Maya Lopez",
+				qualifiedAt: new Date(now.getTime() - 1000 * 60 * 13).toISOString(),
+				exportStatus: "queued",
+				stormZoneName: "North Dallas Hail Corridor",
+			},
+			{
+				id: "opp_2",
+				address: "810 Abrams Rd",
+				city: "Dallas",
+				state: "TX",
+				opportunityScore: 71,
+				estimatedValueBand: "$10k–$20k",
+				repName: "Jordan Price",
+				qualifiedAt: new Date(now.getTime() - 1000 * 60 * 37).toISOString(),
+				exportStatus: "not_exported",
+				stormZoneName: "East Dallas Wind Belt",
+			},
+		],
 		exportQueueSummary: {
-			readyCount: 0,
-			exportedTodayCount: 0,
-			failedCount: 0,
-			retryQueueCount: 0,
-			successRatePercent: 100,
-			recentExports: [],
+			readyCount: 6,
+			exportedTodayCount: 9,
+			failedCount: 1,
+			retryQueueCount: 1,
+			successRatePercent: 90,
+			recentExports: [
+				{
+					id: "exp_1",
+					address: "2512 Vickery Blvd",
+					status: "success",
+					exportedAt: new Date(now.getTime() - 1000 * 60 * 22).toISOString(),
+					errorMessage: null,
+				},
+				{
+					id: "exp_2",
+					address: "1041 Skillman St",
+					status: "failed",
+					exportedAt: new Date(now.getTime() - 1000 * 60 * 31).toISOString(),
+					errorMessage: "JobNimbus timeout",
+				},
+			],
 		},
 		dataHealth: {
-			status: "ok",
-			updatedAt: now,
+			overallHealth: "degraded",
+			sources: [
+				{
+					source: "xweather",
+					label: "Xweather",
+					lastSyncAt: new Date(now.getTime() - 1000 * 60 * 22).toISOString(),
+					minutesSinceSync: 22,
+					status: "healthy",
+					lastError: null,
+				},
+				{
+					source: "corelogic",
+					label: "CoreLogic",
+					lastSyncAt: new Date(now.getTime() - 1000 * 60 * 90).toISOString(),
+					minutesSinceSync: 90,
+					status: "stale",
+					lastError: null,
+				},
+				{
+					source: "jobnimbus",
+					label: "JobNimbus",
+					lastSyncAt: new Date(now.getTime() - 1000 * 60 * 8).toISOString(),
+					minutesSinceSync: 8,
+					status: "healthy",
+					lastError: null,
+				},
+			],
 		},
 	};
 }
