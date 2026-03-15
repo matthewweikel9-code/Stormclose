@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { getEffectiveTier, type SubscriptionTier } from "@/lib/subscriptions";
-import { normalizeUserRole } from "@/lib/auth/roles";
 
 export default async function DashboardLayout({
 	children
@@ -35,8 +34,6 @@ export default async function DashboardLayout({
 	const tier = (accountData?.subscription_tier as SubscriptionTier) ?? "free";
 	const effectiveTier = getEffectiveTier(tier, accountData?.trial_end ?? null);
 	const trialEnd = accountData?.trial_end ?? null;
-	const metadataRole = typeof user.user_metadata?.role === "string" ? user.user_metadata.role : null;
-	const userRole = normalizeUserRole(metadataRole);
 
 	return (
 		<DashboardShell 
@@ -44,7 +41,6 @@ export default async function DashboardLayout({
 			subscriptionStatus={subscriptionStatus}
 			tier={effectiveTier}
 			trialEnd={trialEnd}
-			userRole={userRole}
 		>
 			{children}
 		</DashboardShell>

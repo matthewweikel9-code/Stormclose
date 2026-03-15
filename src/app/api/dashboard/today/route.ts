@@ -31,7 +31,7 @@ export async function GET() {
 								? "pending"
 								: "failed",
 				exportedAt: row.exportedAt ?? row.updatedAt,
-				errorMessage: row.error ?? null,
+				errorMessage: row.error ?? undefined,
 			})),
 		};
 	} else {
@@ -73,7 +73,7 @@ export async function GET() {
 								? "pending"
 								: "failed",
 				exportedAt: row.exported_at ?? row.updated_at,
-				errorMessage: row.error ?? null,
+				errorMessage: row.error ?? undefined,
 			})),
 		};
 	}

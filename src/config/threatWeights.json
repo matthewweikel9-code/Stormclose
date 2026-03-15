@@ -1,8 +1,0 @@
-{
-  "hailSize": 0.35,
-  "windSpeed": 0.20,
-  "stormDurationMinutes": 0.10,
-  "proximityScore": 0.15,
-  "parcelValueNormalized": 0.10,
-  "roofAgeYears": 0.10
-}

@@ -1,132 +1,88 @@
-import { randomUUID } from "crypto";
-import type {
-	ExportFilters,
-	ExportListResponseData,
-	ExportPreview,
-	ExportStatus,
-	JobNimbusPayload,
-	OpportunityExportRecord,
-} from "@/types/exports";
+import type { ExportStatus, OpportunityExportRecord } from "@/types/exports";
 
-const inMemoryExports: OpportunityExportRecord[] = [];
+const nowIso = () => new Date().toISOString();
 
-function makeExportId() {
-	try {
-		return randomUUID();
-	} catch {
-		return `exp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-	}
-}
+const records: OpportunityExportRecord[] = [];
 
-export function listExports(filters: ExportFilters = {}): ExportListResponseData {
-	let rows = [...inMemoryExports];
-
-	if (filters.status) {
-		const statuses = Array.isArray(filters.status) ? filters.status : [filters.status];
-		rows = rows.filter((record) => statuses.includes(record.status));
-	}
-
-	if (filters.q) {
-		const q = filters.q.toLowerCase();
-		rows = rows.filter((record) => {
-			const address = record.payload.contact.address_line1.toLowerCase();
-			const displayName = record.payload.contact.display_name.toLowerCase();
-			return address.includes(q) || displayName.includes(q);
-		});
-	}
-
-	rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-	const offset = filters.offset && filters.offset > 0 ? filters.offset : 0;
-	const limit = filters.limit && filters.limit > 0 ? Math.min(filters.limit, 200) : 50;
-	const paged = rows.slice(offset, offset + limit);
-	const today = new Date().toISOString().slice(0, 10);
-
-	return {
-		exports: paged,
-		total: rows.length,
-		readyCount: inMemoryExports.filter((record) => record.status === "ready").length,
-		exportedTodayCount: inMemoryExports.filter(
-			(record) => record.status === "exported" && record.exportedAt?.startsWith(today),
-		).length,
-		failedCount: inMemoryExports.filter((record) => record.status === "failed").length,
-		retryingCount: inMemoryExports.filter((record) => record.status === "retrying").length,
-	};
+function ensureSeeded() {
+	if (records.length > 0) return;
+	records.push({
+		id: "11111111-1111-4111-8111-111111111111",
+		status: "ready",
+		attempts: 0,
+		error: null,
+		nextRetryAt: null,
+		exportedAt: null,
+		updatedAt: nowIso(),
+		createdAt: nowIso(),
+		houseId: "house-1",
+		missionId: "mission-1",
+		payload: {
+			contact: {
+				display_name: "Sample Homeowner",
+				address_line1: "123 Demo Ave",
+				city: "Austin",
+				state_text: "TX",
+				zip: "78701",
+				mobile_phone: "555-0100",
+				email: "demo@example.com",
+			},
+			notes: "Seed export record",
+		},
+	});
 }
 
 export function getExportById(id: string): OpportunityExportRecord | null {
-	return inMemoryExports.find((record) => record.id === id) ?? null;
-}
-
-export function createExport(input: {
-	houseId: string;
-	missionId: string | null;
-	missionStopId: string | null;
-	createdBy: string;
-	payload: JobNimbusPayload;
-	status?: ExportStatus;
-	attempts?: number;
-	nextRetryAt?: string | null;
-	error?: string | null;
-	exportedAt?: string | null;
-	jobnimbusId?: string | null;
-}): OpportunityExportRecord {
-	const now = new Date().toISOString();
-	const record: OpportunityExportRecord = {
-		id: makeExportId(),
-		houseId: input.houseId,
-		missionId: input.missionId,
-		missionStopId: input.missionStopId,
-		status: input.status ?? "ready",
-		payload: input.payload,
-		jobnimbusId: input.jobnimbusId ?? null,
-		error: input.error ?? null,
-		attempts: input.attempts ?? 0,
-		nextRetryAt: input.nextRetryAt ?? null,
-		exportedAt: input.exportedAt ?? null,
-		createdBy: input.createdBy,
-		createdAt: now,
-		updatedAt: now,
-	};
-	inMemoryExports.unshift(record);
-	return record;
-}
-
-export function updateExportStatus(id: string, status: ExportStatus, patch?: Partial<OpportunityExportRecord>) {
-	const record = getExportById(id);
-	if (!record) return null;
-	record.status = status;
-	if (patch) {
-		if (typeof patch.error !== "undefined") record.error = patch.error;
-		if (typeof patch.jobnimbusId !== "undefined") record.jobnimbusId = patch.jobnimbusId;
-		if (typeof patch.nextRetryAt !== "undefined") record.nextRetryAt = patch.nextRetryAt;
-		if (typeof patch.exportedAt !== "undefined") record.exportedAt = patch.exportedAt;
-		if (typeof patch.attempts !== "undefined") record.attempts = patch.attempts;
-	}
-	record.updatedAt = new Date().toISOString();
-	return record;
+	ensureSeeded();
+	return records.find((record) => record.id === id) ?? null;
 }
 
 export function getReadyExports(): OpportunityExportRecord[] {
-	return inMemoryExports.filter((record) => record.status === "ready");
+	ensureSeeded();
+	return records.filter((record) => record.status === "ready");
 }
 
-export function toPreview(record: OpportunityExportRecord): ExportPreview {
-	const warnings: string[] = [];
-	if (!record.payload.contact.mobile_phone && !record.payload.contact.email) {
-		warnings.push("No contact phone or email captured.");
-	}
-	if (record.payload.contact.display_name.toLowerCase().includes("homeowner")) {
-		warnings.push("Homeowner name looks generic.");
-	}
+export function updateExportStatus(
+	id: string,
+	status: ExportStatus,
+	patch: Partial<
+		Pick<OpportunityExportRecord, "error" | "nextRetryAt" | "exportedAt" | "attempts" | "jobnimbusId">
+	>
+) {
+	ensureSeeded();
+	const record = records.find((row) => row.id === id);
+	if (!record) return;
+	record.status = status;
+	record.updatedAt = nowIso();
+	if (patch.error !== undefined) record.error = patch.error;
+	if (patch.nextRetryAt !== undefined) record.nextRetryAt = patch.nextRetryAt;
+	if (patch.exportedAt !== undefined) record.exportedAt = patch.exportedAt;
+	if (patch.attempts !== undefined) record.attempts = patch.attempts;
+	if (patch.jobnimbusId !== undefined) record.jobnimbusId = patch.jobnimbusId;
+}
+
+export function listExports(options?: { limit?: number }) {
+	ensureSeeded();
+	const limit = options?.limit ?? records.length;
+	const exports = [...records]
+		.sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+		.slice(0, limit);
+
+	const today = new Date().toISOString().slice(0, 10);
+	const readyCount = records.filter((record) => record.status === "ready").length;
+	const exportedTodayCount = records.filter(
+		(record) => record.status === "exported" && String(record.exportedAt ?? "").startsWith(today)
+	).length;
+	const failedCount = records.filter(
+		(record) => record.status === "failed" || record.status === "permanently_failed"
+	).length;
+	const retryingCount = records.filter((record) => record.status === "retrying").length;
 
 	return {
-		exportId: record.id,
-		payload: record.payload,
-		handoffSummary: record.payload.handoffSummary,
-		validationWarnings: warnings,
+		exports,
+		readyCount,
+		exportedTodayCount,
+		failedCount,
+		retryingCount,
 	};
-}
-
-export function resetExportsStore() {
-	inMemoryExports.length = 0;
 }

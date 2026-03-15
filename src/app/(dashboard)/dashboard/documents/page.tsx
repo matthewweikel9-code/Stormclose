@@ -27,7 +27,6 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Phase8DocumentsPage } from '@/components/documents/Phase8DocumentsPage';
 
 type DealTab = 'all' | 'active' | 'estimates' | 'reports';
 
@@ -54,7 +53,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'warni
   closed: { label: 'Closed Won', variant: 'success' },
 };
 
-function LegacyDealDeskPage() {
+export default function DealDeskPage() {
   const [activeTab, setActiveTab] = useState<DealTab>('all');
   const [deals, setDeals] = useState<DealFolder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -393,8 +392,4 @@ function LegacyDealDeskPage() {
       )}
     </div>
   );
-}
-
-export default function DocumentsPage() {
-  return <Phase8DocumentsPage />;
 }

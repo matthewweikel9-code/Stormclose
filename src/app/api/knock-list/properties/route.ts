@@ -1,86 +1,80 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { handleNextRoute, withStatus } from "@/lib/api-middleware";
-import { calculateRoofAge, estimateClaimValue, CoreLogicProperty } from "@/lib/corelogic";
-import { searchPropertiesInAreaCached } from "@/integrations/corelogicCachedClient";
+import {
+  searchPropertiesInArea,
+  calculateRoofAge,
+  estimateClaimValue,
+  formatPropertyToLead,
+  CoreLogicProperty,
+} from "@/lib/corelogic";
 import { getHailReports } from "@/lib/xweather";
 
 export async function GET(request: NextRequest) {
-  return handleNextRoute(
-    request,
-    async ({ setUserId }) => {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-      setUserId(user?.id);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-      if (!user) {
-        return withStatus(401, { error: "Unauthorized" });
-      }
+  const { searchParams } = new URL(request.url);
+  const lat = parseFloat(searchParams.get("lat") || "32.7767");
+  const lng = parseFloat(searchParams.get("lng") || "-96.7970");
+  const radius = parseFloat(searchParams.get("radius") || "2"); // miles
 
-      const { searchParams } = new URL(request.url);
-      const lat = parseFloat(searchParams.get("lat") || "32.7767");
-      const lng = parseFloat(searchParams.get("lng") || "-96.7970");
-      const radius = parseFloat(searchParams.get("radius") || "2"); // miles
+  try {
+    let properties: KnockListProperty[] = [];
+    let stormData: any = null;
 
-      try {
-        let properties: KnockListProperty[] = [];
-        let propertySource: "none" | "corelogic" | "corelogic_cached" | "fallback" = "none";
-        let stormData: any = null;
-
-        // Try to get real storm data from Xweather
-        try {
-          const hailReports = await getHailReports(lat, lng, radius * 2, 30);
-          if (hailReports.length > 0) {
-            const maxHail = Math.max(...hailReports.map(r => r.report.detail.hailIN || 0));
-            stormData = {
-              hailEvents: hailReports.length,
-              maxHailSize: maxHail,
-              lastStormDate: hailReports[0].report.dateTimeISO,
-            };
-          }
-        } catch (e) {
-          console.log("Xweather not available, using generated storm data");
-        }
-
-        // CoreLogic property search
-        try {
-          const { properties: clProperties, source } = await searchPropertiesInAreaCached(lat, lng, radius, {
-            propertyType: "SFR",
-          });
-
-          properties = clProperties.slice(0, 50).map((prop, i) =>
-            formatToKnockList(prop, i, lat, lng, stormData)
-          );
-          propertySource = source;
-        } catch (e) {
-          console.log("CoreLogic not available:", e);
-        }
-
-        // If no data, return empty result
-        if (properties.length === 0) {
-          return {
-            properties: [],
-            source: propertySource,
-            stormData,
-            location: { lat, lng, radius },
-            message: "No residential properties found in this area. Try a different location or larger radius.",
-          };
-        }
-
-        return {
-          properties,
-          source: propertySource,
-          stormData,
-          location: { lat, lng, radius },
+    // Try to get real storm data from Xweather
+    try {
+      const hailReports = await getHailReports(lat, lng, radius * 2, 30);
+      if (hailReports.length > 0) {
+        const maxHail = Math.max(...hailReports.map(r => r.report.detail.hailIN || 0));
+        stormData = {
+          hailEvents: hailReports.length,
+          maxHailSize: maxHail,
+          lastStormDate: hailReports[0].report.dateTimeISO,
         };
-      } catch (error) {
-        console.error("Error fetching properties:", error);
-        return withStatus(500, { error: "Failed to fetch properties" });
       }
-    },
-    { route: "/api/knock-list/properties" }
-  );
+    } catch (e) {
+      console.log("Xweather not available, using generated storm data");
+    }
+
+    // CoreLogic property search
+    try {
+      const clProperties = await searchPropertiesInArea(lat, lng, radius, {
+        propertyType: "SFR",
+      });
+
+      properties = clProperties.slice(0, 50).map((prop, i) => 
+        formatToKnockList(prop, i, lat, lng, stormData)
+      );
+    } catch (e) {
+      console.log("CoreLogic not available:", e);
+    }
+
+    // If no data, return empty result
+    if (properties.length === 0) {
+      return NextResponse.json({ 
+        properties: [],
+        source: "none",
+        stormData,
+        location: { lat, lng, radius },
+        message: "No residential properties found in this area. Try a different location or larger radius.",
+      });
+    }
+
+    return NextResponse.json({ 
+      properties,
+      source: "corelogic",
+      stormData,
+      location: { lat, lng, radius },
+    });
+  } catch (error) {
+    console.error("Error fetching properties:", error);
+    return NextResponse.json({ error: "Failed to fetch properties" }, { status: 500 });
+  }
 }
 
 interface KnockListProperty {
@@ -159,35 +153,27 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 
 // POST - Save a knock list
 export async function POST(request: NextRequest) {
-  return handleNextRoute(
-    request,
-    async ({ setUserId }) => {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-      setUserId(user?.id);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-      if (!user) {
-        return withStatus(401, { error: "Unauthorized" });
-      }
+  try {
+    const body = await request.json();
+    const { name, properties, centerLocation, filters } = body;
 
-      try {
-        const body = await request.json();
-        const { name, properties, centerLocation, filters } = body;
-
-        // For now, return success without database insert (table might not exist)
-        return {
-          success: true,
-          id: `list-${Date.now()}`,
-          name,
-          propertyCount: properties.length,
-          totalValue: properties.reduce((sum: number, p: { estimatedJobValue: number }) => sum + p.estimatedJobValue, 0),
-        };
-      } catch (error) {
-        console.error("Error saving knock list:", error);
-        return withStatus(500, { error: "Failed to save knock list" });
-      }
-    },
-    { route: "/api/knock-list/properties" }
-  );
+    // For now, return success without database insert (table might not exist)
+    return NextResponse.json({ 
+      success: true,
+      id: `list-${Date.now()}`,
+      name,
+      propertyCount: properties.length,
+      totalValue: properties.reduce((sum: number, p: { estimatedJobValue: number }) => sum + p.estimatedJobValue, 0),
+    });
+  } catch (error) {
+    console.error("Error saving knock list:", error);
+    return NextResponse.json({ error: "Failed to save knock list" }, { status: 500 });
+  }
 }

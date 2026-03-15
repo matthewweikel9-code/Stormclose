@@ -1,24 +1,18 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { handleNextRoute, withStatus } from "@/lib/api-middleware";
 
 // GET: Fetch revenue hub enhanced stats with trends
 export async function GET(request: NextRequest) {
-	return handleNextRoute(
-		request,
-		async ({ setUserId }) => {
-			const supabase = await createClient();
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
 
-			setUserId(user?.id);
+	if (!user) {
+		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	}
 
-			if (!user) {
-				return withStatus(401, { error: "Unauthorized" });
-			}
-
-			try {
+	try {
 		const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
 		const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 		const prevMonthStart = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString();
@@ -280,7 +274,7 @@ export async function GET(request: NextRequest) {
 		}
 
 		// ─── Build Response ───
-		return {
+		return NextResponse.json({
 			success: true,
 			data: {
 				kpis: {
@@ -318,14 +312,11 @@ export async function GET(request: NextRequest) {
 				},
 				snapshots,
 			},
-		};
-			} catch (error) {
-				console.error("Revenue Hub stats error:", error);
-				return withStatus(500, { error: "Internal server error" });
-			}
-		},
-		{ route: "/api/dashboard/revenue-hub" }
-	);
+		});
+	} catch (error) {
+		console.error("Revenue Hub stats error:", error);
+		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+	}
 }
 
 // ─── Build human-readable scoring reasons ───
@@ -357,54 +348,38 @@ function buildScoreReasons(lead: any): string[] {
 
 // POST: Update user goals
 export async function POST(request: NextRequest) {
-	return handleNextRoute(
-		request,
-		async ({ setUserId }) => {
-			const supabase = await createClient();
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
 
-			setUserId(user?.id);
+	if (!user) {
+		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	}
 
-			if (!user) {
-				return withStatus(401, { error: "Unauthorized" });
-			}
-
-			try {
+	try {
 		const body = await request.json();
 		const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
 
-		// Validate & sanitize goal fields
-		const safeNumber = (v: unknown, min: number, max: number, fallback: number): number => {
-			const n = Number(v);
-			return Number.isFinite(n) && n >= min && n <= max ? n : fallback;
-		};
-
-		const goalPayload = {
-			user_id: user.id,
-			month: monthStart,
-			monthly_revenue_goal: safeNumber(body.monthly_revenue_goal, 0, 10_000_000, 25000),
-			commission_rate: safeNumber(body.commission_rate, 0, 1, 0.10),
-			daily_door_knock_goal: safeNumber(body.daily_door_knock_goal, 0, 500, 30),
-			daily_call_goal: safeNumber(body.daily_call_goal, 0, 500, 20),
-			weekly_appointment_goal: safeNumber(body.weekly_appointment_goal, 0, 200, 10),
-			monthly_deal_goal: safeNumber(body.monthly_deal_goal, 0, 200, 4),
-			updated_at: new Date().toISOString(),
-		};
-
 		const { error } = await (supabase
 			.from("user_goals") as any)
-			.upsert(goalPayload, { onConflict: "user_id,month" });
+			.upsert({
+				user_id: user.id,
+				month: monthStart,
+				monthly_revenue_goal: body.monthly_revenue_goal,
+				commission_rate: body.commission_rate,
+				daily_door_knock_goal: body.daily_door_knock_goal,
+				daily_call_goal: body.daily_call_goal,
+				weekly_appointment_goal: body.weekly_appointment_goal,
+				monthly_deal_goal: body.monthly_deal_goal,
+				updated_at: new Date().toISOString(),
+			}, { onConflict: "user_id,month" });
 
 		if (error) throw error;
 
-		return { success: true };
-			} catch (error) {
-				console.error("Update goals error:", error);
-				return withStatus(500, { error: "Failed to update goals" });
-			}
-		},
-		{ route: "/api/dashboard/revenue-hub" }
-	);
+		return NextResponse.json({ success: true });
+	} catch (error) {
+		console.error("Update goals error:", error);
+		return NextResponse.json({ error: "Failed to update goals" }, { status: 500 });
+	}
 }

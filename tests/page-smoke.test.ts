@@ -33,7 +33,7 @@ describe("module smoke", () => {
 		expect(typeof mod.normalizeUserRole).toBe("function");
 		expect(mod.normalizeUserRole("owner")).toBe("owner");
 		expect(mod.normalizeUserRole("manager")).toBe("manager");
-		expect(mod.normalizeUserRole(null)).toBe("manager");
+		expect(mod.normalizeUserRole(null)).toBe("rep");
 	});
 
 	it("metrics module exports correctly", async () => {
