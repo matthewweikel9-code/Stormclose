@@ -20,3 +20,5 @@ pnpm-debug.log*
 # macOS / editor
 .DS_Store
 .vscode/
+.vercel
+.env*.local

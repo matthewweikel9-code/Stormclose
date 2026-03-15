@@ -12,7 +12,7 @@ const supabaseAdmin = createClient(
  * Batch-rescore all leads that have sub-component scores stored.
  * Recalculates `lead_score` from the individual score columns and persists.
  */
-export async function rescoreAllLeads(): Promise<{
+async function rescoreAllLeads(): Promise<{
   rescored: number;
   errors: string[];
 }> {
