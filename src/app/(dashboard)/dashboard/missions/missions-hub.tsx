@@ -55,6 +55,8 @@ function MissionMap({ detail }: { detail: MissionDetail | null }) {
 			return;
 		}
 
+		const missionDetail = detail;
+
 		let map: any = null;
 		let cancelled = false;
 		const markers: any[] = [];
@@ -63,8 +65,8 @@ function MissionMap({ detail }: { detail: MissionDetail | null }) {
 			const mapboxgl = (await import("mapbox-gl")).default;
 			mapboxgl.accessToken = token;
 			const center = {
-				lat: detail.mission.centerLat ?? detail.stops[0]?.lat ?? 32.7767,
-				lng: detail.mission.centerLng ?? detail.stops[0]?.lng ?? -96.797,
+				lat: missionDetail.mission.centerLat ?? missionDetail.stops[0]?.lat ?? 32.7767,
+				lng: missionDetail.mission.centerLng ?? missionDetail.stops[0]?.lng ?? -96.797,
 			};
 
 			map = new mapboxgl.Map({
@@ -78,7 +80,7 @@ function MissionMap({ detail }: { detail: MissionDetail | null }) {
 				if (cancelled) return;
 				setMapReady(true);
 
-				detail.stops.forEach((stop, index) => {
+				missionDetail.stops.forEach((stop, index) => {
 					const marker = new mapboxgl.Marker({ color: "#6D5CFF" })
 						.setLngLat([stop.lng, stop.lat])
 						.setPopup(
@@ -90,9 +92,9 @@ function MissionMap({ detail }: { detail: MissionDetail | null }) {
 					markers.push(marker);
 				});
 
-				if (detail.liveRepPosition?.lat && detail.liveRepPosition?.lng) {
+				if (missionDetail.liveRepPosition?.lat && missionDetail.liveRepPosition?.lng) {
 					const rep = new mapboxgl.Marker({ color: "#10B981" })
-						.setLngLat([detail.liveRepPosition.lng, detail.liveRepPosition.lat])
+						.setLngLat([missionDetail.liveRepPosition.lng, missionDetail.liveRepPosition.lat])
 						.setPopup(new mapboxgl.Popup({ offset: 10 }).setHTML("<div style=\"font-size:12px\">Rep Position</div>"))
 						.addTo(map);
 					markers.push(rep);
@@ -180,7 +182,7 @@ function ActiveMissionRepView({ mission, onRefresh }: { mission: MissionDetail; 
 						<Button size="sm" variant="secondary" onClick={() => submitOutcome("follow_up_needed")} disabled={loading || !currentStop}>Follow Up</Button>
 						<Button
 							size="sm"
-							variant="outline"
+							variant="secondary"
 							disabled={!currentStop}
 							onClick={() => {
 								if (!currentStop) return;
@@ -386,7 +388,7 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 									<p className="text-sm font-semibold text-white">{mission.name}</p>
 									<Badge variant={statusBadgeVariant(mission.status)}>{mission.status}</Badge>
 								</div>
-								<p className="mt-1 text-xs text-storm-muted">{new Date(mission.createdAt).toLocaleString()}</p>
+								<p className="mt-1 text-xs text-storm-muted">{mission.createdAt ? new Date(mission.createdAt).toLocaleString() : ""}</p>
 							</button>
 						))}
 					</CardContent>
@@ -498,7 +500,7 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 											>
 												<FileText className="h-3.5 w-3.5" />
 											</Button>
-											<Badge variant="outline">{stop.status}</Badge>
+											<Badge variant="info">{stop.status}</Badge>
 										</div>
 									</div>
 								</div>

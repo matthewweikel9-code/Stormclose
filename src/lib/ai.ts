@@ -91,7 +91,7 @@ function getOpenAIClient() {
 	return new OpenAI({ apiKey });
 }
 
-async function generateFromPrompt(systemPrompt: string, userPrompt: string): Promise<AIServiceResult> {
+export async function generateFromPrompt(systemPrompt: string, userPrompt: string): Promise<AIServiceResult> {
 	try {
 		const client = getOpenAIClient();
 		const completion = await client.chat.completions.create({
