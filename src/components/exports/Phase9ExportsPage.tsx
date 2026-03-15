@@ -5,6 +5,7 @@ import { Eye, RefreshCw, Send, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui";
 import type { ExportPreview, OpportunityExportRecord } from "@/types/exports";
 
 type TabKey = "ready" | "exported" | "failed" | "retrying";
@@ -30,17 +31,32 @@ export function Phase9ExportsPage() {
 	const [busy, setBusy] = useState<string | null>(null);
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
 	const [preview, setPreview] = useState<ExportPreview | null>(null);
+	const [error, setError] = useState<string | null>(null);
 
 	async function load() {
-		setLoading(true);
-		const response = await fetch("/api/exports?limit=200");
-		const payload = await response.json();
-		setRecords(Array.isArray(payload?.data?.exports) ? payload.data.exports : []);
-		setLoading(false);
+		try {
+			setLoading(true);
+			setError(null);
+			const response = await fetch("/api/exports?limit=200");
+			const payload = await response.json();
+			if (!response.ok || payload?.error) {
+				throw new Error(payload?.error ?? "Failed to load exports");
+			}
+			setRecords(Array.isArray(payload?.data?.exports) ? payload.data.exports : []);
+		} catch (loadError) {
+			setError(loadError instanceof Error ? loadError.message : "Failed to load exports");
+			setRecords([]);
+		} finally {
+			setLoading(false);
+		}
 	}
 
 	useEffect(() => {
 		void load();
+		const interval = window.setInterval(() => {
+			void load();
+		}, 60_000);
+		return () => window.clearInterval(interval);
 	}, []);
 
 	const filtered = useMemo(() => {
@@ -65,61 +81,119 @@ export function Phase9ExportsPage() {
 
 	async function exportAllReady() {
 		setBusy("all");
-		await fetch("/api/exports/jobnimbus", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ all: true }),
-		});
-		await load();
-		setSelectedIds([]);
-		setBusy(null);
+		setError(null);
+		try {
+			const response = await fetch("/api/exports/jobnimbus", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ all: true }),
+			});
+			const payload = await response.json();
+			if (!response.ok || payload?.error) {
+				throw new Error(payload?.error ?? "Failed to export ready records");
+			}
+			await load();
+			setSelectedIds([]);
+		} catch (submitError) {
+			setError(submitError instanceof Error ? submitError.message : "Export failed");
+		} finally {
+			setBusy(null);
+		}
 	}
 
 	async function exportSelected() {
 		if (selectedIds.length === 0) return;
 		setBusy("selected");
-		await fetch("/api/exports/jobnimbus", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ exportIds: selectedIds }),
-		});
-		await load();
-		setSelectedIds([]);
-		setBusy(null);
+		setError(null);
+		try {
+			const response = await fetch("/api/exports/jobnimbus", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ exportIds: selectedIds }),
+			});
+			const payload = await response.json();
+			if (!response.ok || payload?.error) {
+				throw new Error(payload?.error ?? "Failed to export selected records");
+			}
+			await load();
+			setSelectedIds([]);
+		} catch (submitError) {
+			setError(submitError instanceof Error ? submitError.message : "Export failed");
+		} finally {
+			setBusy(null);
+		}
 	}
 
 	async function exportOne(id: string) {
 		setBusy(id);
-		await fetch("/api/exports/jobnimbus", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ exportId: id }),
-		});
-		await load();
-		setBusy(null);
+		setError(null);
+		try {
+			const response = await fetch("/api/exports/jobnimbus", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ exportId: id }),
+			});
+			const payload = await response.json();
+			if (!response.ok || payload?.error) {
+				throw new Error(payload?.error ?? "Failed to export record");
+			}
+			await load();
+		} catch (submitError) {
+			setError(submitError instanceof Error ? submitError.message : "Export failed");
+		} finally {
+			setBusy(null);
+		}
 	}
 
 	async function retryOne(id: string) {
 		setBusy(id);
-		await fetch(`/api/exports/${id}/retry`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ resetAttempts: false }),
-		});
-		await load();
-		setBusy(null);
+		setError(null);
+		try {
+			const response = await fetch(`/api/exports/${id}/retry`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ resetAttempts: false }),
+			});
+			const payload = await response.json();
+			if (!response.ok || payload?.error) {
+				throw new Error(payload?.error ?? "Failed to retry export");
+			}
+			await load();
+		} catch (submitError) {
+			setError(submitError instanceof Error ? submitError.message : "Retry failed");
+		} finally {
+			setBusy(null);
+		}
 	}
 
 	async function openPreview(id: string) {
 		setBusy(`preview-${id}`);
-		const response = await fetch(`/api/exports/${id}/preview`);
-		const payload = await response.json();
-		setPreview(payload?.data ?? null);
-		setBusy(null);
+		setError(null);
+		try {
+			const response = await fetch(`/api/exports/${id}/preview`);
+			const payload = await response.json();
+			if (!response.ok || payload?.error) {
+				throw new Error(payload?.error ?? "Failed to load preview");
+			}
+			setPreview(payload?.data ?? null);
+		} catch (previewError) {
+			setError(previewError instanceof Error ? previewError.message : "Preview failed");
+		} finally {
+			setBusy(null);
+		}
+	}
+
+	if (loading && records.length === 0) {
+		return <LoadingState title="Loading exports…" description="Syncing JobNimbus export queue." />;
+	}
+
+	if (error && records.length === 0) {
+		return <ErrorState title="Unable to load exports" description={error} />;
 	}
 
 	return (
 		<div className="space-y-5">
+			{error ? <ErrorState title="Exports action failed" description={error} /> : null}
 			<header className="rounded-2xl border border-storm-border bg-storm-z2 p-5">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div>
@@ -170,9 +244,9 @@ export function Phase9ExportsPage() {
 					</div>
 				</CardHeader>
 				<CardContent className="space-y-2">
-					{loading ? <p className="text-sm text-storm-muted">Loading exports...</p> : null}
+					{loading ? <LoadingState title="Refreshing exports…" description="Checking latest statuses." /> : null}
 					{!loading && filtered.length === 0 ? (
-						<p className="text-sm text-storm-muted">No records in this section.</p>
+						<EmptyState title="No records in this section" description="Try a different tab or refresh shortly." />
 					) : null}
 
 					{filtered.map((record) => {
@@ -230,7 +304,7 @@ export function Phase9ExportsPage() {
 					<div className="flex h-full flex-col">
 						<div className="flex items-center justify-between border-b border-storm-border px-5 py-4">
 							<h2 className="text-lg font-semibold text-white">Handoff Summary Preview</h2>
-							<Button variant="ghost" size="sm" onClick={() => setPreview(null)}>Close</Button>
+									<Button aria-label="Close handoff summary preview" variant="ghost" size="sm" onClick={() => setPreview(null)}>Close</Button>
 						</div>
 						<div className="space-y-4 overflow-y-auto px-5 py-4">
 							<div className="rounded-xl border border-storm-border bg-storm-z1 p-3 text-sm text-storm-muted">

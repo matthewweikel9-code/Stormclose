@@ -1,6 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { missionsService } from "@/services/missions/missionService";
+import { errorResponse, successResponse } from "@/utils/api-response";
+import { logger } from "@/lib/logger";
+
+const MissionsQuerySchema = z.object({
+	status: z.string().optional(),
+	assignedRepId: z.string().optional(),
+	aiGenerated: z.enum(["true", "false"]).optional(),
+	q: z.string().optional(),
+	limit: z.coerce.number().int().positive().max(200).optional(),
+});
+
+const CreateMissionSchema = z.object({
+	name: z.string().min(1),
+}).passthrough();
 
 /**
  * GET /api/missions
@@ -35,6 +50,13 @@ import { missionsService } from "@/services/missions/missionService";
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
+		const parsedQuery = MissionsQuerySchema.parse({
+			status: searchParams.get("status") ?? undefined,
+			assignedRepId: searchParams.get("assignedRepId") ?? undefined,
+			aiGenerated: searchParams.get("aiGenerated") ?? undefined,
+			q: searchParams.get("q") ?? undefined,
+			limit: searchParams.get("limit") ?? undefined,
+		});
 		const userId =
 			process.env.NODE_ENV === "test"
 				? "test-user"
@@ -47,30 +69,27 @@ export async function GET(request: NextRequest) {
 				})();
 
 		if (!userId) {
-			return NextResponse.json({ data: null, error: "Unauthorized", meta: {} }, { status: 401 });
+			return errorResponse("Unauthorized", 401);
 		}
 
 		const data = await missionsService.listMissions(userId, {
-			status: (searchParams.get("status") as any) ?? undefined,
-			assignedRepId: searchParams.get("assignedRepId") ?? undefined,
+			status: (parsedQuery.status as any) ?? undefined,
+			assignedRepId: parsedQuery.assignedRepId,
 			aiGenerated:
-				searchParams.get("aiGenerated") === null
+				parsedQuery.aiGenerated === undefined
 					? undefined
-					: searchParams.get("aiGenerated") === "true",
-			q: searchParams.get("q") ?? undefined,
-			limit: Number(searchParams.get("limit") ?? 50),
+					: parsedQuery.aiGenerated === "true",
+			q: parsedQuery.q,
+			limit: parsedQuery.limit ?? 50,
 		});
 
-		return NextResponse.json({
-			data,
-			error: null,
-			meta: { total: data.length },
-		});
+		logger.info("missions.list", { userId, total: data.length });
+		return successResponse(data, { total: data.length });
 	} catch (error) {
-		return NextResponse.json(
-			{ data: null, error: error instanceof Error ? error.message : "Failed to list missions", meta: {} },
-			{ status: 500 }
-		);
+		if (error instanceof z.ZodError) {
+			return errorResponse("Invalid query parameters", 400, { details: error.flatten() });
+		}
+		return errorResponse(error instanceof Error ? error.message : "Failed to list missions", 500);
 	}
 }
 
@@ -89,20 +108,18 @@ export async function POST(request: NextRequest) {
 				})();
 
 		if (!userId) {
-			return NextResponse.json({ data: null, error: "Unauthorized", meta: {} }, { status: 401 });
+			return errorResponse("Unauthorized", 401);
 		}
 
-		const body = await request.json();
-		if (!body?.name || typeof body.name !== "string") {
-			return NextResponse.json({ data: null, error: "name is required", meta: {} }, { status: 400 });
-		}
+		const body = CreateMissionSchema.parse(await request.json());
 
 		const data = await missionsService.createMission(userId, body);
-		return NextResponse.json({ data, error: null, meta: {} }, { status: 201 });
+		logger.info("missions.create", { userId, missionId: data.mission.id });
+		return successResponse(data, {}, 201);
 	} catch (error) {
-		return NextResponse.json(
-			{ data: null, error: error instanceof Error ? error.message : "Failed to create mission", meta: {} },
-			{ status: 500 }
-		);
+		if (error instanceof z.ZodError) {
+			return errorResponse("Invalid request payload", 400, { details: error.flatten() });
+		}
+		return errorResponse(error instanceof Error ? error.message : "Failed to create mission", 500);
 	}
 }

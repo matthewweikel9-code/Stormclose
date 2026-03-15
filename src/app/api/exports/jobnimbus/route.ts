@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import {
 	getExportById,
@@ -11,6 +12,26 @@ import {
 	sendToJobNimbus,
 } from "@/services/exports/exportService";
 import type { JobNimbusPayload, OpportunityExportRecord, TriggerExportRequest } from "@/types/exports";
+import { errorResponse, successResponse } from "@/utils/api-response";
+import { logger } from "@/lib/logger";
+import { logAuditEvent } from "@/lib/audit";
+import { metrics } from "@/lib/metrics";
+
+const TriggerExportRequestSchema = z
+	.object({
+		exportId: z.string().uuid().optional(),
+		exportIds: z.array(z.string().uuid()).optional(),
+		all: z.boolean().optional(),
+	})
+	.superRefine((value, context) => {
+		const hasTarget = Boolean(value.all || value.exportId || (value.exportIds && value.exportIds.length > 0));
+		if (!hasTarget) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: "Provide one of: all=true, exportId, exportIds",
+			});
+		}
+	});
 
 async function getUserId() {
 	if (process.env.NODE_ENV === "test") return "test-user";
@@ -122,17 +143,20 @@ async function exportOneProd(row: any) {
 }
 
 export async function POST(request: NextRequest) {
+	const startedAt = Date.now();
 	const userId = await getUserId();
 	if (!userId) {
-		return NextResponse.json({ data: null, error: "Unauthorized", meta: {} }, { status: 401 });
+		return errorResponse("Unauthorized", 401);
 	}
 
 	let body: TriggerExportRequest;
 	try {
-		body = await request.json();
+		body = TriggerExportRequestSchema.parse(await request.json());
 	} catch {
-		body = {};
+		return errorResponse("Invalid request payload", 400);
 	}
+
+	logger.info("exports.trigger.request", { userId, body });
 
 	if (process.env.NODE_ENV === "test") {
 		let targets: OpportunityExportRecord[] = [];
@@ -149,11 +173,32 @@ export async function POST(request: NextRequest) {
 
 		targets = targets.filter((record) => record.status === "ready");
 		const results = await Promise.all(targets.map((record) => exportOneTest(record)));
-		return NextResponse.json({
-			data: { triggered: results.length, results },
-			error: null,
-			meta: { timestamp: new Date().toISOString() },
+
+		const successCount = results.filter((result) => result.status === "exported").length;
+		const failedCount = results.length - successCount;
+		if (successCount > 0) metrics.increment("export_success", successCount, { mode: "test" });
+		if (failedCount > 0) metrics.increment("export_failure", failedCount, { mode: "test" });
+
+		results.forEach((result) => {
+			logAuditEvent({
+				category: "export",
+				action: "trigger",
+				userId,
+				entityId: result.exportId,
+				status: result.status === "exported" ? "success" : "failed",
+				metadata: { error: result.error, jobnimbusId: result.jobnimbusId },
+			});
 		});
+
+		metrics.increment("api_latency_ms", Date.now() - startedAt, {
+			route: "/api/exports/jobnimbus",
+			method: "POST",
+		});
+
+		return successResponse(
+			{ triggered: results.length, results },
+			{ timestamp: new Date().toISOString() },
+		);
 	}
 
 	const supabase = await createClient();
@@ -180,9 +225,30 @@ export async function POST(request: NextRequest) {
 
 	rows = rows.filter((row) => row.status === "ready");
 	const results = await Promise.all(rows.map((row) => exportOneProd(row)));
-	return NextResponse.json({
-		data: { triggered: results.length, results },
-		error: null,
-		meta: { timestamp: new Date().toISOString() },
+
+	const successCount = results.filter((result) => result.status === "exported").length;
+	const failedCount = results.length - successCount;
+	if (successCount > 0) metrics.increment("export_success", successCount, { mode: "prod" });
+	if (failedCount > 0) metrics.increment("export_failure", failedCount, { mode: "prod" });
+
+	results.forEach((result) => {
+		logAuditEvent({
+			category: "export",
+			action: "trigger",
+			userId,
+			entityId: result.exportId,
+			status: result.status === "exported" ? "success" : "failed",
+			metadata: { error: result.error, jobnimbusId: result.jobnimbusId },
+		});
 	});
+
+	metrics.increment("api_latency_ms", Date.now() - startedAt, {
+		route: "/api/exports/jobnimbus",
+		method: "POST",
+	});
+
+	return successResponse(
+		{ triggered: results.length, results },
+		{ timestamp: new Date().toISOString() },
+	);
 }

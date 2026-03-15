@@ -13,7 +13,7 @@ import { UnassignedHotClustersWidget } from "@/components/dashboard/UnassignedHo
 import { RecentQualifiedOppsWidget } from "@/components/dashboard/RecentQualifiedOpps";
 import { ExportQueueSummaryWidget } from "@/components/dashboard/ExportQueueSummary";
 import { DataHealthWidget } from "@/components/dashboard/DataHealth";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge, EmptyState, ErrorState, LoadingState } from "@/components/ui";
 import { getDashboardTodayMockData } from "@/lib/dashboard/mockData";
 
 interface DashboardV2Props {
@@ -25,11 +25,14 @@ export function DashboardV2({ metadataRole }: DashboardV2Props) {
 	const visibleWidgets = getVisibleDashboardWidgets(role);
 	const [data, setData] = useState<DashboardTodayData>(getDashboardTodayMockData());
 	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [generatedAt, setGeneratedAt] = useState<string | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
 		const fetchData = async () => {
 			try {
+				setError(null);
 				const response = await fetch("/api/dashboard/today");
 				if (!response.ok) {
 					throw new Error("Failed to fetch dashboard data");
@@ -37,10 +40,12 @@ export function DashboardV2({ metadataRole }: DashboardV2Props) {
 				const payload = (await response.json()) as ApiEnvelope<DashboardTodayData>;
 				if (!cancelled && payload.data) {
 					setData(payload.data);
+					setGeneratedAt(typeof payload.meta?.generatedAt === "string" ? payload.meta.generatedAt : null);
 				}
-			} catch {
+			} catch (fetchError) {
 				if (!cancelled) {
 					setData(getDashboardTodayMockData());
+					setError(fetchError instanceof Error ? fetchError.message : "Failed to load dashboard");
 				}
 			} finally {
 				if (!cancelled) {
@@ -50,22 +55,45 @@ export function DashboardV2({ metadataRole }: DashboardV2Props) {
 		};
 
 		void fetchData();
+		const interval = window.setInterval(() => {
+			void fetchData();
+		}, 5 * 60 * 1000);
+
 		return () => {
 			cancelled = true;
+			window.clearInterval(interval);
 		};
 	}, []);
 
+	const generatedAgoMinutes = generatedAt
+		? Math.max(0, Math.floor((Date.now() - new Date(generatedAt).getTime()) / 60000))
+		: null;
+	const stale = generatedAgoMinutes !== null && generatedAgoMinutes > 360;
+
 	if (loading) {
 		return (
-			<Card className="bg-storm-z2 border-storm-border">
-				<CardContent className="py-12 text-center text-sm text-storm-muted">Loading dashboard…</CardContent>
-			</Card>
+			<LoadingState title="Loading dashboard…" description="Pulling latest operations data." />
+		);
+	}
+
+	if (!data.housesToHitToday.length && !data.topStormZones.length) {
+		return (
+			<EmptyState
+				title="No dashboard data yet"
+				description="As storm and mission data arrives, this view will populate automatically."
+			/>
 		);
 	}
 
 	return (
 		<div className="space-y-6">
+			{error ? <ErrorState title="Dashboard is running in fallback mode" description={error} /> : null}
 			<section className="grid grid-cols-1 gap-3 rounded-2xl border border-storm-border bg-storm-z2 p-4 sm:grid-cols-2 xl:grid-cols-4">
+				<div className="col-span-full flex items-center justify-end">
+					<Badge variant={stale ? "warning" : "info"}>
+						{generatedAgoMinutes === null ? "Updated: unknown" : `Updated ${generatedAgoMinutes}m ago`}
+					</Badge>
+				</div>
 				<div className="rounded-xl border border-storm-border bg-storm-z1 p-3">
 					<p className="text-[11px] uppercase tracking-wide text-storm-subtle">Houses To Hit</p>
 					<p className="text-xl font-bold text-storm-purple">{data.kpi.housesToHitCount}</p>

@@ -6,6 +6,7 @@ import { useUserRole } from "@/hooks/auth/useUserRole";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui";
 import type { Mission, MissionStatus, MissionStop } from "@/types/missions";
 
 type MissionsHubProps = {
@@ -223,22 +224,33 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 	const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
 	const [selectedMission, setSelectedMission] = useState<MissionDetail | null>(null);
 	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const filters = useMemo(() => ({ status: status === "all" ? undefined : status }), [status]);
 	const kpis = useMemo(() => missionKpis(missions), [missions]);
 
 	async function fetchMissions() {
-		setLoading(true);
-		const qs = new URLSearchParams();
-		if (filters.status) qs.set("status", filters.status);
-		const response = await fetch(`/api/missions?${qs.toString()}`);
-		const payload = await response.json();
-		const data: Mission[] = Array.isArray(payload.data) ? payload.data : [];
-		setMissions(data);
-		if (!selectedMissionId && data.length > 0) {
-			setSelectedMissionId(data[0].id);
+		try {
+			setLoading(true);
+			setError(null);
+			const qs = new URLSearchParams();
+			if (filters.status) qs.set("status", filters.status);
+			const response = await fetch(`/api/missions?${qs.toString()}`);
+			const payload = await response.json();
+			if (!response.ok || payload?.error) {
+				throw new Error(payload?.error ?? "Failed to load missions");
+			}
+			const data: Mission[] = Array.isArray(payload.data) ? payload.data : [];
+			setMissions(data);
+			if (!selectedMissionId && data.length > 0) {
+				setSelectedMissionId(data[0].id);
+			}
+		} catch (fetchError) {
+			setError(fetchError instanceof Error ? fetchError.message : "Failed to load missions");
+			setMissions([]);
+		} finally {
+			setLoading(false);
 		}
-		setLoading(false);
 	}
 
 	async function fetchMissionDetail(missionId: string) {
@@ -249,6 +261,13 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 
 	useEffect(() => {
 		void fetchMissions();
+	}, [filters.status]);
+
+	useEffect(() => {
+		const interval = window.setInterval(() => {
+			void fetchMissions();
+		}, 60_000);
+		return () => window.clearInterval(interval);
 	}, [filters.status]);
 
 	useEffect(() => {
@@ -268,6 +287,14 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 	}, [role, repMission]);
 
 	if (role === "rep") {
+		if (loading && !selectedMission) {
+			return <LoadingState title="Loading your mission…" description="Syncing stop and route data." />;
+		}
+
+		if (error) {
+			return <ErrorState title="Unable to load mission" description={error} />;
+		}
+
 		return (
 			<div className="grid gap-5">
 				<header className="rounded-2xl border border-storm-border bg-storm-z2 p-5">
@@ -292,12 +319,18 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 						</Card>
 					</>
 				) : (
-					<Card>
-						<CardContent className="py-8 text-sm text-storm-muted">No assigned mission yet.</CardContent>
-					</Card>
+					<EmptyState title="No assigned mission yet" description="Once assigned, your active mission appears here." />
 				)}
 			</div>
 		);
+	}
+
+	if (loading && missions.length === 0) {
+		return <LoadingState title="Loading missions…" description="Fetching latest mission roster." />;
+	}
+
+	if (error) {
+		return <ErrorState title="Unable to load missions" description={error} />;
 	}
 
 	return (
@@ -317,6 +350,10 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 					<Badge variant="success">Completed: {kpis.completed}</Badge>
 				</div>
 			</header>
+
+			{missions.length === 0 ? (
+				<EmptyState title="No missions found" description="Create a mission or adjust filters to continue." />
+			) : null}
 
 			<div className="flex flex-wrap gap-2">
 				{statusFilters.map((option) => (

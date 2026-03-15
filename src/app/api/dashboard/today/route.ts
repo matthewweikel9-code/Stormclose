@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
 import { getDashboardTodayMockData } from "@/lib/dashboard/mockData";
 import { createClient } from "@/lib/supabase/server";
 import { listExports } from "@/lib/exports/store";
-import type { ApiEnvelope, DashboardTodayData } from "@/types/dashboard";
+import { successResponse } from "@/utils/api-response";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
+	const startedAt = Date.now();
 	const data = getDashboardTodayMockData();
 
 	if (process.env.NODE_ENV === "test") {
@@ -77,14 +78,14 @@ export async function GET() {
 		};
 	}
 
-	const payload: ApiEnvelope<DashboardTodayData> = {
-		data,
-		error: null,
-		meta: {
-			generatedAt: new Date().toISOString(),
-			source: "mock",
-		},
-	};
+	logger.info("dashboard.today.generated", {
+		source: process.env.NODE_ENV === "test" ? "test" : "supabase",
+		latencyMs: Date.now() - startedAt,
+	});
 
-	return NextResponse.json(payload);
+	const source = process.env.NODE_ENV === "test" ? "test" : "supabase";
+	return successResponse(data, {
+		source,
+		latencyMs: Date.now() - startedAt,
+	});
 }
