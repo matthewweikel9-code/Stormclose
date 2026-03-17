@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getActiveAlerts } from '@/lib/xweather';
 
+export const dynamic = 'force-dynamic';
+
 const XWEATHER_CLIENT_ID = process.env.XWEATHER_CLIENT_ID;
 const XWEATHER_CLIENT_SECRET = process.env.XWEATHER_CLIENT_SECRET;
 const XWEATHER_BASE_URL = "https://data.api.xweather.com";

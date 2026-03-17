@@ -11,6 +11,8 @@ import {
   CoreLogicError,
 } from "@/lib/corelogic";
 
+export const dynamic = 'force-dynamic';
+
 /**
  * CoreLogic Parcels API
  * 

@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { checkFeatureAccess } from '@/lib/subscriptions/access';
 import OpenAI from 'openai';
 
+export const dynamic = 'force-dynamic';
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const XWEATHER_CLIENT_ID = process.env.XWEATHER_CLIENT_ID;

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 // PUT /api/jobnimbus/settings - Update sync settings
 export async function PUT(request: NextRequest) {
   try {

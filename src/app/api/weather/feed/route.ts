@@ -10,6 +10,8 @@ import {
   XweatherStormCell
 } from "@/lib/xweather";
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET: Fetch live storm data from Xweather for user's territories
  * 
