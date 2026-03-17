@@ -36,22 +36,31 @@ export async function GET(request: NextRequest) {
     let cachedEvents: StormTimelineEvent[] = [];
     try {
       // @ts-expect-error - storm_events_cache not in generated types yet
-      const { data: dbEvents } = await supabase.rpc("get_storm_timeline", {
+      const { data: dbEvents, error: rpcError } = await supabase.rpc("get_storm_timeline", {
         p_user_id: user.id,
         p_days_back: days,
         p_limit: 100,
       });
+      if (rpcError) {
+        console.warn("[Storm Timeline] RPC get_storm_timeline error:", rpcError.message);
+      }
       if (dbEvents && Array.isArray(dbEvents)) {
         cachedEvents = dbEvents;
       }
-    } catch {
-      // Table may not exist yet — that's OK
+    } catch (rpcErr) {
+      console.warn("[Storm Timeline] get_storm_timeline failed:", rpcErr);
     }
 
     // 2. Fetch fresh reports from XWeather to fill gaps
     const [hailReports, stormReports] = await Promise.all([
-      getHailReports(lat, lng, radius, days).catch(() => []),
-      getStormReports(lat, lng, radius, Math.min(days, 7)).catch(() => []),
+      getHailReports(lat, lng, radius, days).catch((e) => {
+        console.warn("[Storm Timeline] getHailReports failed:", e instanceof Error ? e.message : e);
+        return [];
+      }),
+      getStormReports(lat, lng, radius, Math.min(days, 7)).catch((e) => {
+        console.warn("[Storm Timeline] getStormReports failed:", e instanceof Error ? e.message : e);
+        return [];
+      }),
     ]);
 
     // 3. Build set of already-cached xweather IDs

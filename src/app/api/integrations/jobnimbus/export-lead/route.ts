@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createJobNimbusClient, JNContact } from '@/lib/jobnimbus';
 import { decryptJobNimbusApiKey } from '@/lib/jobnimbus/security';
+import { fetchRoofDataForNotes, formatRoofDataForNotes } from '@/lib/solar/solarApi';
 
 interface ExportLeadRequest {
   leadId: string;
@@ -30,6 +31,8 @@ interface LeadData {
   city: string;
   state: string;
   zip: string;
+  latitude?: number | null;
+  longitude?: number | null;
   lead_score?: number;
   storm_date?: string;
   hail_size?: number;
@@ -122,6 +125,15 @@ export async function POST(request: NextRequest) {
     
     // Create JobNimbus client
     const jnClient = createJobNimbusClient(apiKey);
+
+    // Fetch roof data from Google Solar API (requires GOOGLE_SOLAR_API_KEY)
+    const fullAddress = [lead.address, lead.city, lead.state, lead.zip].filter(Boolean).join(', ');
+    const lat = lead.latitude ?? 0;
+    const lng = lead.longitude ?? 0;
+    const roofData = await fetchRoofDataForNotes(fullAddress || lead.address, lat, lng);
+    if (!roofData && process.env.NODE_ENV === 'development') {
+      console.info('[Export Lead] No roof data - check GOOGLE_SOLAR_API_KEY and server terminal for [Solar API] logs');
+    }
     
     // Build contact object
     const contact: JNContact = {
@@ -136,7 +148,7 @@ export async function POST(request: NextRequest) {
       email: email,
       source_name: 'StormClose AI',
       tags: ['StormClose', 'AI Lead'],
-      notes: buildLeadNotes(lead, notes),
+      notes: buildLeadNotes(lead, notes, roofData),
     };
     
     // Create contact in JobNimbus
@@ -144,18 +156,45 @@ export async function POST(request: NextRequest) {
     
     if (!result.success || !result.data) {
       console.error('Failed to create JN contact:', result.error);
+      const status = result.error?.status && result.error.status >= 400 && result.error.status < 500
+        ? result.error.status
+        : 500;
       return NextResponse.json(
         { error: result.error?.detail || 'Failed to export to JobNimbus' },
-        { status: 500 }
+        { status }
       );
+    }
+
+    const contactId = result.data.id ?? (result.data as { jnid?: string }).jnid ?? '';
+    const fullNotes = buildLeadNotes(lead, notes, roofData);
+
+    // Update contact with notes/description (shows on contact record)
+    if (contactId && fullNotes) {
+      const patchResult = await jnClient.updateContact(contactId, { notes: fullNotes, description: fullNotes });
+      if (!patchResult.success) {
+        console.warn('[Export Lead] Failed to update contact notes:', patchResult.error);
+      }
+    }
+
+    // Also try adding as activity (for Activity tab)
+    if (contactId && fullNotes) {
+      const noteResult = await jnClient.createActivity({
+        contact_id: contactId,
+        type: 'activity',
+        title: 'StormClose Import',
+        note: fullNotes,
+      });
+      if (!noteResult.success) {
+        console.warn('[Export Lead] Activity failed:', noteResult.error);
+      }
     }
     
     // Record the export
-    await (supabase.from('lead_exports') as any).insert({
+    await (supabase as any).from('lead_exports').insert({
       lead_id: leadId,
       user_id: user.id,
       destination: 'jobnimbus',
-      jn_contact_id: result.data.id,
+      jn_contact_id: contactId,
       exported_at: new Date().toISOString(),
     });
     
@@ -176,7 +215,11 @@ export async function POST(request: NextRequest) {
 /**
  * Build notes string for JobNimbus contact
  */
-function buildLeadNotes(lead: LeadData, additionalNotes?: string): string {
+function buildLeadNotes(
+  lead: LeadData,
+  additionalNotes?: string,
+  roofData?: { totalAreaSqFt: number; totalSquares: number; avgPitchDegrees: number; facetCount: number; costRange: { low: number; high: number }; imageryDate: string } | null
+): string {
   const lines: string[] = [
     '--- Imported from StormClose AI ---',
     '',
@@ -208,6 +251,10 @@ function buildLeadNotes(lead: LeadData, additionalNotes?: string): string {
   
   if (lead.source) {
     lines.push(`Source: ${lead.source}`);
+  }
+  
+  if (roofData) {
+    lines.push(formatRoofDataForNotes(roofData));
   }
   
   if (lead.notes) {

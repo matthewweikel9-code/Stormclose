@@ -1,8 +1,13 @@
 export { Logo } from "./Logo";
 export { Navbar } from "./Navbar";
 export { Hero } from "./Hero";
-export { Features } from "./Features";
+export { ProductShowcase } from "./ProductShowcase";
+export { FeatureGrid } from "./FeatureGrid";
+export { SocialProof } from "./SocialProof";
+export { StatsStrip } from "./StatsStrip";
 export { HowItWorks } from "./HowItWorks";
 export { Pricing } from "./Pricing";
 export { CTA } from "./CTA";
 export { Footer } from "./Footer";
+export { RequestDemoModal } from "./RequestDemoModal";
+export { DemoProvider, useDemoModal } from "./DemoContext";

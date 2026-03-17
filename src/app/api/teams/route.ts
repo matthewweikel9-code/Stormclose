@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserTeamMemberships } from "@/lib/server/tenant";
 
 // GET /api/teams - List teams for current user
@@ -52,27 +53,32 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 
-		const { name, description } = await request.json();
+		const body = await request.json();
+		const name = typeof body?.name === "string" ? body.name.trim() : "";
 
-		if (!name || typeof name !== "string") {
+		if (!name) {
 			return NextResponse.json({ error: "Team name is required" }, { status: 400 });
 		}
 
-		const { data: team, error: teamError } = await (supabase.from("teams") as any)
+		// Use admin client to bypass RLS (user already validated above)
+		const admin = createAdminClient();
+
+		const { data: team, error: teamError } = await (admin.from("teams") as any)
 			.insert({
-				name: name.trim(),
-				description: typeof description === "string" ? description : null,
+				name,
 				owner_id: user.id
 			})
 			.select()
 			.single();
 
 		if (teamError) {
-			throw new Error(teamError.message);
+			console.error("Error creating team:", teamError);
+			const msg = process.env.NODE_ENV === "development" ? teamError.message : "Failed to create team";
+			return NextResponse.json({ error: msg }, { status: 500 });
 		}
 
-		// Keep membership table in sync for role-based access checks.
-		const { error: memberError } = await (supabase.from("team_members") as any).upsert(
+		// Add owner to team_members for role-based access
+		const { error: memberError } = await (admin.from("team_members") as any).upsert(
 			{
 				team_id: team.id,
 				user_id: user.id,
@@ -82,12 +88,15 @@ export async function POST(request: NextRequest) {
 		);
 
 		if (memberError) {
-			throw new Error(memberError.message);
+			console.error("Error adding owner to team_members:", memberError);
+			const msg = process.env.NODE_ENV === "development" ? memberError.message : "Failed to create team";
+			return NextResponse.json({ error: msg }, { status: 500 });
 		}
 
 		return NextResponse.json({ team }, { status: 201 });
 	} catch (error) {
 		console.error("Error creating team:", error);
-		return NextResponse.json({ error: "Failed to create team" }, { status: 500 });
+		const msg = process.env.NODE_ENV === "development" && error instanceof Error ? error.message : "Failed to create team";
+		return NextResponse.json({ error: msg }, { status: 500 });
 	}
 }

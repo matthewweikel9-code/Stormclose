@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Resend } from "resend";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserRoleForTeam, getUserTeamMemberships, hasMinimumRole } from "@/lib/server/tenant";
+
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "StormClose <noreply@stormclose.com>";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.stormclose.ai";
 
 type TeamMemberRow = {
 	id: string;
@@ -45,12 +51,12 @@ export async function GET() {
 
 		const primaryTeamId = await resolvePrimaryTeamId(supabase, user.id);
 		if (!primaryTeamId) {
-			return NextResponse.json({ members: [] });
+			return NextResponse.json({ members: [], hasTeam: false });
 		}
 
 		const actorRole = await getUserRoleForTeam(supabase, user.id, primaryTeamId);
 		if (!actorRole) {
-			return NextResponse.json({ members: [] });
+			return NextResponse.json({ members: [], hasTeam: true });
 		}
 
 		const { data: teamMembers, error } = await (supabase.from("team_members") as any)
@@ -60,7 +66,7 @@ export async function GET() {
 
 		if (error) {
 			console.error("Error fetching team members:", error);
-			return NextResponse.json({ members: [] });
+			return NextResponse.json({ members: [], hasTeam: true });
 		}
 
 		const userIds = (teamMembers ?? []).map((member: TeamMemberRow) => member.user_id);
@@ -89,10 +95,10 @@ export async function GET() {
 			};
 		});
 
-		return NextResponse.json({ members });
+		return NextResponse.json({ members, hasTeam: true });
 	} catch (error) {
 		console.error("Error fetching team:", error);
-		return NextResponse.json({ members: [] });
+		return NextResponse.json({ members: [], hasTeam: false });
 	}
 }
 
@@ -122,12 +128,26 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Only owners/admins can invite members" }, { status: 403 });
 		}
 
-		const { data: targetUser } = await (supabase.from("users") as any)
+		// Use admin client to bypass RLS when looking up user by email
+		const admin = createAdminClient();
+		let targetUserId: string | null = null;
+
+		const { data: profileUser } = await (admin.from("users") as any)
 			.select("id")
 			.eq("email", email.trim().toLowerCase())
 			.maybeSingle();
+		if (profileUser?.id) {
+			targetUserId = profileUser.id;
+		}
 
-		if (!targetUser?.id) {
+		// Fallback: look up in auth.users if not in public.users (e.g. new signups)
+		if (!targetUserId) {
+			const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 });
+			const authUser = users?.find((u) => u.email?.toLowerCase() === email.trim().toLowerCase());
+			if (authUser?.id) targetUserId = authUser.id;
+		}
+
+		if (!targetUserId) {
 			return NextResponse.json(
 				{ error: "User not found. Ask them to create an account first." },
 				{ status: 404 }
@@ -138,7 +158,7 @@ export async function POST(request: NextRequest) {
 		const { error } = await (supabase.from("team_members") as any).upsert(
 			{
 				team_id: primaryTeamId,
-				user_id: targetUser.id,
+				user_id: targetUserId,
 				role: normalizedRole,
 				joined_at: new Date().toISOString(),
 			},
@@ -147,13 +167,46 @@ export async function POST(request: NextRequest) {
 
 		if (error) {
 			console.error("Error inviting member:", error);
-			return NextResponse.json({ error: "Failed to invite team member" }, { status: 500 });
+			const message = process.env.NODE_ENV === "development" ? (error as Error).message : "Failed to invite team member";
+			return NextResponse.json({ error: message }, { status: 500 });
+		}
+
+		// Send invite email
+		if (RESEND_API_KEY) {
+			const { data: team } = await (admin.from("teams") as any)
+				.select("name")
+				.eq("id", primaryTeamId)
+				.maybeSingle();
+			const inviterName = user.user_metadata?.full_name || user.email?.split("@")[0] || "A team admin";
+			const teamName = team?.name || "StormClose";
+			const roleLabel = normalizedRole === "manager" ? "Manager" : "Team Member";
+
+			const resend = new Resend(RESEND_API_KEY);
+			const { error: emailError } = await resend.emails.send({
+				from: FROM_EMAIL,
+				to: email.trim().toLowerCase(),
+				subject: `You've been invited to ${teamName} on StormClose`,
+				html: `
+					<h2>Team Invitation</h2>
+					<p><strong>${inviterName}</strong> has invited you to join <strong>${teamName}</strong> as a ${roleLabel} on StormClose.</p>
+					<p>Log in to your account to access the team dashboard:</p>
+					<p><a href="${APP_URL}/dashboard" style="display:inline-block;background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600;">Go to Dashboard</a></p>
+					<p style="color:#64748b;font-size:14px;">If you don't have an account yet, <a href="${APP_URL}/signup">sign up here</a> first.</p>
+					<p style="color:#64748b;font-size:12px;margin-top:24px;">— StormClose</p>
+				`,
+			});
+			if (emailError) {
+				console.error("[Team Invite] Resend error:", emailError);
+			}
+		} else {
+			console.warn("[Team Invite] RESEND_API_KEY not configured - no email sent");
 		}
 
 		return NextResponse.json({ success: true });
-	} catch (error) {
-		console.error("Error inviting team member:", error);
-		return NextResponse.json({ error: "Failed to invite team member" }, { status: 500 });
+	} catch (err) {
+		console.error("Error inviting team member:", err);
+		const message = process.env.NODE_ENV === "development" && err instanceof Error ? err.message : "Failed to invite team member";
+		return NextResponse.json({ error: message }, { status: 500 });
 	}
 }
 

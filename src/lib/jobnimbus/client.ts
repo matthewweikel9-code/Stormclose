@@ -25,6 +25,7 @@ export interface JNContact {
   zip?: string;
   country?: string;
   notes?: string;
+  description?: string;
   source_name?: string;
   tags?: string[];
   // Custom fields
@@ -49,7 +50,7 @@ export interface JNActivity {
   id?: string;
   contact_id?: string;
   job_id?: string;
-  type: 'note' | 'call' | 'email' | 'meeting' | 'task';
+  type: 'note' | 'call' | 'email' | 'meeting' | 'task' | 'activity';
   title?: string;
   note?: string;
   date_created?: string;
@@ -65,9 +66,8 @@ export interface JNApiResponse<T> {
   };
 }
 
-// JobNimbus: app.jobnimbus.com/api1 for GET; api.jobnimbus.com/v1 for create (per docs)
+// JobNimbus: app.jobnimbus.com/api1 for contacts (GET/POST)
 const JN_APP_BASE = 'https://app.jobnimbus.com/api1';
-const JN_API_V1_BASE = 'https://api.jobnimbus.com/v1';
 
 export class JobNimbusClient {
   private apiKey: string;
@@ -77,7 +77,7 @@ export class JobNimbusClient {
   }
   
   private async request<T>(
-    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+    method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
     endpoint: string,
     body?: unknown,
     base: string = JN_APP_BASE
@@ -94,21 +94,34 @@ export class JobNimbusClient {
       });
       
       let data: Record<string, unknown> = {};
+      let rawText = '';
       try {
-        const text = await response.text();
-        data = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+        rawText = await response.text();
+        data = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : {};
       } catch {
         data = {};
       }
       
       if (!response.ok) {
-        const detail =
-          (data.detail as string) ||
+        // Parse error from various JobNimbus/API formats
+        const rawDetail = (data.detail as string) ||
           (data.message as string) ||
-          (data.error as string) ||
-          (Array.isArray(data.errors) ? (data.errors as string[]).join('; ') : null) ||
-          (typeof data === 'object' && Object.keys(data).length ? JSON.stringify(data) : null) ||
+          (typeof data.error === 'string' ? data.error : null) ||
+          (Array.isArray(data.errors) ? (data.errors as string[]).join('; ') : null);
+        const nestedErrors = data.errors as Array<{ message?: string }> | undefined;
+        const nestedMsg = Array.isArray(nestedErrors) && nestedErrors[0]?.message
+          ? nestedErrors.map((e) => e.message).join('; ')
+          : null;
+        const jsonDetail = typeof data === 'object' && Object.keys(data).length ? JSON.stringify(data) : null;
+        const detail =
+          rawDetail ||
+          nestedMsg ||
+          jsonDetail ||
+          (rawText ? rawText.slice(0, 300) : null) ||
           `Request failed with status ${response.status}`;
+        if (response.status >= 400 && response.status < 500 && rawText) {
+          console.warn('[JobNimbus API]', response.status, endpoint, 'raw:', rawText.slice(0, 500));
+        }
         return {
           success: false,
           error: {
@@ -171,9 +184,23 @@ export class JobNimbusClient {
   
   /**
    * Update an existing contact
+   * JobNimbus app API may require PUT; try PUT first, fallback to PATCH
    */
   async updateContact(contactId: string, updates: Partial<JNContact>): Promise<JNApiResponse<JNContact>> {
-    return this.request<JNContact>('PATCH', `/contacts/${contactId}`, updates);
+    const body: Record<string, unknown> = {};
+    const allowed = ['first_name', 'last_name', 'display_name', 'email', 'mobile_phone', 'home_phone', 'address_line1', 'address_line2', 'city', 'state_text', 'zip', 'notes', 'description'];
+    for (const k of allowed) {
+      const v = (updates as Record<string, unknown>)[k];
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        body[k] = v;
+      }
+    }
+    if (Object.keys(body).length === 0) return { success: true, data: {} as JNContact };
+    const result = await this.request<JNContact>('PUT', `/contacts/${contactId}`, body);
+    if (!result.success && result.error?.status === 405) {
+      return this.request<JNContact>('PATCH', `/contacts/${contactId}`, body);
+    }
+    return result;
   }
   
   /**
@@ -222,9 +249,20 @@ export class JobNimbusClient {
   
   /**
    * Create an activity (note, call log, etc.)
+   * Tries app.jobnimbus.com/api1 first; JobNimbus may use different API for activities.
    */
   async createActivity(activity: JNActivity): Promise<JNApiResponse<JNActivity>> {
-    return this.request<JNActivity>('POST', '/activities', activity);
+    console.log('[JobNimbus] createActivity request:', { contact_id: activity.contact_id, type: activity.type, title: activity.title, noteLength: activity.note?.length });
+    const result = await this.request<JNActivity>('POST', '/activities', activity);
+    if (!result.success) {
+      console.warn('[JobNimbus] createActivity failed:', result.error?.status, result.error?.detail);
+      if (result.error?.status === 404) {
+        const altBase = 'https://api.jobnimbus.com';
+        console.log('[JobNimbus] Retrying with', altBase);
+        return this.request<JNActivity>('POST', '/activities', activity, altBase);
+      }
+    }
+    return result;
   }
   
   /**

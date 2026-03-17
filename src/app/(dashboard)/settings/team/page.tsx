@@ -19,10 +19,13 @@ interface TeamMember {
 
 export default function TeamSettingsPage() {
 	const [members, setMembers] = useState<TeamMember[]>([]);
+	const [hasTeam, setHasTeam] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [inviteRole, setInviteRole] = useState<"manager" | "sales_rep">("sales_rep");
 	const [inviting, setInviting] = useState(false);
+	const [creating, setCreating] = useState(false);
+	const [teamName, setTeamName] = useState("");
 	const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
 	useEffect(() => {
@@ -35,11 +38,37 @@ export default function TeamSettingsPage() {
 			if (res.ok) {
 				const data = await res.json();
 				setMembers(data.members || []);
+				setHasTeam(data.hasTeam ?? (data.members?.length > 0));
 			}
 		} catch (error) {
 			console.error("Error loading team:", error);
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const createTeam = async () => {
+		if (!teamName.trim()) return;
+		setCreating(true);
+		setMessage(null);
+		try {
+			const res = await fetch("/api/teams", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name: teamName.trim() }),
+			});
+			if (res.ok) {
+				setMessage({ type: "success", text: "Team created! You can now invite members." });
+				setTeamName("");
+				loadTeam();
+			} else {
+				const data = await res.json();
+				setMessage({ type: "error", text: data.error || "Failed to create team" });
+			}
+		} catch (error) {
+			setMessage({ type: "error", text: "Failed to create team" });
+		} finally {
+			setCreating(false);
 		}
 	};
 
@@ -128,7 +157,37 @@ export default function TeamSettingsPage() {
 				</div>
 			)}
 
-			{/* Invite Member */}
+			{/* Create Team - shown when user has no team */}
+			{!hasTeam && (
+				<div className="bg-zinc-800 rounded-xl p-6 mb-6">
+					<h2 className="text-lg font-semibold mb-2">Create Your Team</h2>
+					<p className="text-zinc-400 text-sm mb-4">Create a team to invite members and collaborate on storm leads.</p>
+					<div className="flex gap-3">
+						<input
+							type="text"
+							value={teamName}
+							onChange={(e) => setTeamName(e.target.value)}
+							onKeyDown={(e) => e.key === "Enter" && createTeam()}
+							placeholder="e.g. Acme Roofing"
+							className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500"
+						/>
+						<button
+							onClick={createTeam}
+							disabled={creating || !teamName.trim()}
+							className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
+						>
+							{creating ? (
+								<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+							) : (
+								"Create Team"
+							)}
+						</button>
+					</div>
+				</div>
+			)}
+
+			{/* Invite Member - shown when user has a team */}
+			{hasTeam && (
 			<div className="bg-zinc-800 rounded-xl p-6 mb-6">
 				<h2 className="text-lg font-semibold mb-4">Invite Team Member</h2>
 				<div className="flex gap-3">
@@ -161,8 +220,10 @@ export default function TeamSettingsPage() {
 					</button>
 				</div>
 			</div>
+			)}
 
 			{/* Team Members */}
+			{hasTeam && (
 			<div className="bg-zinc-800 rounded-xl p-6">
 				<div className="flex items-center justify-between mb-4">
 					<h2 className="text-lg font-semibold">Team Members ({members.length})</h2>
@@ -211,6 +272,7 @@ export default function TeamSettingsPage() {
 					</div>
 				)}
 			</div>
+			)}
 		</div>
 	);
 }

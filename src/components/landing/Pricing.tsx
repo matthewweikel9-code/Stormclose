@@ -8,177 +8,137 @@ const tiers = [
 		name: "Free",
 		price: "0",
 		period: "forever",
-		description: "Try StormClose AI with our core objection handling feature.",
+		description: "Get started with core objection handling.",
 		features: [
 			"Objection Handler AI",
-			"Basic responses",
+			"30+ proven scripts",
+			"AI-generated rebuttals",
 			"Community support",
 		],
-		cta: "Get Started",
+		cta: "Start Free",
 		href: "/signup",
 		highlighted: false,
 	},
 	{
 		name: "Pro",
-		price: "99",
+		price: "399",
 		period: "month",
-		description: "Essential insurance intelligence tools for growing contractors.",
+		description: "Essential insurance intelligence for growing teams.",
 		features: [
 			"Everything in Free",
 			"Carrier Intelligence Database",
-			"Insurance approval rates",
-			"Negotiation strategies",
+			"AI Assistant (GPT-4o)",
+			"Storm report generation",
+			"Deal Desk & Revenue Hub",
 			"Email support",
 		],
 		cta: "Get Pro",
 		href: "/subscribe?tier=pro",
-		highlighted: false,
-	},
-	{
-		name: "Pro+",
-		price: "199",
-		period: "month",
-		description: "Advanced AI negotiation tools for high-volume operations.",
-		features: [
-			"Everything in Pro",
-			"AI Negotiation Coach",
-			"Live Roof Measurement AI",
-			"State-specific arguments",
-			"Priority support",
-		],
-		cta: "Get Pro+",
-		href: "/subscribe?tier=pro_plus",
 		highlighted: true,
 		badge: "Most Popular",
 	},
 	{
 		name: "Enterprise",
-		price: "499",
+		price: "799",
 		period: "month",
-		description: "Complete insurance intelligence for maximum claim recovery.",
+		description: "Full platform with Storm Ops, Referral Engine, and team tools.",
 		features: [
-			"Everything in Pro+",
-			"Supplement Generator AI",
-			"Lead Generator + Route Planner",
-			"Roof Measurement AI",
+			"Everything in Pro",
+			"Storm Ops command center",
+			"Live hail & wind monitoring",
+			"Referral Engine",
+			"Team leaderboards & GPS",
+			"JobNimbus integration",
 			"Dedicated support",
 		],
 		cta: "Get Enterprise",
 		href: "/subscribe?tier=enterprise",
 		highlighted: false,
-		badge: "Best Value",
+		badge: "Full Platform",
 	},
 ];
 
 export function Pricing() {
 	return (
-		<section id="pricing" className="relative bg-storm-z0 py-24">
-			{/* Background */}
-			<div className="absolute inset-0 overflow-hidden">
-				<div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-storm-purple/10 blur-[150px]" />
-				<div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-storm-glow/10 blur-[100px]" />
-			</div>
+		<section id="pricing" className="relative border-t border-slate-800/30 bg-storm-z1 py-20">
+			<div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-storm-purple/8 blur-[150px]" />
+			<div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-storm-glow/8 blur-[120px]" />
 
-			<div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-				{/* Section header */}
+			<div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
 				<motion.div
-					initial={{ opacity: 0, y: 20 }}
+					initial={{ opacity: 0, y: 24 }}
 					whileInView={{ opacity: 1, y: 0 }}
 					viewport={{ once: true }}
 					transition={{ duration: 0.6 }}
-					className="text-center"
+					className="mb-12 text-center"
 				>
-					<span className="text-sm font-semibold uppercase tracking-wider text-storm-glow">
-						Pricing
-					</span>
-					<h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
-						Simple, transparent pricing
+					<span className="text-sm font-bold uppercase tracking-[0.2em] text-storm-glow">Pricing</span>
+					<h2 className="mt-4 text-4xl font-extrabold text-white sm:text-5xl">
+						Plans that scale with your team
 					</h2>
-					<p className="mx-auto mt-4 max-w-2xl text-lg text-slate-400">
-						Choose the plan that fits your business. Start with a free trial, upgrade anytime.
+					<p className="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
+						Start free. Upgrade when you need more power.
 					</p>
 				</motion.div>
 
-				{/* Pricing cards */}
-				<div className="mx-auto mt-16 grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
 					{tiers.map((tier, index) => (
 						<motion.div
 							key={tier.name}
-							initial={{ opacity: 0, y: 30 }}
+							initial={{ opacity: 0, y: 24 }}
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true }}
-							transition={{ duration: 0.6, delay: index * 0.1 }}
-							className="relative"
+							transition={{ duration: 0.5, delay: index * 0.08 }}
 						>
 							<div
-								className={`relative h-full overflow-hidden rounded-3xl border p-1 ${
+								className={`relative flex h-full flex-col overflow-hidden rounded-2xl border-2 ${
 									tier.highlighted
-										? "border-storm-purple/50 bg-gradient-to-b from-storm-purple/20 to-slate-900/80"
-										: "border-slate-700/50 bg-gradient-to-b from-slate-800/50 to-slate-900/50"
+										? "border-storm-purple/60 shadow-xl shadow-storm-purple/15"
+										: "border-slate-700/50"
 								}`}
 							>
-								{/* Glow effect for highlighted */}
 								{tier.highlighted && (
-									<>
-										<div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-storm-purple/30 blur-[60px]" />
-										<div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-storm-glow/20 blur-[60px]" />
-									</>
+									<div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-storm-purple/20 blur-[50px]" />
 								)}
-
-								<div className="relative h-full rounded-[22px] bg-storm-z0 p-6 flex flex-col">
-									{/* Badge */}
+								<div className="relative flex flex-1 flex-col p-5">
 									{tier.badge && (
-										<div className={`mb-4 inline-flex self-start items-center rounded-full px-3 py-1 text-xs font-semibold ${
-											tier.highlighted
-												? "bg-storm-purple/20 text-storm-glow"
-												: "bg-amber-500/10 text-amber-400"
-										}`}>
+										<div
+											className={`mb-3 inline-flex self-start rounded-full px-3 py-1 text-xs font-bold ${
+												tier.highlighted ? "bg-storm-purple/25 text-storm-glow" : "bg-amber-500/15 text-amber-400"
+											}`}
+										>
 											{tier.badge}
 										</div>
 									)}
-
-									{/* Plan name */}
 									<h3 className="text-xl font-bold text-white">{tier.name}</h3>
-
-									{/* Price */}
-									<div className="mt-4 flex items-baseline gap-1">
-										<span className="text-4xl font-bold text-white">${tier.price}</span>
+									<div className="mt-3 flex items-baseline gap-1">
+										<span className="text-3xl font-extrabold text-white">${tier.price}</span>
 										<span className="text-sm text-slate-400">/ {tier.period}</span>
 									</div>
+									<p className="mt-2 text-sm text-slate-400">{tier.description}</p>
 
-									<p className="mt-4 text-sm text-slate-400">{tier.description}</p>
-
-									{/* CTA Button */}
 									<Link
 										href={tier.href}
-										className={`mt-6 block w-full rounded-xl py-3 text-center text-sm font-semibold transition-all ${
+										className={`mt-5 block w-full rounded-xl py-3 text-center text-sm font-bold transition-all ${
 											tier.highlighted
-												? "bg-storm-purple text-white hover:bg-storm-purple-hover hover:shadow-xl hover:shadow-storm-purple/25"
+												? "bg-storm-purple text-white shadow-lg shadow-storm-purple/25 hover:bg-storm-purple-hover"
 												: "bg-slate-800 text-white hover:bg-slate-700"
 										}`}
 									>
 										{tier.cta}
 									</Link>
 
-									{/* Features list */}
-									<div className="mt-6 flex-1 border-t border-slate-800 pt-6">
-										<ul className="space-y-3">
-											{tier.features.map((feature, featureIndex) => (
-												<li key={featureIndex} className="flex items-start gap-3">
+									<div className="mt-5 flex-1 border-t border-slate-800 pt-5">
+										<ul className="space-y-2.5">
+											{tier.features.map((feature, i) => (
+												<li key={i} className="flex items-start gap-2">
 													<svg
-														className={`h-5 w-5 flex-shrink-0 ${
-															tier.highlighted ? "text-storm-purple" : "text-slate-500"
-														}`}
+														className={`mt-0.5 h-4 w-4 flex-shrink-0 ${tier.highlighted ? "text-storm-purple" : "text-slate-600"}`}
 														fill="none"
 														viewBox="0 0 24 24"
 														stroke="currentColor"
 													>
-														<path
-															strokeLinecap="round"
-															strokeLinejoin="round"
-															strokeWidth={2}
-															d="M5 13l4 4L19 7"
-														/>
+														<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
 													</svg>
 													<span className="text-sm text-slate-300">{feature}</span>
 												</li>
@@ -190,34 +150,6 @@ export function Pricing() {
 						</motion.div>
 					))}
 				</div>
-
-				{/* Trust badge */}
-				<motion.div
-					initial={{ opacity: 0 }}
-					whileInView={{ opacity: 1 }}
-					viewport={{ once: true }}
-					transition={{ duration: 0.6, delay: 0.4 }}
-					className="mt-12 flex flex-col items-center gap-4 text-center"
-				>
-					<div className="flex items-center gap-2">
-						<svg
-							className="h-5 w-5 text-green-400"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={2}
-								d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-							/>
-						</svg>
-						<span className="text-sm text-slate-400">
-							256-bit SSL encryption • Cancel anytime
-						</span>
-					</div>
-				</motion.div>
 			</div>
 		</section>
 	);

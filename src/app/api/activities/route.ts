@@ -33,11 +33,26 @@ export async function GET(request: NextRequest) {
 	const searchParams = request.nextUrl.searchParams;
 	const leadId = searchParams.get("leadId");
 	const activityType = searchParams.get("type");
-	const teamId = searchParams.get("teamId");
+	let teamId = searchParams.get("teamId");
+	const scope = searchParams.get("scope");
 	const limit = parseInt(searchParams.get("limit") || "20", 10);
 	const offset = parseInt(searchParams.get("offset") || "0", 10);
 
 	try {
+		// When scope=team, resolve user's primary team; if no team, return empty
+		if (scope === "team" && !teamId) {
+			const { resolveTeamIdForUser } = await import("@/lib/server/tenant");
+			teamId = await resolveTeamIdForUser(supabase, user.id, null);
+			if (!teamId) {
+				return NextResponse.json({
+					success: true,
+					activities: [],
+					total: 0,
+					pagination: { limit, offset },
+				});
+			}
+		}
+
 		if (teamId) {
 			const role = await getUserRoleForTeam(supabase, user.id, teamId);
 			if (!role) {
@@ -83,9 +98,24 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: "Failed to fetch activities" }, { status: 500 });
 		}
 
+		let activities = data || [];
+
+		// Enrich team activities with member names
+		if (teamId && activities.length > 0) {
+			const userIds = [...new Set(activities.map((a: any) => a.user_id).filter(Boolean))];
+			const { data: users } = await (supabase.from("users") as any)
+				.select("id, email")
+				.in("id", userIds);
+			const userById = new Map((users ?? []).map((u: any) => [u.id, u.email?.split("@")[0] || "Team Member"]));
+			activities = activities.map((a: any) => ({
+				...a,
+				user_name: userById.get(a.user_id) || "Team Member",
+			}));
+		}
+
 		return NextResponse.json({
 			success: true,
-			activities: data || [],
+			activities,
 			total: count || 0,
 			pagination: { limit, offset },
 		});

@@ -5,155 +5,109 @@ import { motion } from "framer-motion";
 const steps = [
 	{
 		number: "01",
-		title: "Upload Adjuster Estimate",
-		description: "Upload your insurance adjuster's estimate. Our AI automatically identifies missing line items and underpayment opportunities.",
-		icon: (
-			<svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-				/>
-			</svg>
+		title: "Storm Detected",
+		description: "StormClose monitors live hail and wind data across your territories. When severe weather hits, you know immediately.",
+		visual: (
+			<div className="flex items-center gap-3">
+				<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/20">
+					<svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+					</svg>
+				</div>
+				<div>
+					<div className="text-sm font-bold text-red-400">Severe Storm</div>
+					<div className="text-xs text-slate-500">2.5&quot; hail detected in Dallas, TX</div>
+				</div>
+			</div>
 		),
 	},
 	{
 		number: "02",
-		title: "AI Generates Supplement",
-		description: "StormClose AI builds a professional supplement request with industry-standard pricing, code references, and justification language.",
-		icon: (
-			<svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-				/>
-			</svg>
+		title: "Deploy Teams",
+		description: "Create missions, assign routes, and send your team to the highest-impact properties. AI identifies the best neighborhoods.",
+		visual: (
+			<div className="flex items-center gap-3">
+				<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-storm-purple/20">
+					<svg className="h-5 w-5 text-storm-glow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+					</svg>
+				</div>
+				<div>
+					<div className="text-sm font-bold text-storm-glow">Mission Created</div>
+					<div className="text-xs text-slate-500">12 stops assigned to Team A</div>
+				</div>
+			</div>
 		),
 	},
 	{
 		number: "03",
-		title: "Negotiate & Close",
-		description: "Use AI coaching during adjuster calls, track carrier patterns, and maximize every claim with data-driven negotiation strategies.",
-		icon: (
-			<svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					strokeWidth={1.5}
-					d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-				/>
-			</svg>
+		title: "Close Deals",
+		description: "Generate AI reports, handle objections, negotiate with carriers, and track every closed deal back to its source.",
+		visual: (
+			<div className="flex items-center gap-3">
+				<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20">
+					<svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
+				</div>
+				<div>
+					<div className="text-sm font-bold text-emerald-400">Deal Closed</div>
+					<div className="text-xs text-slate-500">$18,400 claim approved</div>
+				</div>
+			</div>
 		),
 	},
 ];
 
 export function HowItWorks() {
 	return (
-		<section id="how-it-works" className="relative bg-storm-z1 py-24">
-			{/* Background */}
-			<div className="absolute inset-0 overflow-hidden">
-				<div className="absolute left-1/2 top-0 h-px w-full max-w-2xl -translate-x-1/2 bg-gradient-to-r from-transparent via-storm-purple/50 to-transparent" />
-			</div>
-
+		<section id="how-it-works" className="relative border-t border-slate-800/30 bg-storm-z0 py-28">
 			<div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-				{/* Section header */}
 				<motion.div
-					initial={{ opacity: 0, y: 20 }}
+					initial={{ opacity: 0, y: 24 }}
 					whileInView={{ opacity: 1, y: 0 }}
 					viewport={{ once: true }}
 					transition={{ duration: 0.6 }}
-					className="text-center"
+					className="mb-20 text-center"
 				>
-					<span className="text-sm font-semibold uppercase tracking-wider text-storm-glow">
-						How It Works
-					</span>
-					<h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
-						Three simple steps to faster claims
+					<span className="text-sm font-bold uppercase tracking-[0.2em] text-storm-glow">How It Works</span>
+					<h2 className="mt-4 text-4xl font-extrabold text-white sm:text-5xl">
+						From storm to closed deal
 					</h2>
-					<p className="mx-auto mt-4 max-w-2xl text-lg text-slate-400">
-						Get from estimate to insurance submission in minutes, not hours.
+					<p className="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
+						Three steps. One platform. Every dollar tracked.
 					</p>
 				</motion.div>
 
-				{/* Steps */}
-				<div className="mt-16 grid gap-8 lg:grid-cols-3">
-					{steps.map((step, index) => (
+				<div className="relative grid gap-8 lg:grid-cols-3">
+					{/* Connector line */}
+					<div className="absolute left-0 right-0 top-[60px] hidden h-px bg-gradient-to-r from-red-500/40 via-storm-purple/40 to-emerald-500/40 lg:block" />
+
+					{steps.map((step, i) => (
 						<motion.div
-							key={index}
-							initial={{ opacity: 0, y: 30 }}
+							key={step.number}
+							initial={{ opacity: 0, y: 24 }}
 							whileInView={{ opacity: 1, y: 0 }}
 							viewport={{ once: true }}
-							transition={{ duration: 0.6, delay: index * 0.2 }}
+							transition={{ duration: 0.6, delay: i * 0.12 }}
 							className="relative"
 						>
-							{/* Connector line */}
-							{index < steps.length - 1 && (
-								<div className="absolute left-1/2 top-16 hidden h-px w-full bg-gradient-to-r from-storm-purple/50 to-transparent lg:block" />
-							)}
-
-							<div className="relative flex flex-col items-center text-center">
-								{/* Step number circle */}
-								<motion.div
-									whileHover={{ scale: 1.1 }}
-									className="relative mb-6"
-								>
-									<div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-storm-purple/30 bg-gradient-to-b from-storm-purple/20 to-transparent text-storm-glow">
-										{step.icon}
-									</div>
-									<span className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-storm-purple text-sm font-bold text-white">
-										{step.number.replace("0", "")}
-									</span>
-								</motion.div>
-
-								{/* Content */}
-								<h3 className="mb-3 text-xl font-semibold text-white">
-									{step.title}
-								</h3>
-								<p className="max-w-sm text-slate-400 leading-relaxed">
-									{step.description}
-								</p>
+							<div className="mb-8 flex items-center gap-4">
+								<div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-slate-700 bg-storm-z1 text-2xl font-extrabold text-storm-glow shadow-lg">
+									{step.number}
+								</div>
+								{i < steps.length - 1 && (
+									<div className="hidden h-px flex-1 bg-gradient-to-r from-slate-700 to-transparent lg:block" />
+								)}
+							</div>
+							<h3 className="mb-3 text-2xl font-bold text-white">{step.title}</h3>
+							<p className="mb-6 text-slate-400 leading-relaxed">{step.description}</p>
+							<div className="rounded-xl border border-slate-700/60 bg-slate-800/30 p-4">
+								{step.visual}
 							</div>
 						</motion.div>
 					))}
 				</div>
-
-				{/* Optional: Demo preview */}
-				<motion.div
-					initial={{ opacity: 0, y: 40 }}
-					whileInView={{ opacity: 1, y: 0 }}
-					viewport={{ once: true }}
-					transition={{ duration: 0.8, delay: 0.4 }}
-					className="mt-20"
-				>
-					<div className="relative mx-auto max-w-4xl overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-b from-slate-800 to-slate-900 p-1">
-						{/* Mock dashboard preview */}
-						<div className="rounded-xl bg-storm-z0 p-6">
-							<div className="flex items-center gap-2 border-b border-slate-800 pb-4">
-								<div className="h-3 w-3 rounded-full bg-red-500/80" />
-								<div className="h-3 w-3 rounded-full bg-yellow-500/80" />
-								<div className="h-3 w-3 rounded-full bg-green-500/80" />
-								<span className="ml-4 text-sm text-slate-500">StormClose Dashboard</span>
-							</div>
-							<div className="mt-6 grid gap-4 md:grid-cols-3">
-								<div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-									<div className="text-2xl font-bold text-white">47</div>
-									<div className="text-sm text-slate-400">Reports Generated</div>
-								</div>
-								<div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-									<div className="text-2xl font-bold text-storm-glow">89%</div>
-									<div className="text-sm text-slate-400">Approval Rate</div>
-								</div>
-								<div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-									<div className="text-2xl font-bold text-green-400">$124K</div>
-									<div className="text-sm text-slate-400">Claims Closed</div>
-								</div>
-							</div>
-						</div>
-					</div>
-				</motion.div>
 			</div>
 		</section>
 	);

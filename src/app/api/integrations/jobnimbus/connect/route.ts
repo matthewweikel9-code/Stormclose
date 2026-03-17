@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Unified storage model: jobnimbus_integrations.
-    const { error: upsertError } = await (supabase
-      .from('jobnimbus_integrations') as any)
+    const { error: upsertError } = await (supabase as any)
+      .from('jobnimbus_integrations')
       .upsert({
         user_id: user.id,
         api_key_encrypted: encryptedApiKey,
@@ -100,8 +100,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { data: integration } = await (supabase
-      .from('jobnimbus_integrations') as any)
+    const { data: integration } = await (supabase as any)
+      .from('jobnimbus_integrations')
       .select('id, created_at, updated_at')
       .eq('user_id', user.id)
       .maybeSingle();
@@ -132,8 +132,8 @@ export async function DELETE() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { error } = await (supabase
-      .from('jobnimbus_integrations') as any)
+    const { error } = await (supabase as any)
+      .from('jobnimbus_integrations')
       .delete()
       .eq('user_id', user.id);
     

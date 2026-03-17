@@ -39,6 +39,7 @@ import {
   Activity,
   ArrowUpRight,
   ArrowDownRight,
+  Upload,
 } from 'lucide-react';
 import { SkeletonDashboard } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -202,6 +203,9 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [activeTab, setActiveTab] = useState<'priority' | 'overdue' | 'pipeline'>('priority');
   const hasFetchedRef = useRef(false);
+  const [jobnimbusConnected, setJobnimbusConnected] = useState(false);
+  const [exportingLeadIds, setExportingLeadIds] = useState<Set<string>>(new Set());
+  const [exportedLeadIds, setExportedLeadIds] = useState<Set<string>>(new Set());
 
   // ─── Data Fetching ─────────────────────────────────────────
   useEffect(() => {
@@ -277,6 +281,36 @@ export function DashboardContent({ user }: DashboardContentProps) {
       }
     } catch (e) { console.error('Nearby leads error:', e); }
   };
+
+  useEffect(() => {
+    fetch('/api/jobnimbus/status')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => data && setJobnimbusConnected(!!data.connected))
+      .catch(() => {});
+  }, []);
+
+  const exportLeadToJobnimbus = useCallback(async (leadId: string) => {
+    setExportingLeadIds((prev) => new Set(prev).add(leadId));
+    try {
+      const res = await fetch('/api/integrations/jobnimbus/export-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId }),
+      });
+      const data = await res.json();
+      if (res.ok && (data.success || data.alreadyExported)) {
+        setExportedLeadIds((prev) => new Set(prev).add(leadId));
+      }
+    } catch (err) {
+      console.error('Export to JobNimbus error:', err);
+    } finally {
+      setExportingLeadIds((prev) => {
+        const next = new Set(prev);
+        next.delete(leadId);
+        return next;
+      });
+    }
+  }, []);
 
   // ─── Helpers ─────────────────────────────────────────────
   const getGreeting = () => {
@@ -800,6 +834,22 @@ export function DashboardContent({ user }: DashboardContentProps) {
                         <Link href="/dashboard/ai-tools" className="px-2 py-1.5 bg-gradient-to-r from-storm-purple to-storm-glow text-white rounded-lg text-2xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1 shadow-depth-1">
                           <Brain className="w-3 h-3" /> AI Prep
                         </Link>
+                        {jobnimbusConnected && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); void exportLeadToJobnimbus(lead.id); }}
+                            disabled={exportingLeadIds.has(lead.id) || exportedLeadIds.has(lead.id)}
+                            className={`px-2 py-1.5 rounded-lg text-2xs font-semibold flex items-center gap-1 transition-opacity ${
+                              exportedLeadIds.has(lead.id)
+                                ? 'bg-emerald-500/15 text-emerald-400 cursor-default'
+                                : exportingLeadIds.has(lead.id)
+                                  ? 'bg-zinc-600 text-zinc-400 cursor-wait'
+                                  : 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25'
+                            }`}
+                          >
+                            <Upload className="w-3 h-3" />
+                            {exportedLeadIds.has(lead.id) ? 'Added' : exportingLeadIds.has(lead.id) ? '...' : 'JobNimbus'}
+                          </button>
+                        )}
                         {lead.phone && (
                           <a href={`tel:${lead.phone}`} onClick={(e) => e.stopPropagation()} className="p-1.5 bg-emerald-500/15 text-emerald-400 rounded-lg hover:bg-emerald-500/25 transition-colors">
                             <Phone className="w-3.5 h-3.5" />
@@ -844,6 +894,22 @@ export function DashboardContent({ user }: DashboardContentProps) {
                         </div>
                       </div>
                       <div className="flex gap-1.5 flex-shrink-0 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                        {jobnimbusConnected && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); void exportLeadToJobnimbus(lead.id); }}
+                            disabled={exportingLeadIds.has(lead.id) || exportedLeadIds.has(lead.id)}
+                            className={`px-2 py-1.5 rounded-lg text-2xs font-semibold flex items-center gap-1 transition-opacity ${
+                              exportedLeadIds.has(lead.id)
+                                ? 'bg-emerald-500/15 text-emerald-400 cursor-default'
+                                : exportingLeadIds.has(lead.id)
+                                  ? 'bg-zinc-600 text-zinc-400 cursor-wait'
+                                  : 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25'
+                            }`}
+                          >
+                            <Upload className="w-3 h-3" />
+                            {exportedLeadIds.has(lead.id) ? 'Added' : exportingLeadIds.has(lead.id) ? '...' : 'JobNimbus'}
+                          </button>
+                        )}
                         {lead.phone && (
                           <a href={`tel:${lead.phone}`} className="p-1.5 bg-emerald-500/15 text-emerald-400 rounded-lg hover:bg-emerald-500/25 transition-colors">
                             <Phone className="w-3.5 h-3.5" />
