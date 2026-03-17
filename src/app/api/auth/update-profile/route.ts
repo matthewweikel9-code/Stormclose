@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 		const lat = body.default_lat ?? defaultLat;
 		const lng = body.default_lng ?? defaultLng;
 		if (lat != null && lng != null) {
-			await supabase.from("user_settings").upsert(
+			await (supabase as any).from("user_settings").upsert(
 				{
 					user_id: user.id,
 					default_latitude: lat,

@@ -54,7 +54,7 @@ export async function GET() {
       .eq('date', today);
 
     const members = (locations || []).map((location: any) => {
-      const u = userById.get(location.user_id);
+      const u = userById.get(location.user_id) as { id: string; email?: string } | undefined;
       const perf = performance?.find((p: any) => p.user_id === location.user_id);
       return {
         id: location.id,

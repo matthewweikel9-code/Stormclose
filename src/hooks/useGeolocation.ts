@@ -37,17 +37,41 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     timestamp: null,
   });
 
-  const getLocation = useCallback(() => {
+  const getLocation = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+
+    // 1. Try API first — instant, no permission needed (user_settings, IP-based on Vercel)
+    if (fallbackToApi && typeof fetch === 'function') {
+      try {
+        const res = await fetch('/api/user/location');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.latitude != null && data.longitude != null) {
+            setState({
+              latitude: data.latitude,
+              longitude: data.longitude,
+              accuracy: null,
+              error: null,
+              loading: false,
+              timestamp: Date.now(),
+            });
+            return;
+          }
+        }
+      } catch {
+        // continue to browser geolocation
+      }
+    }
+
+    // 2. Fall back to browser geolocation
     if (!navigator.geolocation) {
       setState((prev) => ({
         ...prev,
-        error: 'Geolocation is not supported by your browser',
+        error: 'Geolocation is not supported. Set a default location in Settings.',
         loading: false,
       }));
       return;
     }
-
-    setState((prev) => ({ ...prev, loading: true, error: null }));
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -60,41 +84,18 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
           timestamp: position.timestamp,
         });
       },
-      async (error) => {
+      (error) => {
         let errorMessage = 'Failed to get location';
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = 'Location permission denied. Please enable location access.';
+            errorMessage = 'Location permission denied. Set a default location in Settings.';
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Location information unavailable';
+            errorMessage = 'Location unavailable. Set a default location in Settings.';
             break;
           case error.TIMEOUT:
-            errorMessage = 'Location request timed out';
+            errorMessage = 'Location request timed out. Set a default location in Settings.';
             break;
-        }
-        if (fallbackToApi && typeof fetch === 'function') {
-          try {
-            const res = await fetch('/api/user/location');
-            if (res.ok) {
-              const data = await res.json();
-              if (data.latitude != null && data.longitude != null) {
-                setState({
-                  latitude: data.latitude,
-                  longitude: data.longitude,
-                  accuracy: null,
-                  error: null,
-                  loading: false,
-                  timestamp: Date.now(),
-                });
-                return;
-              }
-            }
-          } catch {
-            // ignore
-          }
-          // Fallback tried but no default location set
-          errorMessage += ' Set a default location in Settings to use Storm Ops.';
         }
         setState((prev) => ({
           ...prev,
@@ -102,11 +103,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
           loading: false,
         }));
       },
-      {
-        enableHighAccuracy,
-        timeout,
-        maximumAge,
-      }
+      { enableHighAccuracy, timeout, maximumAge }
     );
   }, [enableHighAccuracy, timeout, maximumAge, fallbackToApi]);
 

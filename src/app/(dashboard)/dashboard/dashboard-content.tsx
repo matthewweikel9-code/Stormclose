@@ -241,32 +241,32 @@ export function DashboardContent({ user }: DashboardContentProps) {
     fetchNearbyLeads(loc.lat, loc.lng);
   }, []);
 
-  const autoDetectLocation = useCallback(() => {
+  const autoDetectLocation = useCallback(async () => {
     setLocationError(null);
+    // 1. Try API first — instant, no permission (user_settings or IP-based on Vercel)
+    try {
+      const res = await fetch('/api/user/location');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.latitude != null && data.longitude != null) {
+          applyLocation({ lat: data.latitude, lng: data.longitude });
+          return;
+        }
+      }
+    } catch {
+      // continue to browser geolocation
+    }
+    // 2. Fall back to browser geolocation
     if (!navigator.geolocation) {
       setLocationError('Geolocation is not supported. Set a default location in Settings.');
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
-        applyLocation(loc);
+        applyLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
       },
-      async () => {
-        setLocationError('Location access denied or unavailable.');
-        try {
-          const res = await fetch('/api/user/location');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.latitude != null && data.longitude != null) {
-              applyLocation({ lat: data.latitude, lng: data.longitude });
-              setLocationError(null);
-              return;
-            }
-          }
-        } catch {
-          // ignore
-        }
+      () => {
+        setLocationError('Location access denied or unavailable. Set a default location in Settings.');
       },
       { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
     );
