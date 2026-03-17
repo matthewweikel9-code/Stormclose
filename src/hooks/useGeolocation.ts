@@ -93,6 +93,8 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
           } catch {
             // ignore
           }
+          // Fallback tried but no default location set
+          errorMessage += ' Set a default location in Settings to use Storm Ops.';
         }
         setState((prev) => ({
           ...prev,

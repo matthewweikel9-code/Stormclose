@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import type { MapMarker, StormPath, MapCircle } from "@/components/ui/MapboxMap";
 import { StormOpsHeader } from "@/components/storm-ops/StormOpsHeader";
@@ -1282,8 +1283,22 @@ export default function StormMapPage() {
 
           {/* Geo error message */}
           {geoError && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 bg-yellow-600/90 text-white px-4 py-2 rounded-lg text-sm">
-              ⚠️ {geoError}
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 bg-yellow-600/95 text-white px-4 py-3 rounded-lg text-sm shadow-lg flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+              <span>⚠️ {geoError}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => getLocation()}
+                  className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded font-medium text-xs"
+                >
+                  Retry
+                </button>
+                <Link
+                  href="/settings/profile"
+                  className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded font-medium text-xs"
+                >
+                  Set default location
+                </Link>
+              </div>
             </div>
           )}
         </div>
