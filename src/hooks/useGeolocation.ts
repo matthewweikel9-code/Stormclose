@@ -37,74 +37,87 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     timestamp: null,
   });
 
-  const getLocation = useCallback(async () => {
+  const resolvedRef = { current: false };
+
+  const getLocation = useCallback(() => {
+    resolvedRef.current = false;
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
-    // 1. Try API first — instant, no permission needed (user_settings, IP-based on Vercel)
-    if (fallbackToApi && typeof fetch === 'function') {
-      try {
-        const res = await fetch('/api/user/location');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.latitude != null && data.longitude != null) {
-            setState({
-              latitude: data.latitude,
-              longitude: data.longitude,
-              accuracy: null,
-              error: null,
-              loading: false,
-              timestamp: Date.now(),
-            });
-            return;
-          }
-        }
-      } catch {
-        // continue to browser geolocation
+    const resolve = (lat: number, lng: number, acc: number | null) => {
+      if (resolvedRef.current) return;
+      resolvedRef.current = true;
+      setState({
+        latitude: lat,
+        longitude: lng,
+        accuracy: acc,
+        error: null,
+        loading: false,
+        timestamp: Date.now(),
+      });
+    };
+
+    // Race: browser geolocation and API run in parallel, first valid result wins
+    let browserDone = false;
+    let apiDone = false;
+
+    const checkAllFailed = (errorMsg: string) => {
+      if (!resolvedRef.current && browserDone && apiDone) {
+        setState((prev) => ({ ...prev, error: errorMsg, loading: false }));
       }
+    };
+
+    // 1. Browser geolocation (works immediately if permission is granted/cached)
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          browserDone = true;
+          resolve(position.coords.latitude, position.coords.longitude, position.coords.accuracy);
+        },
+        (error) => {
+          browserDone = true;
+          let msg = 'Location unavailable.';
+          if (error.code === error.PERMISSION_DENIED) msg = 'Location permission denied.';
+          else if (error.code === error.TIMEOUT) msg = 'Location request timed out.';
+          checkAllFailed(msg + ' Set a default location in Settings.');
+        },
+        { enableHighAccuracy, timeout, maximumAge }
+      );
+    } else {
+      browserDone = true;
     }
 
-    // 2. Fall back to browser geolocation
-    if (!navigator.geolocation) {
+    // 2. API fallback (saved default or Vercel IP geolocation)
+    if (fallbackToApi) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      fetch('/api/user/location', { signal: controller.signal })
+        .then((res) => res.ok ? res.json() : null)
+        .then((data) => {
+          clearTimeout(timeoutId);
+          apiDone = true;
+          if (data?.latitude != null && data?.longitude != null) {
+            resolve(data.latitude, data.longitude, null);
+          } else {
+            checkAllFailed('Location unavailable. Set a default location in Settings.');
+          }
+        })
+        .catch(() => {
+          clearTimeout(timeoutId);
+          apiDone = true;
+          checkAllFailed('Location unavailable. Set a default location in Settings.');
+        });
+    } else {
+      apiDone = true;
+    }
+
+    // If browser geo isn't supported and no API, fail immediately
+    if (browserDone && apiDone && !resolvedRef.current) {
       setState((prev) => ({
         ...prev,
         error: 'Geolocation is not supported. Set a default location in Settings.',
         loading: false,
       }));
-      return;
     }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setState({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          error: null,
-          loading: false,
-          timestamp: position.timestamp,
-        });
-      },
-      (error) => {
-        let errorMessage = 'Failed to get location';
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = 'Location permission denied. Set a default location in Settings.';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Location unavailable. Set a default location in Settings.';
-            break;
-          case error.TIMEOUT:
-            errorMessage = 'Location request timed out. Set a default location in Settings.';
-            break;
-        }
-        setState((prev) => ({
-          ...prev,
-          error: errorMessage,
-          loading: false,
-        }));
-      },
-      { enableHighAccuracy, timeout, maximumAge }
-    );
   }, [enableHighAccuracy, timeout, maximumAge, fallbackToApi]);
 
   // Auto-fetch on mount if enabled

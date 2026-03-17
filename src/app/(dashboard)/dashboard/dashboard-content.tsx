@@ -241,35 +241,48 @@ export function DashboardContent({ user }: DashboardContentProps) {
     fetchNearbyLeads(loc.lat, loc.lng);
   }, []);
 
-  const autoDetectLocation = useCallback(async () => {
+  const autoDetectLocation = useCallback(() => {
     setLocationError(null);
-    // 1. Try API first — instant, no permission (user_settings or IP-based on Vercel)
-    try {
-      const res = await fetch('/api/user/location');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.latitude != null && data.longitude != null) {
-          applyLocation({ lat: data.latitude, lng: data.longitude });
-          return;
-        }
+    let resolved = false;
+    let browserDone = false;
+    let apiDone = false;
+
+    const onResolved = (lat: number, lng: number) => {
+      if (resolved) return;
+      resolved = true;
+      applyLocation({ lat, lng });
+    };
+    const onAllFailed = (msg: string) => {
+      if (!resolved && browserDone && apiDone) {
+        setLocationError(msg);
       }
-    } catch {
-      // continue to browser geolocation
+    };
+
+    // Race: browser geolocation and API in parallel
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { browserDone = true; onResolved(pos.coords.latitude, pos.coords.longitude); },
+        () => { browserDone = true; onAllFailed('Location access denied or unavailable. Set a default location in Settings.'); },
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
+      );
+    } else {
+      browserDone = true;
     }
-    // 2. Fall back to browser geolocation
-    if (!navigator.geolocation) {
-      setLocationError('Geolocation is not supported. Set a default location in Settings.');
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        applyLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
-      },
-      () => {
-        setLocationError('Location access denied or unavailable. Set a default location in Settings.');
-      },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
-    );
+
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 5000);
+    fetch('/api/user/location', { signal: controller.signal })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        clearTimeout(tid);
+        apiDone = true;
+        if (data?.latitude != null && data?.longitude != null) {
+          onResolved(data.latitude, data.longitude);
+        } else {
+          onAllFailed('Location unavailable. Set a default location in Settings.');
+        }
+      })
+      .catch(() => { clearTimeout(tid); apiDone = true; onAllFailed('Location unavailable. Set a default location in Settings.'); });
   }, [applyLocation]);
 
   const fetchForecast = async (lat: number, lng: number) => {
