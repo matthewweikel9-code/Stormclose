@@ -42,20 +42,39 @@ export async function GET() {
       return NextResponse.json({ error: 'Failed to fetch locations' }, { status: 500 });
     }
 
-    const userIds = [...new Set((locations || []).map((l: any) => l.user_id).filter(Boolean))];
-    const { data: users } = userIds.length > 0
-      ? await (supabase.from('users') as any).select('id, email').in('id', userIds)
-      : { data: [] };
-    const userById = new Map((users || []).map((u: any) => [u.id, u]));
+    if (!locations || locations.length === 0) {
+      return NextResponse.json({ members: [] });
+    }
 
-    const { data: performance } = await (supabase.from('team_performance_daily') as any)
-      .select('*')
-      .in('user_id', userIds)
-      .eq('date', today);
+    const userIds = [...new Set(locations.map((l: any) => l.user_id).filter(Boolean))];
 
-    const members = (locations || []).map((location: any) => {
-      const u = userById.get(location.user_id) as { id: string; email?: string } | undefined;
-      const perf = performance?.find((p: any) => p.user_id === location.user_id);
+    // Fetch user emails — public.users RLS only allows own row, so use auth metadata fallback
+    let userById = new Map<string, { id: string; email?: string }>();
+    if (userIds.length > 0) {
+      try {
+        const { data: users } = await (supabase.from('users') as any).select('id, email').in('id', userIds);
+        userById = new Map((users || []).map((u: any) => [u.id, u]));
+      } catch {
+        // RLS may block; continue with empty map
+      }
+    }
+
+    let performance: any[] = [];
+    if (userIds.length > 0) {
+      try {
+        const { data: perf } = await (supabase.from('team_performance_daily') as any)
+          .select('*')
+          .in('user_id', userIds)
+          .eq('date', today);
+        performance = perf || [];
+      } catch {
+        // Table may not exist yet; continue without performance data
+      }
+    }
+
+    const members = locations.map((location: any) => {
+      const u = userById.get(location.user_id);
+      const perf = performance.find((p: any) => p.user_id === location.user_id);
       return {
         id: location.id,
         user_id: location.user_id,
@@ -70,7 +89,6 @@ export async function GET() {
         is_active: location.is_active,
         last_activity: location.last_activity,
         updated_at: location.updated_at,
-        // Today's stats
         doors_knocked: perf?.doors_knocked || 0,
         contacts_made: perf?.contacts_made || 0,
         appointments_set: perf?.appointments_set || 0,

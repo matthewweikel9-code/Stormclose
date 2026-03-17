@@ -173,7 +173,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const apiKey = decryptJobNimbusApiKey(integration.api_key_encrypted);
+    let apiKey: string;
+    try {
+      apiKey = decryptJobNimbusApiKey(integration.api_key_encrypted);
+    } catch (decryptErr) {
+      console.error('JobNimbus decryption error:', decryptErr);
+      return NextResponse.json(
+        { error: 'JobNimbus encryption key is not configured. Contact support.' },
+        { status: 500 }
+      );
+    }
     const jnClient = createJobNimbusClient(apiKey);
 
     const parts = (stop.homeowner_name || stop.owner_name || 'Homeowner').trim().split(/\s+/);
