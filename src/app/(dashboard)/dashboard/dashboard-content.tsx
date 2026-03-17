@@ -201,6 +201,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [briefingExpanded, setBriefingExpanded] = useState(true);
   const [nearbyLeads, setNearbyLeads] = useState<any[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'priority' | 'overdue' | 'pipeline'>('priority');
   const hasFetchedRef = useRef(false);
   const [jobnimbusConnected, setJobnimbusConnected] = useState(false);
@@ -232,20 +233,44 @@ export function DashboardContent({ user }: DashboardContentProps) {
     }
   };
 
-  const autoDetectLocation = useCallback(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
-          setUserLocation(loc);
-          fetchForecast(loc.lat, loc.lng);
-          fetchBriefing(loc.lat, loc.lng);
-          fetchNearbyLeads(loc.lat, loc.lng);
-        },
-        () => console.log('Location access denied')
-      );
-    }
+  const applyLocation = useCallback((loc: { lat: number; lng: number }) => {
+    setUserLocation(loc);
+    setLocationError(null);
+    fetchForecast(loc.lat, loc.lng);
+    fetchBriefing(loc.lat, loc.lng);
+    fetchNearbyLeads(loc.lat, loc.lng);
   }, []);
+
+  const autoDetectLocation = useCallback(() => {
+    setLocationError(null);
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported. Set a default location in Settings.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const loc = { lat: position.coords.latitude, lng: position.coords.longitude };
+        applyLocation(loc);
+      },
+      async () => {
+        setLocationError('Location access denied or unavailable.');
+        try {
+          const res = await fetch('/api/user/location');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.latitude != null && data.longitude != null) {
+              applyLocation({ lat: data.latitude, lng: data.longitude });
+              setLocationError(null);
+              return;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
+    );
+  }, [applyLocation]);
 
   const fetchForecast = async (lat: number, lng: number) => {
     setForecastLoading(true);
@@ -657,9 +682,15 @@ export function DashboardContent({ user }: DashboardContentProps) {
         ) : !userLocation ? (
           <div className="p-6 text-center">
             <p className="text-storm-subtle text-sm">Enable location to see your territory forecast</p>
+            {locationError && (
+              <p className="mt-2 text-xs text-amber-400">{locationError}</p>
+            )}
             <button onClick={autoDetectLocation} className="button-primary mt-3 text-xs inline-flex items-center gap-2">
               <Crosshair className="w-3.5 h-3.5" /> Enable Location
             </button>
+            <p className="mt-2 text-2xs text-storm-subtle">
+              <Link href="/settings/profile" className="text-storm-glow hover:underline">Set default location in Settings</Link> if browser geolocation fails
+            </p>
           </div>
         ) : (
           <div className="p-5 text-center">

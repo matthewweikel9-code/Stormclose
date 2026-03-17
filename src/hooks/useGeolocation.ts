@@ -16,14 +16,16 @@ interface UseGeolocationOptions {
   timeout?: number;
   maximumAge?: number;
   autoFetch?: boolean;
+  fallbackToApi?: boolean;
 }
 
 export function useGeolocation(options: UseGeolocationOptions = {}) {
   const {
-    enableHighAccuracy = true,
-    timeout = 10000,
-    maximumAge = 60000, // Cache for 1 minute
+    enableHighAccuracy = false,
+    timeout = 15000,
+    maximumAge = 300000, // Cache for 5 minutes
     autoFetch = false,
+    fallbackToApi = true,
   } = options;
 
   const [state, setState] = useState<GeolocationState>({
@@ -58,7 +60,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
           timestamp: position.timestamp,
         });
       },
-      (error) => {
+      async (error) => {
         let errorMessage = 'Failed to get location';
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -70,6 +72,27 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
           case error.TIMEOUT:
             errorMessage = 'Location request timed out';
             break;
+        }
+        if (fallbackToApi && typeof fetch === 'function') {
+          try {
+            const res = await fetch('/api/user/location');
+            if (res.ok) {
+              const data = await res.json();
+              if (data.latitude != null && data.longitude != null) {
+                setState({
+                  latitude: data.latitude,
+                  longitude: data.longitude,
+                  accuracy: null,
+                  error: null,
+                  loading: false,
+                  timestamp: Date.now(),
+                });
+                return;
+              }
+            }
+          } catch {
+            // ignore
+          }
         }
         setState((prev) => ({
           ...prev,
@@ -83,7 +106,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
         maximumAge,
       }
     );
-  }, [enableHighAccuracy, timeout, maximumAge]);
+  }, [enableHighAccuracy, timeout, maximumAge, fallbackToApi]);
 
   // Auto-fetch on mount if enabled
   useEffect(() => {

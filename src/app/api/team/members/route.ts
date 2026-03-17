@@ -6,7 +6,7 @@ import { getUserRoleForTeam, getUserTeamMemberships, hasMinimumRole } from "@/li
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "StormClose <noreply@stormclose.com>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.stormclose.ai";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://stormclose.com";
 
 type TeamMemberRow = {
 	id: string;

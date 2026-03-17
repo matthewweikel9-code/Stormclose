@@ -58,6 +58,7 @@ export default function PartnersPage() {
 	const [statusFilter, setStatusFilter] = useState("");
 	const [tierFilter, setTierFilter] = useState("");
 	const [copiedId, setCopiedId] = useState<string | null>(null);
+	const [companySlug, setCompanySlug] = useState("company");
 
 	// Form state
 	const [form, setForm] = useState({
@@ -101,8 +102,19 @@ export default function PartnersPage() {
 		})();
 	}, [fetchPartners]);
 
+	useEffect(() => {
+		fetch("/api/partner-engine/settings")
+			.then((r) => r.ok ? r.json() : null)
+			.then((json: ApiEnvelope<{ companySlug: string }>) => {
+				const slug = json?.data?.companySlug;
+				if (slug) setCompanySlug(slug);
+			})
+			.catch(() => {});
+	}, []);
+
 	const handleCopy = async (referralCode: string, id: string) => {
-		const url = `${typeof window !== "undefined" ? window.location.origin : ""}/ref/company/${referralCode}`;
+		const baseUrl = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) : "";
+		const url = `${baseUrl}/ref/${companySlug}/${referralCode}`;
 		await navigator.clipboard.writeText(url);
 		setCopiedId(id);
 		setTimeout(() => setCopiedId(null), 2000);
@@ -466,7 +478,7 @@ export default function PartnersPage() {
 										<td className="px-6 py-3">
 											<div className="flex items-center gap-1">
 												<span className="max-w-[140px] truncate text-storm-muted text-xs">
-													/ref/company/{p.referralCode}
+													/ref/{companySlug}/{p.referralCode}
 												</span>
 												<button
 													type="button"
