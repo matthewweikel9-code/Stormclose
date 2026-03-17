@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Navbar, Footer } from "@/components/landing";
+import { Navbar, Footer, DemoProvider } from "@/components/landing";
 
 export default function StormIntelligencePage() {
 	return (
+		<DemoProvider>
 		<main className="min-h-screen bg-storm-bg">
 			<Navbar />
 			<section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
@@ -39,5 +40,6 @@ export default function StormIntelligencePage() {
 			</section>
 			<Footer />
 		</main>
+		</DemoProvider>
 	);
 }

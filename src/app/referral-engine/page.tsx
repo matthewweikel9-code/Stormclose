@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Navbar, Footer } from "@/components/landing";
+import { Navbar, Footer, DemoProvider } from "@/components/landing";
 
 const features = [
 	{
@@ -37,8 +37,9 @@ const metrics = [
 
 export default function ReferralEnginePage() {
 	return (
-		<main className="min-h-screen bg-storm-bg">
-			<Navbar />
+		<DemoProvider>
+			<main className="min-h-screen bg-storm-bg">
+				<Navbar />
 
 			{/* Hero */}
 			<section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
@@ -159,7 +160,8 @@ export default function ReferralEnginePage() {
 				</div>
 			</section>
 
-			<Footer />
-		</main>
+				<Footer />
+			</main>
+		</DemoProvider>
 	);
 }
