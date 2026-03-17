@@ -65,7 +65,9 @@ export interface JNApiResponse<T> {
   };
 }
 
-const JN_BASE_URL = 'https://api.jobnimbus.com';
+// JobNimbus: app.jobnimbus.com/api1 for GET; api.jobnimbus.com/v1 for create (per docs)
+const JN_APP_BASE = 'https://app.jobnimbus.com/api1';
+const JN_API_V1_BASE = 'https://api.jobnimbus.com/v1';
 
 export class JobNimbusClient {
   private apiKey: string;
@@ -77,10 +79,11 @@ export class JobNimbusClient {
   private async request<T>(
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     endpoint: string,
-    body?: unknown
+    body?: unknown,
+    base: string = JN_APP_BASE
   ): Promise<JNApiResponse<T>> {
     try {
-      const response = await fetch(`${JN_BASE_URL}${endpoint}`, {
+      const response = await fetch(`${base}${endpoint}`, {
         method,
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -90,22 +93,35 @@ export class JobNimbusClient {
         body: body ? JSON.stringify(body) : undefined,
       });
       
-      const data = await response.json();
+      let data: Record<string, unknown> = {};
+      try {
+        const text = await response.text();
+        data = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+      } catch {
+        data = {};
+      }
       
       if (!response.ok) {
+        const detail =
+          (data.detail as string) ||
+          (data.message as string) ||
+          (data.error as string) ||
+          (Array.isArray(data.errors) ? (data.errors as string[]).join('; ') : null) ||
+          (typeof data === 'object' && Object.keys(data).length ? JSON.stringify(data) : null) ||
+          `Request failed with status ${response.status}`;
         return {
           success: false,
           error: {
-            title: data.title || 'API Error',
+            title: (data.title as string) || 'API Error',
             status: response.status,
-            detail: data.detail || `Request failed with status ${response.status}`,
+            detail,
           },
         };
       }
       
       return {
         success: true,
-        data: data as T,
+        data: (data as T) ?? data,
       };
     } catch (error) {
       return {
@@ -123,12 +139,7 @@ export class JobNimbusClient {
    * Test the API connection
    */
   async testConnection(): Promise<boolean> {
-    // Try to list contacts with limit 1 to test connection
-    const result = await this.request<{ results: JNContact[] }>(
-      'POST',
-      '/contacts/v1/contacts/list',
-      { limit: 1 }
-    );
+    const result = await this.request<{ results?: JNContact[] }>('GET', '/contacts?limit=1');
     return result.success;
   }
   
@@ -138,23 +149,38 @@ export class JobNimbusClient {
   
   /**
    * Create a new contact in JobNimbus
+   * POST app.jobnimbus.com/api1/contacts
+   * Sends only standard fields; omits source_name (may require predefined value)
    */
   async createContact(contact: JNContact): Promise<JNApiResponse<JNContact>> {
-    return this.request<JNContact>('POST', '/contacts/v1/contacts', contact);
+    const body: Record<string, unknown> = {};
+    const allowed = ['first_name', 'last_name', 'display_name', 'email', 'mobile_phone', 'home_phone', 'address_line1', 'address_line2', 'city', 'state_text', 'zip', 'notes'];
+    for (const k of allowed) {
+      const v = (contact as Record<string, unknown>)[k];
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        body[k] = v;
+      }
+    }
+    if (!body.display_name && (body.first_name || body.last_name)) {
+      body.display_name = [body.first_name, body.last_name].filter(Boolean).join(' ').trim() || 'Contact';
+    }
+    if (!body.first_name) body.first_name = 'Contact';
+    if (!body.last_name) body.last_name = 'Referral';
+    return this.request<JNContact>('POST', '/contacts', body, JN_APP_BASE);
   }
   
   /**
    * Update an existing contact
    */
   async updateContact(contactId: string, updates: Partial<JNContact>): Promise<JNApiResponse<JNContact>> {
-    return this.request<JNContact>('PATCH', `/contacts/v1/contacts/${contactId}`, updates);
+    return this.request<JNContact>('PATCH', `/contacts/${contactId}`, updates);
   }
   
   /**
    * Get a contact by ID
    */
   async getContact(contactId: string): Promise<JNApiResponse<JNContact>> {
-    return this.request<JNContact>('GET', `/contacts/v1/contacts/${contactId}`);
+    return this.request<JNContact>('GET', `/contacts/${contactId}`);
   }
   
   /**
@@ -166,28 +192,10 @@ export class JobNimbusClient {
     phone?: string;
     limit?: number;
   }): Promise<JNApiResponse<{ results: JNContact[] }>> {
-    const filters: Record<string, unknown>[] = [];
-    
-    if (query.address) {
-      filters.push({
-        field: 'address_line1',
-        operator: 'contains',
-        value: query.address,
-      });
-    }
-    
-    if (query.email) {
-      filters.push({
-        field: 'email',
-        operator: 'eq',
-        value: query.email,
-      });
-    }
-    
-    return this.request<{ results: JNContact[] }>('POST', '/contacts/v1/contacts/list', {
-      filters,
-      limit: query.limit || 10,
-    });
+    const params = new URLSearchParams();
+    if (query.limit) params.set('limit', String(query.limit));
+    const qs = params.toString();
+    return this.request<{ results: JNContact[] }>('GET', `/contacts${qs ? `?${qs}` : ''}`);
   }
   
   // ============================================
@@ -198,14 +206,14 @@ export class JobNimbusClient {
    * Create a new job in JobNimbus
    */
   async createJob(job: JNJob): Promise<JNApiResponse<JNJob>> {
-    return this.request<JNJob>('POST', '/jobs/v1/jobs', job);
+    return this.request<JNJob>('POST', '/jobs', job);
   }
   
   /**
    * Update an existing job
    */
   async updateJob(jobId: string, updates: Partial<JNJob>): Promise<JNApiResponse<JNJob>> {
-    return this.request<JNJob>('PATCH', `/jobs/v1/jobs/${jobId}`, updates);
+    return this.request<JNJob>('PATCH', `/jobs/${jobId}`, updates);
   }
   
   // ============================================
@@ -216,7 +224,7 @@ export class JobNimbusClient {
    * Create an activity (note, call log, etc.)
    */
   async createActivity(activity: JNActivity): Promise<JNApiResponse<JNActivity>> {
-    return this.request<JNActivity>('POST', '/activities/v1/activities', activity);
+    return this.request<JNActivity>('POST', '/activities', activity);
   }
   
   /**

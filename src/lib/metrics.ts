@@ -26,6 +26,30 @@ function emitMetric(payload: IncrementMetricInput) {
 	);
 }
 
+function scopedMetrics(baseTags: MetricTags) {
+	return {
+		increment(name: string, value = 1, tags?: MetricTags) {
+			if (!name) return;
+			emitMetric({
+				name,
+				value,
+				tags: { ...baseTags, ...(tags ?? {}) },
+				timestamp: new Date().toISOString(),
+			});
+		},
+	};
+}
+
+function getCorrelationId(headers?: Headers | null) {
+	if (!headers) return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+	return (
+		headers.get("x-correlation-id") ??
+		headers.get("x-request-id") ??
+		headers.get("x-vercel-id") ??
+		`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+	);
+}
+
 export const metrics = {
 	increment(name: string, value = 1, tags?: MetricTags) {
 		if (!name) return;
@@ -35,6 +59,16 @@ export const metrics = {
 			tags,
 			timestamp: new Date().toISOString(),
 		});
+	},
+	withTags(tags: MetricTags) {
+		return scopedMetrics(tags);
+	},
+	fromRequest(request: Request, tags: MetricTags = {}) {
+		const correlationId = getCorrelationId(request.headers);
+		return {
+			correlationId,
+			metric: scopedMetrics({ ...tags, correlationId }),
+		};
 	},
 };
 

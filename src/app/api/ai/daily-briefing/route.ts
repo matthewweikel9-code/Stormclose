@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkFeatureAccess } from '@/lib/subscriptions/access';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -16,6 +17,20 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const access = await checkFeatureAccess(user.id, 'lead_generator');
+    if (!access.allowed) {
+      return NextResponse.json(
+        {
+          error: access.reason || 'Upgrade required for Daily AI Briefing.',
+          code: 'UPGRADE_REQUIRED',
+          feature: 'lead_generator',
+          tier: access.tier || 'free',
+          upgradeUrl: '/settings/billing',
+        },
+        { status: 402 }
+      );
     }
 
     const searchParams = request.nextUrl.searchParams;

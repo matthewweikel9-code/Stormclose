@@ -17,6 +17,19 @@ export async function POST() {
       .delete()
       .eq('user_id', user.id);
 
+    // Best-effort cleanup for legacy storage columns.
+    try {
+      await (supabase as any)
+        .from('user_settings')
+        .update({
+          jobnimbus_api_key: null,
+          jobnimbus_connected_at: null,
+        })
+        .eq('user_id', user.id);
+    } catch {
+      // Ignore if legacy columns/table shape differ.
+    }
+
     // Delete synced data
     await (supabase as any)
       .from('jobnimbus_contacts')

@@ -152,10 +152,13 @@ export default function AIAssistantPage() {
           },
         }),
       });
-
-      if (!res.ok) throw new Error('Failed to get response');
-
       const data = await res.json();
+      if (!res.ok) {
+        if (data?.code === 'UPGRADE_REQUIRED') {
+          throw new Error(`${data.error} Upgrade in Billing to continue.`);
+        }
+        throw new Error(data?.error || 'Failed to get response');
+      }
 
       const assistantMessage: Message = {
         id: generateId(),
@@ -170,7 +173,7 @@ export default function AIAssistantPage() {
       const errorMessage: Message = {
         id: generateId(),
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: error instanceof Error ? error.message : 'Sorry, I encountered an error. Please try again.',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);

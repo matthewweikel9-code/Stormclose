@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { requireCronAuth } from "@/lib/server/cron-auth";
 
 // NWS API endpoints
 const NWS_ALERTS_API = "https://api.weather.gov/alerts/active";
@@ -39,12 +40,9 @@ interface NWSAlert {
 // This cron job runs every 5 minutes to check for new storm alerts
 // Configure in vercel.json: "schedule": "*/5 * * * *"
 export async function GET(request: NextRequest) {
-	// Verify cron secret
-	const authHeader = request.headers.get("authorization");
-	const cronSecret = process.env.CRON_SECRET;
-	
-	if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	const cronAuth = requireCronAuth(request);
+	if (!cronAuth.ok) {
+		return cronAuth.response;
 	}
 
 	console.log("⏰ Running storm alert cron job...");

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkFeatureAccess } from "@/lib/subscriptions/access";
 import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -25,6 +26,20 @@ export async function POST(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const access = await checkFeatureAccess(user.id, "lead_generator");
+  if (!access.allowed) {
+    return NextResponse.json(
+      {
+        error: access.reason || "Upgrade required for Storm Briefing AI.",
+        code: "UPGRADE_REQUIRED",
+        feature: "lead_generator",
+        tier: access.tier || "free",
+        upgradeUrl: "/settings/billing",
+      },
+      { status: 402 }
+    );
   }
 
   try {
@@ -53,7 +68,7 @@ export async function POST(request: NextRequest) {
       // Existing leads near this storm
       supabase
         .from("leads")
-        .select("id, address, status, estimated_claim, lead_score, roof_age")
+        .select("id, address, status, estimated_claim, lead_score, roof_age, latitude, longitude")
         .eq("user_id", user.id)
         .not("latitude", "is", null)
         .not("longitude", "is", null),

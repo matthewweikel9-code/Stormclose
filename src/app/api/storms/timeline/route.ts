@@ -86,7 +86,13 @@ export async function GET(request: NextRequest) {
         damage_score: damageScore,
         latitude: report.loc.lat,
         longitude: report.loc.long,
-        location_name: report.place.name || "Unknown",
+        location_name: buildTimelineLocation({
+          locationName: report.place.name,
+          county: report.place.county,
+          state: report.place.state,
+          lat: report.loc.lat,
+          lng: report.loc.long,
+        }),
         county: report.place.county || null,
         state: report.place.state || null,
         impact_radius_miles: impactRadiusMiles,
@@ -122,7 +128,13 @@ export async function GET(request: NextRequest) {
         damage_score: damageScore,
         latitude: report.loc.lat,
         longitude: report.loc.long,
-        location_name: report.place.name || "Unknown",
+        location_name: buildTimelineLocation({
+          locationName: report.place.name,
+          county: report.place.county,
+          state: report.place.state,
+          lat: report.loc.lat,
+          lng: report.loc.long,
+        }),
         county: report.place.county || null,
         state: report.place.state || null,
         impact_radius_miles: isTornado ? 2 : 5,
@@ -158,7 +170,13 @@ export async function GET(request: NextRequest) {
         hailSize: Number(e.hail_size) || null,
         windSpeed: e.wind_speed || null,
         damageScore: e.damage_score || 0,
-        location: e.location_name || "Unknown",
+        location: buildTimelineLocation({
+          locationName: e.location_name,
+          county: e.county,
+          state: e.state,
+          lat: e.latitude,
+          lng: e.longitude,
+        }),
         county: e.county || null,
         state: e.state || null,
         lat: e.latitude,
@@ -182,7 +200,13 @@ export async function GET(request: NextRequest) {
         hailSize: e.hail_size_inches,
         windSpeed: e.wind_speed_mph,
         damageScore: e.damage_score,
-        location: e.location_name || "Unknown",
+        location: buildTimelineLocation({
+          locationName: e.location_name,
+          county: e.county,
+          state: e.state,
+          lat: e.latitude,
+          lng: e.longitude,
+        }),
         county: e.county,
         state: e.state,
         lat: e.latitude,
@@ -209,18 +233,21 @@ export async function GET(request: NextRequest) {
       return true;
     });
     deduped.sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+    const localized = deduped.filter(
+      (entry) => calculateDistanceMiles(lat, lng, entry.lat, entry.lng) <= radius
+    );
 
     // 7. Calculate summary stats
-    const totalOpportunity = deduped.reduce((sum, e) => sum + (e.estimatedOpportunity || 0), 0);
-    const totalCaptured = deduped.reduce((sum, e) => sum + (e.revenueCapured || 0), 0);
-    const totalProperties = deduped.reduce((sum, e) => sum + (e.estimatedProperties || 0), 0);
-    const totalCanvassed = deduped.reduce((sum, e) => sum + (e.propertiesCanvassed || 0), 0);
+    const totalOpportunity = localized.reduce((sum, e) => sum + (e.estimatedOpportunity || 0), 0);
+    const totalCaptured = localized.reduce((sum, e) => sum + (e.revenueCapured || 0), 0);
+    const totalProperties = localized.reduce((sum, e) => sum + (e.estimatedProperties || 0), 0);
+    const totalCanvassed = localized.reduce((sum, e) => sum + (e.propertiesCanvassed || 0), 0);
 
     return NextResponse.json({
       success: true,
-      timeline: deduped.slice(0, 100),
+      timeline: localized.slice(0, 100),
       summary: {
-        totalEvents: deduped.length,
+        totalEvents: localized.length,
         totalOpportunity,
         totalCaptured,
         captureRate: totalOpportunity > 0 ? Math.round((totalCaptured / totalOpportunity) * 100) : 0,
@@ -228,16 +255,16 @@ export async function GET(request: NextRequest) {
         totalCanvassed,
         canvassRate: totalProperties > 0 ? Math.round((totalCanvassed / totalProperties) * 100) : 0,
         byType: {
-          hail: deduped.filter((e) => e.type === "hail").length,
-          wind: deduped.filter((e) => e.type === "wind").length,
-          tornado: deduped.filter((e) => e.type === "tornado").length,
-          severe: deduped.filter((e) => e.type === "severe_thunderstorm").length,
+          hail: localized.filter((e) => e.type === "hail").length,
+          wind: localized.filter((e) => e.type === "wind").length,
+          tornado: localized.filter((e) => e.type === "tornado").length,
+          severe: localized.filter((e) => e.type === "severe_thunderstorm").length,
         },
         bySeverity: {
-          extreme: deduped.filter((e) => e.severity === "extreme").length,
-          severe: deduped.filter((e) => e.severity === "severe").length,
-          moderate: deduped.filter((e) => e.severity === "moderate").length,
-          minor: deduped.filter((e) => e.severity === "minor").length,
+          extreme: localized.filter((e) => e.severity === "extreme").length,
+          severe: localized.filter((e) => e.severity === "severe").length,
+          moderate: localized.filter((e) => e.severity === "moderate").length,
+          minor: localized.filter((e) => e.severity === "minor").length,
         },
       },
       location: { lat, lng, radius },
@@ -321,4 +348,80 @@ interface TimelineEntry {
   missionCount: number;
   daysAgo: number;
   source: "cached" | "live";
+}
+
+const UNKNOWN_LOCATION_TOKENS = new Set([
+  "",
+  "unknown",
+  "unknown location",
+  "n/a",
+  "na",
+  "null",
+  "undefined",
+]);
+
+function sanitizeLocationText(value?: string | null): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (UNKNOWN_LOCATION_TOKENS.has(trimmed.toLowerCase())) return null;
+  return trimmed;
+}
+
+function formatCoordinateLabel(lat: number, lng: number): string {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "Location unavailable";
+  return `${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+}
+
+function normalizeCountyLabel(county: string): string {
+  return county.replace(/\s*county$/i, "").trim();
+}
+
+function buildTimelineLocation(input: {
+  locationName?: string | null;
+  county?: string | null;
+  state?: string | null;
+  lat: number;
+  lng: number;
+}): string {
+  const locationName = sanitizeLocationText(input.locationName);
+  const county = sanitizeLocationText(input.county);
+  const state = sanitizeLocationText(input.state);
+
+  if (locationName) {
+    if (state && !locationName.toLowerCase().includes(state.toLowerCase())) {
+      return `${locationName}, ${state}`;
+    }
+    return locationName;
+  }
+
+  if (county && state) {
+    return `${normalizeCountyLabel(county)} County, ${state}`;
+  }
+  if (county) {
+    return `${normalizeCountyLabel(county)} County`;
+  }
+  if (state) {
+    return state;
+  }
+
+  return formatCoordinateLabel(input.lat, input.lng);
+}
+
+function toRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
+}
+
+function calculateDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusMiles * c;
 }

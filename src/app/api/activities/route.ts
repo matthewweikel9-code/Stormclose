@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient, SupabaseClient } from "@supabase/supabase-js";
-
-// Admin client for new tables without strict typing
-const supabaseAdmin: SupabaseClient = createAdminClient(
-	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getUserRoleForTeam, resolveTeamIdForUser } from "@/lib/server/tenant";
 
 // Activity types
 type ActivityType =
@@ -39,11 +33,19 @@ export async function GET(request: NextRequest) {
 	const searchParams = request.nextUrl.searchParams;
 	const leadId = searchParams.get("leadId");
 	const activityType = searchParams.get("type");
+	const teamId = searchParams.get("teamId");
 	const limit = parseInt(searchParams.get("limit") || "20", 10);
 	const offset = parseInt(searchParams.get("offset") || "0", 10);
 
 	try {
-		let query = supabase
+		if (teamId) {
+			const role = await getUserRoleForTeam(supabase, user.id, teamId);
+			if (!role) {
+				return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+			}
+		}
+
+		let query = (supabase
 			.from("activities")
 			.select(
 				`
@@ -56,10 +58,15 @@ export async function GET(request: NextRequest) {
 				)
 			`,
 				{ count: "exact" }
-			)
-			.eq("user_id", user.id)
+			) as any)
 			.order("created_at", { ascending: false })
 			.range(offset, offset + limit - 1);
+
+		if (teamId) {
+			query = query.eq("team_id", teamId);
+		} else {
+			query = query.eq("user_id", user.id);
+		}
 
 		if (leadId) {
 			query = query.eq("lead_id", leadId);
@@ -120,9 +127,35 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Activity type is required" }, { status: 400 });
 		}
 
+		const resolvedTeamId = await resolveTeamIdForUser(
+			supabase,
+			user.id,
+			typeof teamId === "string" ? teamId : null
+		);
+
+		if (teamId && !resolvedTeamId) {
+			return NextResponse.json({ error: "Invalid or unauthorized team ID" }, { status: 403 });
+		}
+
+		let effectiveTeamId = resolvedTeamId;
+		if (leadId) {
+			const { data: lead } = await (supabase.from("leads") as any)
+				.select("id, team_id")
+				.eq("id", leadId)
+				.maybeSingle();
+
+			if (!lead) {
+				return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+			}
+
+			if (lead.team_id) {
+				effectiveTeamId = lead.team_id;
+			}
+		}
+
 		const activityData = {
 			user_id: user.id,
-			team_id: teamId || null,
+			team_id: effectiveTeamId,
 			lead_id: leadId || null,
 			activity_type: activityType as ActivityType,
 			title,
@@ -135,8 +168,10 @@ export async function POST(request: NextRequest) {
 			metadata: metadata || {},
 		};
 
-		// Use admin client for new tables
-		const { data, error } = await supabaseAdmin.from("activities").insert(activityData).select().single();
+		const { data, error } = await (supabase.from("activities") as any)
+			.insert(activityData)
+			.select()
+			.single();
 
 		if (error) {
 			console.error("Error creating activity:", error);
@@ -145,8 +180,7 @@ export async function POST(request: NextRequest) {
 
 		// If this activity updates lead status, update the lead too
 		if (leadId && activityType === "status_change" && metadata?.newStatus) {
-			await supabaseAdmin
-				.from("leads")
+			await (supabase.from("leads") as any)
 				.update({
 					status: metadata.newStatus,
 					status_changed_at: new Date().toISOString(),
@@ -196,9 +230,21 @@ export async function PATCH(request: NextRequest) {
 			updateData[dbField] = value;
 		}
 
-		// Use admin client for new tables
-		const { data, error } = await supabaseAdmin
-			.from("activities")
+		const { data: existingActivity, error: existingActivityError } = await (supabase.from("activities") as any)
+			.select("id")
+			.eq("id", id)
+			.maybeSingle();
+
+		if (existingActivityError) {
+			console.error("Error checking activity access:", existingActivityError);
+			return NextResponse.json({ error: "Failed to validate activity access" }, { status: 500 });
+		}
+
+		if (!existingActivity) {
+			return NextResponse.json({ error: "Activity not found" }, { status: 404 });
+		}
+
+		const { data, error } = await (supabase.from("activities") as any)
 			.update(updateData)
 			.eq("id", id)
 			.select()

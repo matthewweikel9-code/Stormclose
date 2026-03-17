@@ -70,7 +70,7 @@ export function PricingClient() {
 	const [error, setError] = useState<string | null>(null);
 	const router = useRouter();
 	const searchParams = useSearchParams();
-	const nextPath = searchParams.get("next") || "/dashboard/report";
+const nextPath = searchParams.get("next") || "/dashboard";
 
 	async function handleCheckout(tier: string | null) {
 		if (!tier) {

@@ -133,8 +133,6 @@ async function updateUserByCustomerId(input: {
 
 export async function POST(req: Request) {
   console.log("[WEBHOOK] POST handler called");
-  console.log("[WEBHOOK] ENV CHECK - SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL ? "SET" : "MISSING");
-  console.log("[WEBHOOK] ENV CHECK - SERVICE_KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? process.env.SUPABASE_SERVICE_ROLE_KEY.substring(0, 20) + "..." : "MISSING");
   
   const signature = req.headers.get("stripe-signature");
   if (!signature) {

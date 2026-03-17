@@ -9,7 +9,7 @@ const stripeAppUrl = normalizeBaseUrl(process.env.STRIPE_APP_URL ?? appUrl);
 export const stripeConfig = {
 	secretKey: process.env.STRIPE_SECRET_KEY ?? "",
 	webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
-	// Legacy monthly price - kept for backward compatibility
+	// Legacy monthly price - kept for backward compatibility with older environments.
 	monthlyPriceId: process.env.STRIPE_PRICE_ID_MONTHLY ?? "",
 	// Tier-specific price IDs
 	proPriceId: process.env.STRIPE_PRICE_ID_PRO ?? process.env.STRIPE_PRICE_ID_MONTHLY ?? "",
@@ -32,4 +32,22 @@ export function getPriceIdForTier(tier: SubscriptionPriceTier): string {
 		default:
 			return stripeConfig.proPriceId;
 	}
+}
+
+const STRIPE_PRICE_ENV_BY_TIER: Record<SubscriptionPriceTier, string> = {
+	pro: "STRIPE_PRICE_ID_PRO",
+	pro_plus: "STRIPE_PRICE_ID_PRO_PLUS",
+	enterprise: "STRIPE_PRICE_ID_ENTERPRISE"
+};
+
+export function getMissingStripePriceEnvVars(): string[] {
+	const missing: string[] = [];
+	for (const [tier, envVar] of Object.entries(STRIPE_PRICE_ENV_BY_TIER) as Array<
+		[SubscriptionPriceTier, string]
+	>) {
+		if (!getPriceIdForTier(tier).trim()) {
+			missing.push(envVar);
+		}
+	}
+	return missing;
 }

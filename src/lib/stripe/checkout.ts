@@ -9,6 +9,7 @@ export async function createSubscriptionCheckoutSession(input: {
 	email: string;
 	userRecord: UserRow | null;
 	tier?: SubscriptionPriceTier;
+	teamId?: string | null;
 	appUrl?: string;
 	upsertUser: (payload: Database["public"]["Tables"]["users"]["Update"] & { id: string }) => Promise<void>;
 }) {
@@ -59,13 +60,15 @@ export async function createSubscriptionCheckoutSession(input: {
 			metadata: {
 				userId: input.userId,
 				user_id: input.userId,
-				tier: subscriptionTier
+				tier: subscriptionTier,
+				team_id: input.teamId ?? ""
 			}
 		},
 		metadata: {
 			userId: input.userId,
 			user_id: input.userId,
-			tier: subscriptionTier
+			tier: subscriptionTier,
+			team_id: input.teamId ?? ""
 		}
 	});
 

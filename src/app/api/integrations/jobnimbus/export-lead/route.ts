@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createJobNimbusClient, JNContact } from '@/lib/jobnimbus';
+import { decryptJobNimbusApiKey } from '@/lib/jobnimbus/security';
 
 interface ExportLeadRequest {
   leadId: string;
@@ -12,9 +13,9 @@ interface ExportLeadRequest {
   notes?: string;
 }
 
-// Type for user settings with JN fields
-interface UserSettingsWithJN {
-  jobnimbus_api_key?: string | null;
+// Type for integration row
+interface JobNimbusIntegration {
+  api_key_encrypted?: string | null;
 }
 
 // Type for lead export
@@ -52,17 +53,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Get user's JobNimbus API key
-    const { data: settings } = await (supabase
-      .from('user_settings') as any)
-      .select('jobnimbus_api_key')
+    // Get user's JobNimbus API key from unified integrations table
+    const { data: integration } = await (supabase
+      .from('jobnimbus_integrations') as any)
+      .select('api_key_encrypted')
       .eq('user_id', user.id)
-      .single() as { data: UserSettingsWithJN | null };
+      .maybeSingle() as { data: JobNimbusIntegration | null };
     
-    if (!settings?.jobnimbus_api_key) {
+    if (!integration?.api_key_encrypted) {
       return NextResponse.json(
         { error: 'JobNimbus not connected. Please connect your account in Settings.' },
         { status: 400 }
+      );
+    }
+
+    let apiKey: string;
+    try {
+      apiKey = decryptJobNimbusApiKey(integration.api_key_encrypted);
+    } catch (decryptError) {
+      console.error('Failed to decrypt JobNimbus API key:', decryptError);
+      return NextResponse.json(
+        { error: 'Failed to read JobNimbus credentials. Reconnect your integration.' },
+        { status: 500 }
       );
     }
     
@@ -109,7 +121,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Create JobNimbus client
-    const jnClient = createJobNimbusClient(settings.jobnimbus_api_key);
+    const jnClient = createJobNimbusClient(apiKey);
     
     // Build contact object
     const contact: JNContact = {

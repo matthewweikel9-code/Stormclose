@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireCronAuth } from '@/lib/server/cron-auth';
 
 /**
  * Daily NOAA Hail Sync Cron Job
@@ -133,15 +134,9 @@ async function fetchAndParseNOAAData(date: Date): Promise<HailEvent[]> {
 }
 
 export async function GET(request: Request) {
-  // Verify cron secret for security (optional but recommended)
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-  
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    // Allow without auth in development
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const cronAuth = requireCronAuth(request);
+  if (!cronAuth.ok) {
+    return cronAuth.response;
   }
 
   try {

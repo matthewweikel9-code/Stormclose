@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { encryptJobNimbusApiKey } from '@/lib/jobnimbus/security';
 
 // POST /api/jobnimbus/connect - Connect to JobNimbus
 export async function POST(request: NextRequest) {
@@ -24,12 +25,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid API key' }, { status: 400 });
     }
 
-    // Store integration (encrypted in production)
+    let encryptedApiKey: string;
+    try {
+      encryptedApiKey = encryptJobNimbusApiKey(apiKey);
+    } catch (encryptionError) {
+      console.error('JobNimbus API key encryption failed:', encryptionError);
+      return NextResponse.json(
+        { error: 'JobNimbus encryption is not configured. Set JOBNIMBUS_ENCRYPTION_KEY.' },
+        { status: 500 }
+      );
+    }
+
+    // Store integration (encrypted at rest)
     const { data: integration, error } = await (supabase as any)
       .from('jobnimbus_integrations')
       .upsert({
         user_id: user.id,
-        api_key_encrypted: apiKey, // In production, encrypt this
+        api_key_encrypted: encryptedApiKey,
+        jobnimbus_account_id: validationResult.accountId || null,
         company_name: validationResult.companyName,
         contacts_count: 0,
         jobs_count: 0,
@@ -87,6 +100,7 @@ export async function POST(request: NextRequest) {
 async function validateJobNimbusApiKey(apiKey: string): Promise<{
   valid: boolean;
   companyName?: string;
+  accountId?: string;
 }> {
   try {
     // Call JobNimbus API to validate
@@ -107,12 +121,14 @@ async function validateJobNimbusApiKey(apiKey: string): Promise<{
       });
 
       let companyName = 'Unknown Company';
+      let accountId: string | undefined;
       if (companyResponse.ok) {
         const companyData = await companyResponse.json();
         companyName = companyData.company_name || companyName;
+        accountId = companyData.jnid || companyData.id || companyData.account?.jnid;
       }
 
-      return { valid: true, companyName };
+      return { valid: true, companyName, accountId };
     }
 
     return { valid: false };

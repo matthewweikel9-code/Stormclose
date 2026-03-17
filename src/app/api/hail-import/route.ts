@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireCronAuth } from "@/lib/server/cron-auth";
 
 // Initialize Supabase with service role for bulk operations
 const supabaseAdmin = createClient(
@@ -66,6 +67,11 @@ function parseNoaaHistoricalCsv(csvText: string): HailEvent[] {
 // POST: Import historical hail data
 // This endpoint is designed to be called once to import the historical dataset
 export async function POST(request: NextRequest) {
+	const cronAuth = requireCronAuth(request);
+	if (!cronAuth.ok) {
+		return cronAuth.response;
+	}
+
 	try {
 		const body = await request.json();
 		const { csvUrl, startYear, endYear, batchSize = 1000 } = body;
@@ -158,7 +164,12 @@ export async function POST(request: NextRequest) {
 }
 
 // GET: Check import status
-export async function GET() {
+export async function GET(request: NextRequest) {
+	const cronAuth = requireCronAuth(request);
+	if (!cronAuth.ok) {
+		return cronAuth.response;
+	}
+
 	try {
 		// Get count of hail events
 		const { count, error } = await supabaseAdmin

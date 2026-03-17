@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { getHailReports, formatStormReportToHailEvent } from "@/lib/xweather";
+import { requireCronAuth } from "@/lib/server/cron-auth";
 
 /**
  * Xweather Hail Event Cron Job
@@ -30,16 +31,9 @@ const MONITOR_LOCATIONS = [
 ];
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  
-  // Allow internal calls or cron authentication
-  const url = new URL(request.url);
-  const isInternal = url.searchParams.get("internal") === "true";
-  
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}` && !isInternal) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const cronAuth = requireCronAuth(request);
+  if (!cronAuth.ok) {
+    return cronAuth.response;
   }
 
   console.log("🧊 Running Xweather hail event sync...");
@@ -178,7 +172,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Xweather hail sync error:", error);
     return NextResponse.json(
-      { error: "Hail sync failed", details: String(error) },
+      { error: "Hail sync failed" },
       { status: 500 }
     );
   }
@@ -188,15 +182,14 @@ export async function GET(request: NextRequest) {
  * POST: Manually trigger hail check for specific location
  */
 export async function POST(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET?.trim();
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    // Check if user is authenticated
+  const hasCronAuth = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+
+  if (!hasCronAuth) {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -251,7 +244,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Manual hail check error:", error);
     return NextResponse.json(
-      { error: "Failed to check hail data", details: String(error) },
+      { error: "Failed to check hail data" },
       { status: 500 }
     );
   }

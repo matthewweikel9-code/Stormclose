@@ -22,7 +22,10 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const lat = parseFloat(searchParams.get("lat") || "0");
   const lng = parseFloat(searchParams.get("lng") || "0");
-  const radiusMiles = parseFloat(searchParams.get("radius") || "5");
+  const requestedRadiusMiles = parseFloat(searchParams.get("radius") || "5");
+  const radiusMiles = Number.isFinite(requestedRadiusMiles)
+    ? Math.min(1, Math.max(0.05, requestedRadiusMiles))
+    : 1;
   const limit = parseInt(searchParams.get("limit") || "25", 10);
   const minScore = parseInt(searchParams.get("minScore") || "0", 10);
 
@@ -34,6 +37,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    if (requestedRadiusMiles !== radiusMiles) {
+      console.warn(
+        "[Nearby Leads] Radius clamped for CoreLogic API:",
+        requestedRadiusMiles,
+        "->",
+        radiusMiles
+      );
+    }
     console.log("[Nearby Leads] Searching at:", lat, lng, "radius:", radiusMiles, "miles");
 
     // Fetch properties from CoreLogic
@@ -60,6 +71,7 @@ export async function GET(request: NextRequest) {
       leads: leads,
       center: { lat, lng },
       radius_miles: radiusMiles,
+      requested_radius_miles: requestedRadiusMiles,
       total: leads.length,
     });
   } catch (error) {

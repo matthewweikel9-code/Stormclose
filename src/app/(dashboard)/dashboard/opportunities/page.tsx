@@ -355,12 +355,9 @@ export default function OpportunityDashboard() {
                   <p className="text-sm text-gray-400">Highest probability of sale</p>
                 </div>
               </div>
-              <Link 
-                href="/dashboard/knock-list"
-                className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1"
-              >
-                Full List <ExternalLink className="w-4 h-4" />
-              </Link>
+              <div className="text-sm text-gray-400 flex items-center gap-1">
+                Full list coming soon
+              </div>
             </div>
 
             <div className="divide-y divide-gray-800">
@@ -459,12 +456,9 @@ export default function OpportunityDashboard() {
                 <MapPin className="w-5 h-5 text-green-400" />
                 <h3 className="font-semibold text-white">Best Neighborhoods</h3>
               </div>
-              <Link 
-                href="/dashboard/knock-list"
-                className="text-xs text-blue-400 hover:text-blue-300"
-              >
-                View All
-              </Link>
+              <div className="text-xs text-gray-400">
+                View all coming soon
+              </div>
             </div>
 
             <div className="divide-y divide-gray-800">
@@ -516,12 +510,9 @@ export default function OpportunityDashboard() {
                 <Target className="w-5 h-5 text-blue-400" />
                 <h3 className="font-semibold text-white">Largest Roofs</h3>
               </div>
-              <Link 
-                href="/dashboard/roof-measurement"
-                className="text-xs text-blue-400 hover:text-blue-300"
-              >
-                Measure
-              </Link>
+              <div className="text-xs text-gray-400">
+                Measurement tools coming soon
+              </div>
             </div>
 
             <div className="divide-y divide-gray-800">
@@ -564,22 +555,16 @@ export default function OpportunityDashboard() {
                 <span className="text-white">Plan Today's Route</span>
                 <ChevronRight className="w-4 h-4 text-gray-500 ml-auto" />
               </Link>
-              <Link
-                href="/dashboard/estimate-generator"
-                className="flex items-center gap-3 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-              >
+              <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg text-sm text-gray-400">
                 <DollarSign className="w-5 h-5 text-green-400" />
                 <span className="text-white">Create Estimate</span>
-                <ChevronRight className="w-4 h-4 text-gray-500 ml-auto" />
-              </Link>
-              <Link
-                href="/dashboard/reports"
-                className="flex items-center gap-3 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-              >
+                <span className="ml-auto text-xs text-gray-500">Coming soon</span>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg text-sm text-gray-400">
                 <Eye className="w-5 h-5 text-purple-400" />
                 <span className="text-white">Generate Report</span>
-                <ChevronRight className="w-4 h-4 text-gray-500 ml-auto" />
-              </Link>
+                <span className="ml-auto text-xs text-gray-500">Coming soon</span>
+              </div>
             </div>
           </div>
         </div>

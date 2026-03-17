@@ -19,10 +19,26 @@ let cachedToken: { token: string; expiresAt: number } | null = null;
 const responseCache = new Map<string, { data: any; expiresAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min cache for parcel queries
 const MAX_CACHE_SIZE = 50;
+const CORELOGIC_MAX_RADIUS_MILES = 1;
+const CORELOGIC_MIN_RADIUS_MILES = 0.05;
 
 // Rate limit tracking
 let rateLimitHitAt: number | null = null;
 const RATE_LIMIT_COOLDOWN_MS = 60 * 1000; // Wait 60s after hitting rate limit
+
+function clampSearchRadiusMiles(radiusMiles: number, fallback: number = 0.5): number {
+  if (!Number.isFinite(radiusMiles)) return fallback;
+  const safeRadius = Math.min(
+    CORELOGIC_MAX_RADIUS_MILES,
+    Math.max(CORELOGIC_MIN_RADIUS_MILES, radiusMiles)
+  );
+  if (safeRadius !== radiusMiles) {
+    console.warn(
+      `[CoreLogic] Radius clamped from ${radiusMiles} to ${safeRadius} miles (API max ${CORELOGIC_MAX_RADIUS_MILES})`
+    );
+  }
+  return safeRadius;
+}
 
 /**
  * Custom error class for CoreLogic API errors — preserves HTTP status
@@ -255,10 +271,11 @@ export async function searchParcelsByLocation(
   pageSize: number = 25,
   page: number = 1
 ): Promise<CoreLogicParcelsResponse> {
+  const safeRadiusMiles = clampSearchRadiusMiles(radiusMiles, 0.5);
   return corelogicRequest("/spatial-tile/parcels", {
     lat: lat.toString(),
     lon: lng.toString(),
-    within: radiusMiles.toString(),
+    within: safeRadiusMiles.toString(),
     unit: "mile",
     pageNumber: page.toString(),
     pageSize: pageSize.toString(),
@@ -627,17 +644,39 @@ export function formatPropertyToLead(property: CoreLogicProperty, stormScore: nu
  * Output: { coordinates: [[-96.799, 32.779], [-96.798, 32.778], ...] }
  */
 export function parseWKTPolygon(wkt: string): ParsedPolygon | null {
-  if (!wkt || !wkt.startsWith("POLYGON")) return null;
+  if (!wkt || (typeof wkt !== "string")) return null;
 
   try {
-    const match = wkt.match(/\(\((.+?)\)\)/);
-    if (!match) return null;
+    const normalized = wkt.trim();
+    let coordStr = "";
 
-    const coordStr = match[1];
-    const coordinates: [number, number][] = coordStr.split(",").map((pair) => {
-      const [lng, lat] = pair.trim().split(/\s+/).map(Number);
-      return [lng, lat] as [number, number];
-    });
+    // Example:
+    // POLYGON((lng lat, lng lat, ...))
+    // MULTIPOLYGON(((lng lat, lng lat, ...)),((...)))
+    if (normalized.startsWith("MULTIPOLYGON")) {
+      const multiMatch = normalized.match(/^MULTIPOLYGON\s*\(\(\((.+?)\)\)\)/i);
+      if (!multiMatch) return null;
+      coordStr = multiMatch[1];
+    } else if (normalized.startsWith("POLYGON")) {
+      const polygonMatch = normalized.match(/^POLYGON\s*\(\((.+?)\)\)/i);
+      if (!polygonMatch) return null;
+      coordStr = polygonMatch[1];
+    } else {
+      return null;
+    }
+
+    const coordinates: [number, number][] = coordStr
+      .split(",")
+      .map((pair) => pair.replace(/[()]/g, " ").trim())
+      .map((pair) => {
+        const [lngRaw, latRaw] = pair.split(/\s+/);
+        const lng = Number(lngRaw);
+        const lat = Number(latRaw);
+        return [lng, lat] as [number, number];
+      })
+      .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
+
+    if (coordinates.length < 3) return null;
 
     return { coordinates };
   } catch (e) {

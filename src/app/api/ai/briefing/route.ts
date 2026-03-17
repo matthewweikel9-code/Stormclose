@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getUserRoleForTeam } from "@/lib/server/tenant";
 import OpenAI from "openai";
 
-const supabaseAdmin = createAdminClient(
-	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabaseAdmin = createAdminClient() as any;
 
 const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
@@ -43,6 +41,30 @@ interface PropertyBriefing {
 	best_approach: string;
 }
 
+async function getAccessibleLead(supabase: any, userId: string, leadId: string) {
+	const { data: lead, error } = await (supabase.from("leads") as any)
+		.select("*")
+		.eq("id", leadId)
+		.maybeSingle();
+
+	if (error || !lead) {
+		return null;
+	}
+
+	if (lead.user_id === userId) {
+		return lead;
+	}
+
+	if (lead.team_id) {
+		const role = await getUserRoleForTeam(supabase, userId, lead.team_id);
+		if (role) {
+			return lead;
+		}
+	}
+
+	return null;
+}
+
 // GET: Fetch briefing for a lead
 export async function GET(request: NextRequest) {
 	const supabase = await createClient();
@@ -60,6 +82,11 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
+		const lead = await getAccessibleLead(supabase, user.id, leadId);
+		if (!lead) {
+			return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+		}
+
 		// Check if we have a cached briefing
 		const { data: cachedBriefing } = await supabaseAdmin
 			.from("property_briefings")
@@ -76,17 +103,6 @@ export async function GET(request: NextRequest) {
 			});
 		}
 
-		// Generate new briefing
-		const { data: lead } = await supabaseAdmin
-			.from("leads")
-			.select("*")
-			.eq("id", leadId)
-			.single();
-
-		if (!lead) {
-			return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-		}
-
 		// Get recent hail events near this property
 		const { data: nearbyHail } = await supabaseAdmin
 			.from("hail_events")
@@ -96,7 +112,7 @@ export async function GET(request: NextRequest) {
 			.order("event_date", { ascending: false })
 			.limit(5);
 
-		const briefing = await generateBriefing(lead, nearbyHail || []);
+		const briefing = await generateBriefing(lead as Lead, nearbyHail || []);
 
 		// Cache the briefing
 		await supabaseAdmin.from("property_briefings").upsert({
@@ -112,8 +128,7 @@ export async function GET(request: NextRequest) {
 		});
 
 		// Update lead
-		await supabaseAdmin
-			.from("leads")
+		await (supabase.from("leads") as any)
 			.update({
 				ai_briefing_generated: true,
 				last_ai_briefing_at: new Date().toISOString(),
@@ -297,14 +312,9 @@ export async function POST(request: NextRequest) {
 
 		for (const leadId of limitedIds) {
 			try {
-				const { data: lead } = await supabaseAdmin
-					.from("leads")
-					.select("*")
-					.eq("id", leadId)
-					.single();
-
+				const lead = await getAccessibleLead(supabase, user.id, leadId);
 				if (!lead) {
-					results.push({ leadId, success: false, error: "Lead not found" });
+					results.push({ leadId, success: false, error: "Lead not found or unauthorized" });
 					continue;
 				}
 
@@ -322,8 +332,7 @@ export async function POST(request: NextRequest) {
 					expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
 				});
 
-				await supabaseAdmin
-					.from("leads")
+				await (supabase.from("leads") as any)
 					.update({
 						ai_briefing_generated: true,
 						last_ai_briefing_at: new Date().toISOString(),

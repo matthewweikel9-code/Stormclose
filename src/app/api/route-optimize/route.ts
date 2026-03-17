@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_SOLAR_API_KEY || "AIzaSyB4EuYOLXgQ0sd9AYlx0bJ709VcNLi9HyI";
+const GOOGLE_MAPS_API_KEY =
+	process.env.GOOGLE_MAPS_API_KEY?.trim() ||
+	process.env.GOOGLE_SOLAR_API_KEY?.trim() ||
+	"";
 
 export async function POST(request: NextRequest) {
 	try {
@@ -15,6 +18,13 @@ export async function POST(request: NextRequest) {
 
 		const body = await request.json();
 		const { startingPoint, waypoints, optimizeWaypoints = true } = body;
+
+		if (!GOOGLE_MAPS_API_KEY) {
+			return NextResponse.json(
+				{ error: "Google Maps API key is not configured" },
+				{ status: 500 }
+			);
+		}
 
 		if (!waypoints || waypoints.length < 2) {
 			return NextResponse.json(

@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
-
-const supabaseAdmin = createAdminClient(
-	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 // GET: Fetch user's territories
 export async function GET(request: NextRequest) {
@@ -17,8 +11,7 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
-		const { data: territories, error } = await supabaseAdmin
-			.from("territories")
+		const { data: territories, error } = await (supabase.from("territories") as any)
 			.select(`
 				id,
 				name,
@@ -108,8 +101,7 @@ export async function POST(request: NextRequest) {
 			push_alerts,
 		};
 
-		const { data: territory, error } = await supabaseAdmin
-			.from("territories")
+		const { data: territory, error } = await (supabase.from("territories") as any)
 			.insert(territoryData)
 			.select()
 			.single();
@@ -152,8 +144,7 @@ export async function PUT(request: NextRequest) {
 		}
 
 		// Verify ownership
-		const { data: existing } = await supabaseAdmin
-			.from("territories")
+		const { data: existing } = await (supabase.from("territories") as any)
 			.select("user_id")
 			.eq("id", id)
 			.single();
@@ -162,8 +153,7 @@ export async function PUT(request: NextRequest) {
 			return NextResponse.json({ error: "Territory not found" }, { status: 404 });
 		}
 
-		const { data: territory, error } = await supabaseAdmin
-			.from("territories")
+		const { data: territory, error } = await (supabase.from("territories") as any)
 			.update({
 				...updates,
 				updated_at: new Date().toISOString(),
@@ -205,8 +195,7 @@ export async function DELETE(request: NextRequest) {
 
 	try {
 		// Verify ownership
-		const { data: existing } = await supabaseAdmin
-			.from("territories")
+		const { data: existing } = await (supabase.from("territories") as any)
 			.select("user_id")
 			.eq("id", id)
 			.single();
@@ -215,8 +204,7 @@ export async function DELETE(request: NextRequest) {
 			return NextResponse.json({ error: "Territory not found" }, { status: 404 });
 		}
 
-		const { error } = await supabaseAdmin
-			.from("territories")
+		const { error } = await (supabase.from("territories") as any)
 			.delete()
 			.eq("id", id);
 

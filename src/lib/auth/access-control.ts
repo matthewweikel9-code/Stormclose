@@ -33,6 +33,8 @@ export const API_ROLE_RULES: Rule[] = [
 	{ prefix: "/api/ai", roles: ["owner", "manager", "rep", "office_admin"] },
 	{ prefix: "/api/documents", roles: ["owner", "manager", "rep", "office_admin"] },
 	{ prefix: "/api/exports", roles: ["owner", "manager", "office_admin"] },
+	// Default protected posture for all non-public API routes.
+	{ prefix: "/api", roles: ALL_ROLES },
 ];
 
 export const PUBLIC_API_PREFIXES = [

@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createJobNimbusClient } from '@/lib/jobnimbus';
-
-// Type for user_settings with JN fields (not yet in generated types)
-interface UserSettingsWithJN {
-  jobnimbus_api_key?: string | null;
-  jobnimbus_connected_at?: string | null;
-}
+import { encryptJobNimbusApiKey } from '@/lib/jobnimbus/security';
 
 /**
  * POST /api/integrations/jobnimbus/connect
@@ -31,32 +25,51 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Test the API key by making a test request
-    const client = createJobNimbusClient(apiKey);
-    const isValid = await client.testConnection();
-    
-    if (!isValid) {
+    const validation = await validateJobNimbusApiKey(apiKey);
+    if (!validation.valid) {
       return NextResponse.json(
         { error: 'Invalid API key. Please check your JobNimbus API key and try again.' },
         { status: 400 }
       );
     }
-    
-    // Save to user_settings - using type assertion since new columns aren't in generated types yet
+
+    let encryptedApiKey: string;
+    try {
+      encryptedApiKey = encryptJobNimbusApiKey(apiKey);
+    } catch (encryptionError) {
+      console.error('JobNimbus API key encryption failed:', encryptionError);
+      return NextResponse.json(
+        { error: 'JobNimbus encryption is not configured. Set JOBNIMBUS_ENCRYPTION_KEY.' },
+        { status: 500 }
+      );
+    }
+
+    // Unified storage model: jobnimbus_integrations.
     const { error: upsertError } = await (supabase
-      .from('user_settings') as any)
+      .from('jobnimbus_integrations') as any)
       .upsert({
         user_id: user.id,
-        jobnimbus_api_key: apiKey,
-        jobnimbus_connected_at: new Date().toISOString(),
+        api_key_encrypted: encryptedApiKey,
+        jobnimbus_account_id: validation.accountId || null,
+        company_name: validation.companyName || null,
+        settings: {
+          autoSync: true,
+          syncInterval: 15,
+          syncContacts: true,
+          syncJobs: true,
+          syncNotes: true,
+          syncActivities: true,
+        },
+        updated_at: new Date().toISOString(),
       }, {
         onConflict: 'user_id',
       });
     
     if (upsertError) {
       console.error('Failed to save JobNimbus connection:', upsertError);
+      const msg = upsertError.message || 'Failed to save connection';
       return NextResponse.json(
-        { error: 'Failed to save connection' },
+        { error: msg },
         { status: 500 }
       );
     }
@@ -87,15 +100,15 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { data: settings } = await (supabase
-      .from('user_settings') as any)
-      .select('jobnimbus_api_key, jobnimbus_connected_at')
+    const { data: integration } = await (supabase
+      .from('jobnimbus_integrations') as any)
+      .select('id, created_at, updated_at')
       .eq('user_id', user.id)
-      .single() as { data: UserSettingsWithJN | null };
+      .maybeSingle();
     
     return NextResponse.json({
-      connected: !!settings?.jobnimbus_api_key,
-      connectedAt: settings?.jobnimbus_connected_at || null,
+      connected: !!integration,
+      connectedAt: integration?.updated_at || integration?.created_at || null,
     });
   } catch (error) {
     console.error('JobNimbus status check error:', error);
@@ -120,11 +133,8 @@ export async function DELETE() {
     }
     
     const { error } = await (supabase
-      .from('user_settings') as any)
-      .update({
-        jobnimbus_api_key: null,
-        jobnimbus_connected_at: null,
-      })
+      .from('jobnimbus_integrations') as any)
+      .delete()
       .eq('user_id', user.id);
     
     if (error) {
@@ -133,6 +143,19 @@ export async function DELETE() {
         { error: 'Failed to disconnect' },
         { status: 500 }
       );
+    }
+
+    // Best-effort cleanup for legacy columns.
+    try {
+      await (supabase
+        .from('user_settings') as any)
+        .update({
+          jobnimbus_api_key: null,
+          jobnimbus_connected_at: null,
+        })
+        .eq('user_id', user.id);
+    } catch {
+      // Ignore if legacy columns/table shape differ.
     }
     
     return NextResponse.json({
@@ -145,5 +168,44 @@ export async function DELETE() {
       { error: 'Failed to disconnect' },
       { status: 500 }
     );
+  }
+}
+
+async function validateJobNimbusApiKey(apiKey: string): Promise<{
+  valid: boolean;
+  companyName?: string;
+  accountId?: string;
+}> {
+  try {
+    const response = await fetch('https://app.jobnimbus.com/api1/contacts?limit=1', {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      return { valid: false };
+    }
+
+    const companyResponse = await fetch('https://app.jobnimbus.com/api1/settings', {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    let companyName = 'Unknown Company';
+    let accountId: string | undefined;
+    if (companyResponse.ok) {
+      const companyData = await companyResponse.json();
+      companyName = companyData.company_name || companyName;
+      accountId = companyData.jnid || companyData.id || companyData.account?.jnid;
+    }
+
+    return { valid: true, companyName, accountId };
+  } catch (error) {
+    console.error('JobNimbus validation error:', error);
+    return { valid: false };
   }
 }

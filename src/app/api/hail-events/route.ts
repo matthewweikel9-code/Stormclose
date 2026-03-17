@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireCronAuth } from "@/lib/server/cron-auth";
 
 // Initialize Supabase with service role for hail data operations
 const supabaseAdmin = createClient(
@@ -241,6 +242,11 @@ export async function GET(request: NextRequest) {
 
 // POST: Trigger hail data sync
 export async function POST(request: NextRequest) {
+	const cronAuth = requireCronAuth(request);
+	if (!cronAuth.ok) {
+		return cronAuth.response;
+	}
+
 	try {
 		const body = await request.json();
 		const { action, date, daysBack } = body;

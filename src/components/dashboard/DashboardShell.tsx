@@ -32,15 +32,15 @@ export function DashboardShell({
 				daysUntilTrialEnd={daysUntilTrialEnd}
 			/>
 
-			{/* Main content — offset for collapsed sidebar */}
-			<div className="pl-[4.5rem] transition-all duration-300">
+			{/* Main content — no sidebar offset on small screens */}
+			<div className="pl-0 md:pl-[4.5rem] transition-all duration-300">
 				<TopNav 
 					user={user} 
 					subscriptionStatus={subscriptionStatus}
 					tier={tier}
 					trialEnd={trialEnd}
 				/>
-				<main className="min-h-[calc(100vh-4rem)] p-6 animate-fade-in">
+				<main className="min-h-[calc(100vh-4rem)] p-4 md:p-6 animate-fade-in">
 					{children}
 				</main>
 			</div>

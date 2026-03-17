@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { getHailReports, formatStormReportToHailEvent } from "@/lib/xweather";
 import {
   searchPropertiesInArea,
@@ -9,11 +8,6 @@ import {
   calculateRoofAge,
   estimateClaimValue,
 } from "@/lib/corelogic";
-
-const supabaseAdmin = createAdminClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -124,8 +118,7 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const { data: territory, error: territoryError } = await supabaseAdmin
-      .from("territories")
+    const { data: territory, error: territoryError } = await (supabase.from("territories") as any)
       .select("*")
       .eq("id", id)
       .eq("user_id", user.id)
@@ -135,9 +128,9 @@ export async function GET(
       return NextResponse.json({ error: "Territory not found" }, { status: 404 });
     }
 
-    let leadsQuery = supabaseAdmin
-      .from("leads")
+    let leadsQuery = (supabase.from("leads") as any)
       .select("*")
+      .eq("user_id", user.id)
       .order("lead_score", { ascending: false })
       .limit(50);
 
@@ -147,8 +140,7 @@ export async function GET(
 
     const { data: leads } = await leadsQuery;
 
-    const { data: hailEvents } = await supabaseAdmin
-      .from("hail_events")
+    const { data: hailEvents } = await (supabase.from("hail_events") as any)
       .select("*")
       .gte("event_date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0])
       .order("event_date", { ascending: false })
@@ -183,8 +175,7 @@ export async function POST(
   const { id } = await params;
 
   try {
-    const { data: territory, error: territoryError } = await supabaseAdmin
-      .from("territories")
+    const { data: territory, error: territoryError } = await (supabase.from("territories") as any)
       .select("*")
       .eq("id", id)
       .eq("user_id", userId)
@@ -196,8 +187,7 @@ export async function POST(
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-    let { data: hailEvents } = await supabaseAdmin
-      .from("hail_events")
+    let { data: hailEvents } = await (supabase.from("hail_events") as any)
       .select("*")
       .gte("event_date", thirtyDaysAgo)
       .gte("size_inches", 0.75)
@@ -251,9 +241,9 @@ export async function POST(
           }
 
           // Check for existing lead
-          const { data: existingLead } = await supabaseAdmin
-            .from("leads")
+          const { data: existingLead } = await (supabase.from("leads") as any)
             .select("id")
+            .eq("user_id", userId)
             .eq("address", prop.address)
             .eq("city", prop.city)
             .maybeSingle();
@@ -328,9 +318,7 @@ export async function POST(
               : `CoreLogic property data. Roof ~${roofAge} years old. ${prop.squareFootage ? `${prop.squareFootage} sqft.` : ''}`,
           };
 
-          const { error: insertError } = await supabaseAdmin
-            .from("leads")
-            .insert(leadData);
+          const { error: insertError } = await (supabase.from("leads") as any).insert(leadData);
 
           if (insertError) {
             errors.push(`Insert error for ${prop.address}: ${insertError.message}`);
@@ -366,8 +354,7 @@ export async function POST(
 
     // Update territory lead count
     if (leadsGenerated > 0) {
-      await supabaseAdmin
-        .from("territories")
+      await (supabase.from("territories") as any)
         .update({
           total_leads: (territory.total_leads || 0) + leadsGenerated,
           updated_at: new Date().toISOString(),

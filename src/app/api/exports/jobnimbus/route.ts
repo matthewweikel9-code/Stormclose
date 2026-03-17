@@ -16,12 +16,14 @@ import { errorResponse, successResponse } from "@/utils/api-response";
 import { logger } from "@/lib/logger";
 import { logAuditEvent } from "@/lib/audit";
 import { metrics } from "@/lib/metrics";
+import { resolveWriteTeamIdForUser } from "@/lib/server/tenant";
 
 const TriggerExportRequestSchema = z
 	.object({
 		exportId: z.string().uuid().optional(),
 		exportIds: z.array(z.string().uuid()).optional(),
 		all: z.boolean().optional(),
+		teamId: z.string().uuid().optional(),
 	})
 	.superRefine((value, context) => {
 		const hasTarget = Boolean(value.all || value.exportId || (value.exportIds && value.exportIds.length > 0));
@@ -95,24 +97,34 @@ function buildFallbackPayload(record: any): JobNimbusPayload {
 	);
 }
 
-async function exportOneProd(row: any) {
+async function exportOneProd(row: any, userId: string, teamId?: string | null) {
 	const supabase = await createClient();
 	const exportingAt = new Date().toISOString();
-	await (supabase.from("opportunity_exports") as any)
+	let markExportingQuery = (supabase.from("opportunity_exports") as any)
 		.update({ status: "exporting", error: null, next_retry_at: null })
-		.eq("id", row.id);
+		.eq("id", row.id)
+		.eq("user_id", userId);
+	if (teamId) {
+		markExportingQuery = markExportingQuery.eq("team_id", teamId);
+	}
+	await markExportingQuery;
 
 	const payload = (row.payload as JobNimbusPayload | null) ?? buildFallbackPayload(row);
 	const result = await sendToJobNimbus(payload);
 	if (result.success) {
-		await (supabase.from("opportunity_exports") as any)
+		let markSuccessQuery = (supabase.from("opportunity_exports") as any)
 			.update({
 				status: "exported",
 				jobnimbus_id: result.jobnimbusId,
 				error: null,
 				exported_at: exportingAt,
 			})
-			.eq("id", row.id);
+			.eq("id", row.id)
+			.eq("user_id", userId);
+		if (teamId) {
+			markSuccessQuery = markSuccessQuery.eq("team_id", teamId);
+		}
+		await markSuccessQuery;
 		return {
 			exportId: row.id,
 			status: "exported" as const,
@@ -123,7 +135,7 @@ async function exportOneProd(row: any) {
 
 	const attempts = Number(row.attempts ?? 0) + 1;
 	const shouldRetry = attempts < 3;
-	await (supabase.from("opportunity_exports") as any)
+	let markFailureQuery = (supabase.from("opportunity_exports") as any)
 		.update({
 			status: shouldRetry ? "failed" : "permanently_failed",
 			error: result.error,
@@ -132,7 +144,12 @@ async function exportOneProd(row: any) {
 				? new Date(Date.now() + calculateRetryDelaySeconds(attempts) * 1000).toISOString()
 				: null,
 		})
-		.eq("id", row.id);
+		.eq("id", row.id)
+		.eq("user_id", userId);
+	if (teamId) {
+		markFailureQuery = markFailureQuery.eq("team_id", teamId);
+	}
+	await markFailureQuery;
 
 	return {
 		exportId: row.id,
@@ -156,7 +173,22 @@ export async function POST(request: NextRequest) {
 		return errorResponse("Invalid request payload", 400);
 	}
 
-	logger.info("exports.trigger.request", { userId, body });
+	const supabase = await createClient();
+	let scopedTeamId: string | null = null;
+	try {
+		scopedTeamId = await resolveWriteTeamIdForUser(
+			supabase,
+			userId,
+			typeof (body as any).teamId === "string" ? (body as any).teamId : null
+		);
+	} catch (error) {
+		return errorResponse(error instanceof Error ? error.message : "teamId is required", 400);
+	}
+	if ((body as any).teamId && !scopedTeamId) {
+		return errorResponse("Invalid or unauthorized team ID", 403);
+	}
+
+	logger.info("exports.trigger.request", { userId, teamId: scopedTeamId, body });
 
 	if (process.env.NODE_ENV === "test") {
 		let targets: OpportunityExportRecord[] = [];
@@ -201,30 +233,43 @@ export async function POST(request: NextRequest) {
 		);
 	}
 
-	const supabase = await createClient();
 	let rows: any[] = [];
 	if (body.all) {
-		const { data } = await (supabase.from("opportunity_exports") as any)
+		let query = (supabase.from("opportunity_exports") as any)
 			.select("*")
+			.eq("user_id", userId)
 			.eq("status", "ready")
 			.order("created_at", { ascending: true })
 			.limit(100);
+		if (scopedTeamId) {
+			query = query.eq("team_id", scopedTeamId);
+		}
+		const { data } = await query;
 		rows = data ?? [];
 	} else if (body.exportId) {
-		const { data } = await (supabase.from("opportunity_exports") as any)
+		let query = (supabase.from("opportunity_exports") as any)
 			.select("*")
 			.eq("id", body.exportId)
-			.single();
+			.eq("user_id", userId);
+		if (scopedTeamId) {
+			query = query.eq("team_id", scopedTeamId);
+		}
+		const { data } = await query.single();
 		if (data) rows = [data];
 	} else if (Array.isArray(body.exportIds) && body.exportIds.length > 0) {
-		const { data } = await (supabase.from("opportunity_exports") as any)
+		let query = (supabase.from("opportunity_exports") as any)
 			.select("*")
-			.in("id", body.exportIds);
+			.in("id", body.exportIds)
+			.eq("user_id", userId);
+		if (scopedTeamId) {
+			query = query.eq("team_id", scopedTeamId);
+		}
+		const { data } = await query;
 		rows = data ?? [];
 	}
 
 	rows = rows.filter((row) => row.status === "ready");
-	const results = await Promise.all(rows.map((row) => exportOneProd(row)));
+	const results = await Promise.all(rows.map((row) => exportOneProd(row, userId, scopedTeamId)));
 
 	const successCount = results.filter((result) => result.status === "exported").length;
 	const failedCount = results.length - successCount;

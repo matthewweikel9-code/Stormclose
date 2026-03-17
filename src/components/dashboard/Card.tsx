@@ -2,6 +2,14 @@
 
 import { ReactNode } from "react";
 import { motion } from "framer-motion";
+import {
+	Card as BaseCard,
+	CardHeader as BaseCardHeader,
+	CardTitle as BaseCardTitle,
+	CardDescription as BaseCardDescription,
+	CardContent as BaseCardContent,
+} from "@/components/ui/card";
+import { cn } from "@/utils/cn";
 
 interface CardProps {
 	children: ReactNode;
@@ -16,7 +24,12 @@ export function Card({
 	hover = false,
 	glow = false,
 }: CardProps) {
-	const Component = hover ? motion.div : "div";
+	const cardClassName = cn(
+		"storm-card p-6",
+		hover && "hover:-translate-y-0.5 hover:border-storm-border-light hover:shadow-depth-2",
+		glow && "border-storm-purple/20 shadow-glow-sm",
+		className
+	);
 
 	const hoverProps = hover
 		? {
@@ -24,18 +37,15 @@ export function Card({
 		  }
 		: {};
 
-	return (
-		<Component
-			className={`rounded-xl border border-storm-border bg-storm-z1 p-6 ${
-				hover
-					? "transition-all hover:border-storm-purple/30 hover:shadow-xl hover:shadow-storm-purple/5"
-					: ""
-			} ${glow ? "shadow-lg shadow-storm-purple/10" : ""} ${className}`}
-			{...hoverProps}
-		>
-			{children}
-		</Component>
-	);
+	if (hover) {
+		return (
+			<motion.div className={cardClassName} {...hoverProps}>
+				{children}
+			</motion.div>
+		);
+	}
+
+	return <BaseCard className={cardClassName}>{children}</BaseCard>;
 }
 
 interface CardHeaderProps {
@@ -44,11 +54,7 @@ interface CardHeaderProps {
 }
 
 export function CardHeader({ children, className = "" }: CardHeaderProps) {
-	return (
-		<div className={`mb-4 ${className}`}>
-			{children}
-		</div>
-	);
+	return <BaseCardHeader className={cn("mb-4 p-0", className)}>{children}</BaseCardHeader>;
 }
 
 interface CardTitleProps {
@@ -57,11 +63,7 @@ interface CardTitleProps {
 }
 
 export function CardTitle({ children, className = "" }: CardTitleProps) {
-	return (
-		<h3 className={`text-lg font-semibold text-white ${className}`}>
-			{children}
-		</h3>
-	);
+	return <BaseCardTitle className={cn("text-lg", className)}>{children}</BaseCardTitle>;
 }
 
 interface CardDescriptionProps {
@@ -70,11 +72,7 @@ interface CardDescriptionProps {
 }
 
 export function CardDescription({ children, className = "" }: CardDescriptionProps) {
-	return (
-		<p className={`text-sm text-slate-400 ${className}`}>
-			{children}
-		</p>
-	);
+	return <BaseCardDescription className={cn("text-sm text-storm-muted", className)}>{children}</BaseCardDescription>;
 }
 
 interface CardContentProps {
@@ -83,5 +81,5 @@ interface CardContentProps {
 }
 
 export function CardContent({ children, className = "" }: CardContentProps) {
-	return <div className={className}>{children}</div>;
+	return <BaseCardContent className={cn("p-0", className)}>{children}</BaseCardContent>;
 }

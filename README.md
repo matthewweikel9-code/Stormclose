@@ -1,18 +1,22 @@
 # StormClose AI - First-Time Setup Guide (Beginner Friendly)
 
-If this is your first time with Supabase, Stripe, and Vercel, follow this in order.
+If this is your first time with Supabase, Stripe, external API providers, and Vercel, follow this in order.
 Do not skip steps.
 
 ---
 
 ## What you are setting up
 
-You will connect these 4 services:
+You will connect these 8 services:
 
 1. `Supabase` (database + auth)
-2. `Stripe` (monthly subscriptions)
+2. `Stripe` (subscription billing)
 3. `OpenAI` (AI generation)
-4. `Vercel` (hosting/deployment)
+4. `Xweather` (storm + hail data)
+5. `CoreLogic` (property/lead data)
+6. `Google APIs` (maps, places, route optimization, solar)
+7. `JobNimbus` (CRM integration + webhooks)
+8. `Vercel` (hosting/deployment)
 
 ---
 
@@ -81,42 +85,57 @@ supabase link --project-ref <YOUR_SUPABASE_PROJECT_REF>
 supabase db push
 ```
 
-If CLI feels hard, you can also run SQL files manually in **Supabase SQL Editor** in this exact order:
+If CLI feels hard, you can also run SQL files manually in **Supabase SQL Editor**.
+Use chronological order by filename. Core files include:
 
-1. `supabase/migrations/00001_initial_schema.sql`
-2. `supabase/migrations/00002_add_projects.sql`
-3. `supabase/migrations/00003_add_estimates.sql`
-4. `supabase/migrations/00004_create_reports_table.sql`
-5. `supabase/migrations/00005_create_followups_table.sql`
+1. `supabase/migrations/00004_create_reports_table.sql`
+2. `supabase/migrations/00005_create_followups_table.sql`
+3. `supabase/migrations/00006_create_objections_table.sql`
+4. `supabase/migrations/00007_create_users_billing_table.sql`
+5. `supabase/migrations/00008_add_stripe_subscription_id_to_users.sql`
+6. `supabase/migrations/00009_add_subscription_tiers.sql`
+7. `supabase/migrations/00011_add_enterprise_tier.sql`
+8. `supabase/migrations/20260309_command_center.sql`
+9. `supabase/migrations/20260310_add_ai_lead_columns.sql`
+10. `supabase/migrations/20260310_enterprise_features.sql`
+11. `supabase/migrations/20260310_jobnimbus_integration.sql`
+12. `supabase/migrations/20260311_storm_alerts_upgrade.sql`
+13. `supabase/migrations/20260312_create_door_knocks.sql`
+14. `supabase/migrations/20260312_jobnimbus_integration.sql`
+15. `supabase/migrations/20260312_revenue_hub.sql`
+16. `supabase/migrations/20260313_storm_command_center_v2.sql`
 
 ### 1.5 Quick Supabase checks
 
-In **Table Editor**, verify these tables exist:
+In **Table Editor**, verify these key tables exist:
 
 - `users`
-- `reports`
-- `followups`
+- `teams`
+- `team_members`
+- `leads`
+- `activities`
+- `territories`
+- `hail_events`
+- `jobnimbus_integrations`
 
-And confirm **RLS is enabled** for `reports` and `followups`.
+And confirm **RLS is enabled** for tenant-sensitive tables (at minimum: `teams`, `team_members`, `leads`, `activities`, `jobnimbus_integrations`).
 
 ---
 
-## 2) Set up Stripe (monthly subscription)
+## 2) Set up Stripe (tiered subscriptions)
 
-### 2.1 Create product and monthly price
+### 2.1 Create products and tier prices
 
 1. Go to https://dashboard.stripe.com
 2. Switch to correct mode:
   - Start with **Test mode** for setup/testing
 3. Go to **Product catalog → Add product**
-4. Create product:
-  - Name: `StormClose AI Monthly`
-5. Add price:
-  - Recurring
-  - Monthly
-  - Pick your amount (example: `$99/month`)
-6. Save product.
-7. Copy the **Price ID** (looks like `price_...`) → this is `STRIPE_PRICE_ID_MONTHLY`.
+4. Create or verify 3 recurring monthly prices:
+  - `Pro` → `STRIPE_PRICE_ID_PRO`
+  - `Pro Plus` → `STRIPE_PRICE_ID_PRO_PLUS`
+  - `Enterprise` → `STRIPE_PRICE_ID_ENTERPRISE`
+5. Save products/prices.
+6. Copy each **Price ID** (looks like `price_...`) into the matching env var.
 
 ### 2.2 Get API keys
 
@@ -147,6 +166,41 @@ And confirm **RLS is enabled** for `reports` and `followups`.
 
 ---
 
+## 3.1) Set up Xweather (storm and hail data)
+
+1. Go to https://www.xweather.com and create developer credentials.
+2. Copy:
+  - Client ID → `XWEATHER_CLIENT_ID`
+  - Client Secret → `XWEATHER_CLIENT_SECRET`
+
+---
+
+## 3.2) Set up CoreLogic (property data)
+
+1. Create CoreLogic API credentials.
+2. Copy:
+  - Consumer key → `CORELOGIC_CONSUMER_KEY`
+  - Consumer secret → `CORELOGIC_CONSUMER_SECRET`
+
+---
+
+## 3.3) Set up Google APIs
+
+Create keys and enable needed APIs (Directions, Geocoding, Places, Maps Embed, Solar):
+
+1. Server key (restricted by IP/service use) → `GOOGLE_MAPS_API_KEY`
+2. Browser embed key (restricted by HTTP referrer) → `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+3. Solar key (if separated) → `GOOGLE_SOLAR_API_KEY`
+
+---
+
+## 3.4) Set up JobNimbus webhook secret
+
+1. In JobNimbus integration/webhook settings, create a webhook signing secret.
+2. Save as `JOBNIMBUS_WEBHOOK_SECRET`.
+
+---
+
 ## 4) Configure local environment (your machine)
 
 In project root, create local env file from template:
@@ -158,13 +212,27 @@ cp .env.production.example .env.local
 Open `.env.local` and fill all values:
 
 - `NEXT_PUBLIC_APP_URL`
+- `STRIPE_APP_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_PRICE_ID_MONTHLY`
+- `STRIPE_PRICE_ID_PRO`
+- `STRIPE_PRICE_ID_PRO_PLUS`
+- `STRIPE_PRICE_ID_ENTERPRISE`
 - `OPENAI_API_KEY`
+- `OPENAI_MODEL` (optional, defaults to `gpt-4o-mini`)
+- `XWEATHER_CLIENT_ID`
+- `XWEATHER_CLIENT_SECRET`
+- `CORELOGIC_CONSUMER_KEY`
+- `CORELOGIC_CONSUMER_SECRET`
+- `GOOGLE_MAPS_API_KEY`
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+- `GOOGLE_SOLAR_API_KEY`
+- `NEXT_PUBLIC_MAPBOX_TOKEN`
+- `CRON_SECRET`
+- `JOBNIMBUS_WEBHOOK_SECRET`
 
 Run app locally:
 
@@ -209,13 +277,27 @@ Before first production deploy, add all env vars in:
 Add exactly:
 
 - `NEXT_PUBLIC_APP_URL`
+- `STRIPE_APP_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_PRICE_ID_MONTHLY`
+- `STRIPE_PRICE_ID_PRO`
+- `STRIPE_PRICE_ID_PRO_PLUS`
+- `STRIPE_PRICE_ID_ENTERPRISE`
 - `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `XWEATHER_CLIENT_ID`
+- `XWEATHER_CLIENT_SECRET`
+- `CORELOGIC_CONSUMER_KEY`
+- `CORELOGIC_CONSUMER_SECRET`
+- `GOOGLE_MAPS_API_KEY`
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+- `GOOGLE_SOLAR_API_KEY`
+- `NEXT_PUBLIC_MAPBOX_TOKEN`
+- `CRON_SECRET`
+- `JOBNIMBUS_WEBHOOK_SECRET`
 
 ### 6.3 Deploy
 

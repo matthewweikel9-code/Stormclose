@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkFeatureAccess } from '@/lib/subscriptions/access';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -44,17 +45,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { message, history = [], context = {} } = body;
+    const access = await checkFeatureAccess(user.id, 'objection_handler');
+    if (!access.allowed) {
+      return NextResponse.json(
+        {
+          error: access.reason || 'Upgrade required to use AI Assistant.',
+          code: 'UPGRADE_REQUIRED',
+          feature: 'objection_handler',
+          tier: access.tier || 'free',
+          upgradeUrl: '/settings/billing',
+        },
+        { status: 402 }
+      );
+    }
 
-    if (!message || typeof message !== 'string') {
+    const body = await request.json();
+    const { message, history = [], messages: incomingMessages = [], context = {} } = body;
+
+    const fallbackMessage =
+      Array.isArray(incomingMessages) && incomingMessages.length > 0
+        ? incomingMessages[incomingMessages.length - 1]?.content
+        : undefined;
+    const normalizedMessage =
+      typeof message === 'string'
+        ? message.trim()
+        : typeof fallbackMessage === 'string'
+          ? fallbackMessage.trim()
+          : '';
+
+    const normalizedHistory = Array.isArray(history) && history.length > 0
+      ? history
+      : Array.isArray(incomingMessages)
+        ? incomingMessages.slice(0, -1)
+        : [];
+
+    if (!normalizedMessage) {
       return NextResponse.json({ error: 'message is required' }, { status: 400 });
     }
 
     // Build context string from provided data
     let contextStr = '';
-    if (context.location) {
-      contextStr += `\n\nUSER LOCATION: ${context.location.lat}, ${context.location.lng}`;
+    const locationContext =
+      context?.location ||
+      (typeof context?.lat === 'number' && typeof context?.lng === 'number'
+        ? { lat: context.lat, lng: context.lng }
+        : null);
+    if (locationContext) {
+      contextStr += `\n\nUSER LOCATION: ${locationContext.lat}, ${locationContext.lng}`;
     }
     if (context.property) {
       const p = context.property;
@@ -88,26 +125,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Build messages array
-    const messages: ChatMessage[] = [
+    const chatMessages: ChatMessage[] = [
       { role: 'system', content: SYSTEM_PROMPT + contextStr },
-      ...history.slice(-10).map((h: any) => ({
+      ...normalizedHistory.slice(-10).map((h: any) => ({
         role: h.role as 'user' | 'assistant',
         content: h.content,
       })),
-      { role: 'user', content: message },
+      { role: 'user', content: normalizedMessage },
     ];
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini',
       temperature: 0.4,
       max_tokens: 1500,
-      messages,
+      messages: chatMessages,
     });
 
     const reply = completion.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
 
     // Detect if the user is asking about a property (for auto-lookup)
-    const addressMatch = message.match(/(?:I'm at|I am at|lookup|look up|check)\s+(.+)/i);
+    const addressMatch = normalizedMessage.match(/(?:I'm at|I am at|lookup|look up|check)\s+(.+)/i);
     let suggestLookup = false;
     let suggestedAddress = '';
     if (addressMatch) {
@@ -118,6 +155,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       reply,
+      response: reply,
       suggestLookup,
       suggestedAddress,
       usage: {

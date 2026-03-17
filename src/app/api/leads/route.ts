@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient, SupabaseClient } from "@supabase/supabase-js";
 import { calculateLeadScore } from "@/lib/lead-scoring";
-
-// Admin client without strict typing for new tables
-const supabaseAdmin: SupabaseClient = createAdminClient(
-	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getUserRoleForTeam, resolveWriteTeamIdForUser } from "@/lib/server/tenant";
 
 // GET: Fetch leads for the current user
 export async function GET(request: NextRequest) {
@@ -25,22 +19,25 @@ export async function GET(request: NextRequest) {
 	const status = searchParams.get("status");
 	const tier = searchParams.get("tier");
 	const minScore = searchParams.get("minScore");
+	const teamId = searchParams.get("teamId");
 	const limit = parseInt(searchParams.get("limit") || "50", 10);
 	const offset = parseInt(searchParams.get("offset") || "0", 10);
+	const clampedLimit = Math.max(1, Math.min(limit, 200));
 
 	try {
-		// Use admin client to bypass RLS - we handle auth ourselves above
-		// Show leads that are:
-		// 1. Owned by current user (user_id)
-		// 2. Assigned to current user (assigned_to)
-		// 3. AI-generated leads (source = ai_auto_generated) - visible to all salespeople
-		let query = supabaseAdmin
-			.from("leads")
+		if (teamId) {
+			const role = await getUserRoleForTeam(supabase, user.id, teamId);
+			if (!role) {
+				return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+			}
+		}
+
+		// Use session-scoped client + RLS for tenant-safe reads.
+		let query = (supabase.from("leads") as any)
 			.select("*", { count: "exact" })
-			.or(`user_id.eq.${user.id},assigned_to.eq.${user.id},source.eq.ai_auto_generated`)
 			.order("lead_score", { ascending: false })
 			.order("created_at", { ascending: false })
-			.range(offset, offset + limit - 1);
+			.range(offset, offset + clampedLimit - 1);
 
 		if (status) {
 			query = query.eq("status", status);
@@ -59,6 +56,10 @@ export async function GET(request: NextRequest) {
 			query = query.gte("lead_score", parseInt(minScore, 10));
 		}
 
+		if (teamId) {
+			query = query.eq("team_id", teamId);
+		}
+
 		const { data, error, count } = await query;
 
 		if (error) {
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
 			success: true,
 			leads: data || [],
 			total: count || 0,
-			pagination: { limit, offset },
+			pagination: { limit: clampedLimit, offset },
 		});
 	} catch (error) {
 		console.error("Leads fetch error:", error);
@@ -125,10 +126,32 @@ export async function POST(request: NextRequest) {
 			squareFeet,
 		});
 
-		// Create the lead
+		let resolvedTeamId: string | null = null;
+		try {
+			resolvedTeamId = await resolveWriteTeamIdForUser(
+				supabase,
+				user.id,
+				typeof teamId === "string" ? teamId : null
+			);
+		} catch (teamError) {
+			return NextResponse.json(
+				{
+					error:
+						teamError instanceof Error
+							? teamError.message
+							: "teamId is required for users with multiple teams",
+				},
+				{ status: 400 }
+			);
+		}
+
+		if (teamId && !resolvedTeamId) {
+			return NextResponse.json({ error: "Invalid or unauthorized team ID" }, { status: 403 });
+		}
+
 		const leadData = {
 			user_id: user.id,
-			team_id: teamId || null,
+			team_id: resolvedTeamId,
 			address,
 			city,
 			state,
@@ -150,8 +173,7 @@ export async function POST(request: NextRequest) {
 			status: "new",
 		};
 
-		// Use admin client for new tables until types are regenerated
-		const { data, error } = await supabaseAdmin.from("leads").insert(leadData).select().single();
+		const { data, error } = await (supabase.from("leads") as any).insert(leadData).select().single();
 
 		if (error) {
 			console.error("Error creating lead:", error);
@@ -210,9 +232,21 @@ export async function PATCH(request: NextRequest) {
 			updateData.status_changed_at = new Date().toISOString();
 		}
 
-		// Use admin client for new tables until types are regenerated
-		const { data, error } = await supabaseAdmin
-			.from("leads")
+		const { data: existingLead, error: existingLeadError } = await (supabase.from("leads") as any)
+			.select("id")
+			.eq("id", id)
+			.maybeSingle();
+
+		if (existingLeadError) {
+			console.error("Error checking lead access:", existingLeadError);
+			return NextResponse.json({ error: "Failed to validate lead access" }, { status: 500 });
+		}
+
+		if (!existingLead) {
+			return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+		}
+
+		const { data, error } = await (supabase.from("leads") as any)
 			.update(updateData)
 			.eq("id", id)
 			.select()
@@ -250,7 +284,7 @@ export async function DELETE(request: NextRequest) {
 	}
 
 	try {
-		const { error } = await supabase.from("leads").delete().eq("id", id);
+		const { error } = await (supabase.from("leads") as any).delete().eq("id", id);
 
 		if (error) {
 			console.error("Error deleting lead:", error);

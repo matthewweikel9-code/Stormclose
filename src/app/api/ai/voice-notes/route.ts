@@ -1,16 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getUserRoleForTeam } from "@/lib/server/tenant";
 import OpenAI from "openai";
 
-const supabaseAdmin = createAdminClient(
-	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabaseAdmin = createAdminClient() as any;
 
 const openai = new OpenAI({
 	apiKey: process.env.OPENAI_API_KEY,
 });
+
+async function userCanAccessLead(supabase: any, userId: string, leadId: string): Promise<boolean> {
+	const { data: lead, error } = await (supabase.from("leads") as any)
+		.select("id, user_id, team_id")
+		.eq("id", leadId)
+		.maybeSingle();
+
+	if (error || !lead) {
+		return false;
+	}
+
+	if (lead.user_id === userId) {
+		return true;
+	}
+
+	if (lead.team_id) {
+		const role = await getUserRoleForTeam(supabase, userId, lead.team_id);
+		return Boolean(role);
+	}
+
+	return false;
+}
 
 // GET: Fetch voice notes for a lead or user
 export async function GET(request: NextRequest) {
@@ -26,8 +46,7 @@ export async function GET(request: NextRequest) {
 	const limit = parseInt(searchParams.get("limit") || "20", 10);
 
 	try {
-		let query = supabaseAdmin
-			.from("voice_notes")
+		let query = (supabase.from("voice_notes") as any)
 			.select(`
 				id,
 				lead_id,
@@ -86,9 +105,16 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Audio file is required" }, { status: 400 });
 		}
 
+		if (leadId) {
+			const canAccessLead = await userCanAccessLead(supabase, user.id, leadId);
+			if (!canAccessLead) {
+				return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+			}
+		}
+
 		// Upload audio to Supabase Storage
 		const fileName = `voice-notes/${user.id}/${Date.now()}-${audioFile.name || "recording.webm"}`;
-		const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+		const { error: uploadError } = await supabase.storage
 			.from("media")
 			.upload(fileName, audioFile, {
 				contentType: audioFile.type || "audio/webm",
@@ -101,15 +127,14 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Get public URL
-		const { data: urlData } = supabaseAdmin.storage
+		const { data: urlData } = supabase.storage
 			.from("media")
 			.getPublicUrl(fileName);
 
 		const audioUrl = urlData.publicUrl;
 
 		// Create voice note record
-		const { data: voiceNote, error: insertError } = await supabaseAdmin
-			.from("voice_notes")
+		const { data: voiceNote, error: insertError } = await (supabase.from("voice_notes") as any)
 			.insert({
 				user_id: user.id,
 				lead_id: leadId || null,
@@ -126,7 +151,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Transcribe in background (don't await)
-		transcribeAndAnalyze(voiceNote.id, audioFile, leadId).catch(console.error);
+		transcribeAndAnalyze(voiceNote.id, audioFile, leadId || null, user.id).catch(console.error);
 
 		return NextResponse.json({
 			success: true,
@@ -142,7 +167,12 @@ export async function POST(request: NextRequest) {
 	}
 }
 
-async function transcribeAndAnalyze(voiceNoteId: string, audioFile: File, leadId: string | null) {
+async function transcribeAndAnalyze(
+	voiceNoteId: string,
+	audioFile: File,
+	leadId: string | null,
+	userId: string
+) {
 	try {
 		// Convert File to buffer for OpenAI
 		const buffer = Buffer.from(await audioFile.arrayBuffer());
@@ -220,12 +250,18 @@ Respond in JSON with:
 				suggested_status: analysis.suggested_status,
 				suggested_notes: analysis.suggested_notes,
 			})
-			.eq("id", voiceNoteId);
+			.eq("id", voiceNoteId)
+			.eq("user_id", userId);
 
 		// Create activity record if we have a lead
 		if (leadId) {
+			const canAccessLead = await userCanAccessLead(supabaseAdmin, userId, leadId);
+			if (!canAccessLead) {
+				return;
+			}
+
 			await supabaseAdmin.from("activities").insert({
-				user_id: (await supabaseAdmin.from("voice_notes").select("user_id").eq("id", voiceNoteId).single()).data?.user_id,
+				user_id: userId,
 				lead_id: leadId,
 				activity_type: "note",
 				title: "Voice Note",
@@ -262,6 +298,7 @@ Respond in JSON with:
 			.update({
 				transcription_status: "failed",
 			})
-			.eq("id", voiceNoteId);
+			.eq("id", voiceNoteId)
+			.eq("user_id", userId);
 	}
 }

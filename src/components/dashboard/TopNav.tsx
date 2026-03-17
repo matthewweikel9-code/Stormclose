@@ -16,8 +16,15 @@ interface TopNavProps {
 
 const breadcrumbLabels: Record<string, string> = {
 	"/dashboard": "Dashboard",
-	"/dashboard/command-center": "Command Center",
+	"/dashboard/storm-map": "Storm Ops",
+	"/dashboard/command-center": "Storm Ops",
+	"/dashboard/leads": "Storm Ops",
 	"/dashboard/ai-tools": "AI Tools",
+	"/partner-engine": "Referral Engine",
+	"/partner-engine/partners": "Referral Engine",
+	"/partner-engine/referrals": "Referral Engine",
+	"/partner-engine/rewards": "Referral Engine",
+	"/partner-engine/settings": "Referral Engine",
 	"/dashboard/documents": "Documents",
 	"/dashboard/team": "Team",
 	"/settings/billing": "Settings",

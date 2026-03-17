@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "./Logo";
 
 const navLinks = [
+	{ href: "/storm-intelligence", label: "Storm Intelligence" },
+	{ href: "/referral-engine", label: "Referral Engine" },
 	{ href: "#features", label: "Features" },
 	{ href: "#pricing", label: "Pricing" },
 	{ href: "#how-it-works", label: "How It Works" },

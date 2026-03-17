@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 
 // NWS API endpoints
 const NWS_ALERTS_API = "https://api.weather.gov/alerts/active";
@@ -102,17 +103,22 @@ function parseWindSpeed(params?: { maxWindGust?: string[] }): number | null {
 }
 
 export async function GET(request: NextRequest) {
-	// This endpoint can be called manually or by cron
 	const authHeader = request.headers.get("authorization");
-	const cronSecret = process.env.CRON_SECRET;
-	
-	// Allow access from cron or authenticated requests
-	if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-		// Check if it's an internal request
-		const url = new URL(request.url);
-		if (!url.searchParams.get("internal")) {
-			// For testing, allow without auth
-			console.log("Storm monitor accessed without cron auth");
+	const cronSecret = process.env.CRON_SECRET?.trim();
+	const hasCronAuth = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+
+	// Allow either authenticated app users or signed cron requests.
+	if (!hasCronAuth) {
+		const supabase = await createClient();
+		const {
+			data: { user }
+		} = await supabase.auth.getUser();
+
+		if (!user) {
+			if (!cronSecret && process.env.NODE_ENV === "production") {
+				return NextResponse.json({ error: "CRON_SECRET is required in production" }, { status: 500 });
+			}
+			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
 	}
 

@@ -3,7 +3,12 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
 	title: "StormClose AI",
-	description: "AI-powered roofing workflow platform"
+	description: "AI-powered roofing workflow platform",
+	icons: {
+		icon: "/favicon.svg",
+		shortcut: "/favicon.svg",
+		apple: "/favicon.svg",
+	},
 };
 
 export default async function RootLayout({

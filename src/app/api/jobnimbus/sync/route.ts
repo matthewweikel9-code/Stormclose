@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { decryptJobNimbusApiKey } from '@/lib/jobnimbus/security';
 
 // POST /api/jobnimbus/sync - Trigger sync with JobNimbus
 export async function POST(request: NextRequest) {
@@ -24,7 +25,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not connected to JobNimbus' }, { status: 400 });
     }
 
-    const apiKey = integration.api_key_encrypted;
+    let apiKey: string;
+    try {
+      apiKey = decryptJobNimbusApiKey(integration.api_key_encrypted);
+    } catch (decryptError) {
+      console.error('Failed to decrypt JobNimbus API key:', decryptError);
+      return NextResponse.json(
+        { error: 'Failed to read JobNimbus credentials. Reconnect your integration.' },
+        { status: 500 }
+      );
+    }
 
     // Sync contacts
     const contactsResult = await syncContacts(supabase, user.id, apiKey, full);

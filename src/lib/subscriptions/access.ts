@@ -13,8 +13,52 @@ export interface UserSubscription {
 	stripeSubscriptionId: string | null;
 }
 
+const TIER_PRIORITY: Record<SubscriptionTier, number> = {
+	free: 0,
+	trial: 1,
+	pro: 2,
+	pro_plus: 3,
+	enterprise: 4,
+};
+
+function maxTier(a: SubscriptionTier, b: SubscriptionTier): SubscriptionTier {
+	return TIER_PRIORITY[a] >= TIER_PRIORITY[b] ? a : b;
+}
+
+async function getHighestTeamTier(supabase: any, userId: string): Promise<SubscriptionTier | null> {
+	try {
+		const { data, error } = await (supabase.from("team_members") as any)
+			.select("team:teams(subscription_tier, subscription_status)")
+			.eq("user_id", userId);
+
+		if (error || !Array.isArray(data)) {
+			return null;
+		}
+
+		let highestTier: SubscriptionTier | null = null;
+		for (const membership of data as Array<{ team?: { subscription_tier?: unknown; subscription_status?: unknown } }>) {
+			const team = membership.team;
+			const teamTier = team?.subscription_tier as SubscriptionTier | undefined;
+			const teamStatus = typeof team?.subscription_status === "string" ? team.subscription_status : null;
+			const tierIsValid = teamTier && Object.prototype.hasOwnProperty.call(TIER_PRIORITY, teamTier);
+			const statusIsActive = teamStatus === "active" || teamStatus === "trialing";
+
+			if (!tierIsValid || !statusIsActive) {
+				continue;
+			}
+
+			highestTier = highestTier ? maxTier(highestTier, teamTier) : teamTier;
+		}
+
+		return highestTier;
+	} catch {
+		return null;
+	}
+}
+
 export async function getUserSubscription(userId: string): Promise<UserSubscription | null> {
 	const supabase = await createClient();
+	const highestTeamTier = await getHighestTeamTier(supabase, userId);
 
 	const { data, error } = await (supabase
 		.from("users") as any)
@@ -47,9 +91,11 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
 			return null;
 		}
 
+		const effectiveTier = highestTeamTier ? maxTier("free", highestTeamTier) : "free";
+
 		return {
 			tier: "free",
-			effectiveTier: "free",
+			effectiveTier,
 			trialEnd: null,
 			trialDaysRemaining: 0,
 			reportsThisMonth: 0,
@@ -61,10 +107,12 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
 
 	const tier = (data.subscription_tier as SubscriptionTier) || "free";
 	const trialEnd = data.trial_end || null;
+	const userEffectiveTier = getEffectiveTier(tier, trialEnd);
+	const effectiveTier = highestTeamTier ? maxTier(userEffectiveTier, highestTeamTier) : userEffectiveTier;
 
 	return {
 		tier,
-		effectiveTier: getEffectiveTier(tier, trialEnd),
+		effectiveTier,
 		trialEnd,
 		trialDaysRemaining: getDaysRemaining(trialEnd),
 		reportsThisMonth: data.reports_this_month || 0,

@@ -399,7 +399,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
               </div>
             </div>
             <Link
-              href="/dashboard/command-center"
+              href="/dashboard/storm-map"
               className="button-primary flex items-center gap-2 text-xs flex-shrink-0"
             >
               Scan Storm <ArrowRight className="w-3.5 h-3.5" />
@@ -453,7 +453,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
 
         {/* Quick Actions */}
         <div className="flex gap-2">
-          <Link href="/dashboard/command-center" className="button-primary flex items-center gap-2 text-sm">
+          <Link href="/dashboard/storm-map" className="button-primary flex items-center gap-2 text-sm">
             <Cloud className="w-4 h-4" /> Storm Ops
           </Link>
           <Link href="/dashboard/ai-tools" className="button-secondary flex items-center gap-2 text-sm">
@@ -697,7 +697,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                     </div>
                     <p className="text-storm-muted text-xs mt-1">{briefing.best_time_to_canvas}</p>
                   </div>
-                  <Link href="/dashboard/command-center" className="button-primary text-xs flex items-center gap-1.5">
+                  <Link href="/dashboard/storm-map" className="button-primary text-xs flex items-center gap-1.5">
                     Open Storm Ops <ExternalLink className="w-3 h-3" />
                   </Link>
                 </div>
@@ -814,7 +814,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                 ))}
               </div>
             ) : (
-              <EmptyState icon={<Target className="w-7 h-7 text-storm-subtle" />} title="No priority leads yet" description="Open Storm Ops to detect hail and wind damage leads" actionHref="/dashboard/command-center" actionLabel="Open Storm Ops" />
+              <EmptyState icon={<Target className="w-7 h-7 text-storm-subtle" />} title="No priority leads yet" description="Open Storm Ops to detect hail and wind damage leads" actionHref="/dashboard/storm-map" actionLabel="Open Storm Ops" />
             )
           )}
 
@@ -948,7 +948,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
 
               {/* Quick Action Links */}
               <div className="space-y-1.5">
-                <QuickAction href="/dashboard/command-center" icon={<Route className="w-3.5 h-3.5 text-storm-glow" />} iconBg="bg-storm-purple/15" title="Start Canvassing Route" subtitle="AI-optimized for your area" />
+                <QuickAction href="/dashboard/storm-map" icon={<Route className="w-3.5 h-3.5 text-storm-glow" />} iconBg="bg-storm-purple/15" title="Open Storm Ops" subtitle="Live weather, routing, and canvass ops" />
                 {hotLeads.length > 0 && hotLeads[0]?.phone && (
                   <QuickAction href={`tel:${hotLeads[0].phone}`} icon={<Phone className="w-3.5 h-3.5 text-emerald-400" />} iconBg="bg-emerald-500/15" title="Call Top Lead" subtitle={hotLeads[0]?.address || 'Next highest scored'} isExternal />
                 )}

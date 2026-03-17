@@ -110,11 +110,11 @@ export async function GET(request: NextRequest) {
 				.order("created_at", { ascending: false })
 				.limit(10),
 
-			// Hot leads (top scored) - include user's leads AND AI-generated leads
+			// Hot leads (top scored) scoped to the authenticated user/team context.
 			supabase
 				.from("leads")
 				.select("*")
-				.or(`user_id.eq.${user.id},assigned_to.eq.${user.id},source.eq.ai_auto_generated`)
+				.or(`user_id.eq.${user.id},assigned_to.eq.${user.id}`)
 				.in("status", ["new", "contacted", "appointment_set"])
 				.order("lead_score", { ascending: false })
 				.limit(5),

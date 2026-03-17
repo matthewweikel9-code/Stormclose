@@ -78,9 +78,9 @@ export function Hero() {
 						transition={{ delay: 0.5, duration: 0.8 }}
 						className="mx-auto mt-6 max-w-2xl text-lg text-slate-400 sm:text-xl"
 					>
-						Upload your roofing estimate. StormClose automatically generates 
-						professional insurance reports, follow-up emails, and documentation 
-						in seconds.
+						StormClose gives roofing teams two growth engines: Storm Intelligence to
+						find high-impact neighborhoods, and Referral Engine to activate partners
+						and track attributable revenue.
 					</motion.p>
 
 					{/* CTA Buttons */}
@@ -91,10 +91,10 @@ export function Hero() {
 						className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
 					>
 						<Link
-							href="/signup"
+							href="/storm-intelligence"
 							className="group relative inline-flex items-center justify-center overflow-hidden rounded-lg bg-storm-purple px-8 py-3.5 text-base font-semibold text-white transition-all hover:bg-storm-purple-hover hover:shadow-xl hover:shadow-storm-purple/25"
 						>
-							<span className="relative z-10">Get Started</span>
+							<span className="relative z-10">Explore Storm Intelligence</span>
 							<motion.div
 								className="absolute inset-0 bg-gradient-to-r from-storm-glow to-storm-purple"
 								animate={{
@@ -109,29 +109,10 @@ export function Hero() {
 							/>
 						</Link>
 						<Link
-							href="#how-it-works"
+							href="/referral-engine"
 							className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/50 px-8 py-3.5 text-base font-semibold text-white transition-all hover:border-slate-600 hover:bg-slate-800"
 						>
-							<svg
-								className="h-5 w-5 text-storm-glow"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-							>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-								/>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									strokeWidth={2}
-									d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-								/>
-							</svg>
-							View Demo
+							Referral Engine
 						</Link>
 					</motion.div>
 

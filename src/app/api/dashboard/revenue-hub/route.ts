@@ -1,18 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
+import { metrics } from "@/lib/metrics";
 
 // GET: Fetch revenue hub enhanced stats with trends
 export async function GET(request: NextRequest) {
+	const startedAt = Date.now();
+	const { correlationId, log } = logger.fromRequest(request, {
+		route: "/api/dashboard/revenue-hub",
+		method: "GET",
+	});
+	const { metric } = metrics.fromRequest(request, {
+		route: "/api/dashboard/revenue-hub",
+		method: "GET",
+	});
+
 	const supabase = await createClient();
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
 
 	if (!user) {
-		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+		log.warn("revenue_hub.unauthorized");
+		return NextResponse.json({ error: "Unauthorized", correlationId }, { status: 401 });
 	}
 
 	try {
+		log.info("revenue_hub.request", { userId: user.id });
 		const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
 		const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 		const prevMonthStart = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString();
@@ -124,6 +138,26 @@ export async function GET(request: NextRequest) {
 				.eq("user_id", user.id)
 				.gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toISOString()),
 		]);
+
+		const queryErrors = [
+			allLeadsResult.error,
+			closedThisMonthResult.error,
+			closedLastMonthResult.error,
+			activitiesThisMonthResult.error,
+			activitiesLastMonthResult.error,
+			recentActivityResult.error,
+			goalsResult.error,
+			snapshotsResult.error,
+			overdueResult.error,
+			hailAlertsResult.error,
+			todayActivitiesResult.error,
+		].filter(Boolean);
+		if (queryErrors.length > 0) {
+			log.warn("revenue_hub.partial_data", {
+				userId: user.id,
+				queryErrors: queryErrors.map((err: any) => String(err?.message ?? err)),
+			});
+		}
 
 		// ─── Process Leads ───
 		const allLeads = (allLeadsResult.data || []) as any[];
@@ -274,8 +308,26 @@ export async function GET(request: NextRequest) {
 		}
 
 		// ─── Build Response ───
+		const safeCloseRate = Math.min(100, Math.max(0, closeRate));
+		const safePipelineValue = Math.max(0, pipelineValue);
+		const safeWeightedPipeline = Math.max(0, weightedPipeline);
+		const safeClosedValueThisMonth = Math.max(0, closedValueThisMonth);
+		const safeClosedValueAllTime = Math.max(0, totalClosedValue);
+		const safeProjectedRevenue = Math.max(0, projectedRevenue);
+		const safeCommissionEarned = Math.max(0, commissionEarned);
+
+		log.info("revenue_hub.success", {
+			userId: user.id,
+			leadCount: allLeads.length,
+			activeLeadCount: activeLeads.length,
+			closeRate: safeCloseRate,
+			latencyMs: Date.now() - startedAt,
+		});
+		metric.increment("api_latency_ms", Date.now() - startedAt);
+
 		return NextResponse.json({
 			success: true,
+			correlationId,
 			data: {
 				kpis: {
 					leadsGenerated: allLeads.length,
@@ -283,16 +335,16 @@ export async function GET(request: NextRequest) {
 					appointmentsSet: activityCounts.appointmentsSet,
 					dealsClosed: closedThisMonth.length,
 					dealsClosedAllTime: closedDeals.length,
-					pipelineValue,
-					weightedPipeline,
-					closeRate,
-					closedValue: closedValueThisMonth,
-					closedValueAllTime: totalClosedValue,
+					pipelineValue: safePipelineValue,
+					weightedPipeline: safeWeightedPipeline,
+					closeRate: safeCloseRate,
+					closedValue: safeClosedValueThisMonth,
+					closedValueAllTime: safeClosedValueAllTime,
 					avgDealSize,
 					revenueChangePercent,
 					activityChangePercent,
-					projectedRevenue,
-					commissionEarned,
+					projectedRevenue: safeProjectedRevenue,
+					commissionEarned: safeCommissionEarned,
 				},
 				goals,
 				streak: {
@@ -314,8 +366,13 @@ export async function GET(request: NextRequest) {
 			},
 		});
 	} catch (error) {
-		console.error("Revenue Hub stats error:", error);
-		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+		log.error("revenue_hub.error", {
+			userId: user.id,
+			message: error instanceof Error ? error.message : String(error),
+			latencyMs: Date.now() - startedAt,
+		});
+		metric.increment("api_error", 1, { scope: "revenue_hub" });
+		return NextResponse.json({ error: "Internal server error", correlationId }, { status: 500 });
 	}
 }
 

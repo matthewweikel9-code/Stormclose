@@ -1,13 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyJobNimbusWebhookSignature } from '@/lib/jobnimbus/security';
 
 // POST /api/jobnimbus/webhook - Handle webhooks from JobNimbus
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    
-    // Get webhook signature for verification (in production)
+    const rawBody = await request.text();
     const signature = request.headers.get('x-jobnimbus-signature');
+    const verification = verifyJobNimbusWebhookSignature(rawBody, signature);
+
+    if (!verification.valid) {
+      return NextResponse.json(
+        { received: true, error: verification.reason || 'Invalid signature' },
+        { status: 401 }
+      );
+    }
+
+    let body: any;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ received: true, error: 'Invalid JSON payload' }, { status: 400 });
+    }
     
     // Extract event type
     const eventType = body.event || body.type;
@@ -16,9 +30,8 @@ export async function POST(request: NextRequest) {
 
     console.log('JobNimbus webhook received:', eventType, entityType);
 
-    // Find user by matching the JobNimbus account
-    // In production, this would use a more robust lookup
-    const supabase = await createClient();
+    // Use service-role client for webhook processing.
+    const supabase = createAdminClient();
     
     // For now, we'll need the user_id from headers or payload
     // JobNimbus webhooks include account info we can use
@@ -32,7 +45,7 @@ export async function POST(request: NextRequest) {
     // Find integration by account
     const { data: integration } = await (supabase as any)
       .from('jobnimbus_integrations')
-      .select('user_id')
+      .select('user_id, id')
       .eq('jobnimbus_account_id', accountId)
       .single();
 
@@ -43,8 +56,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
+    // Best-effort idempotency: skip already-processed duplicate event/entity pairs.
+    const { data: existingEvent } = await (supabase as any)
+      .from('jobnimbus_webhook_events')
+      .select('id, processed')
+      .eq('user_id', userId)
+      .eq('event_type', eventType)
+      .eq('entity_id', entityId)
+      .order('received_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingEvent?.processed) {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+
     // Store webhook event
-    await (supabase as any)
+    const { data: webhookEvent, error: webhookInsertError } = await (supabase as any)
       .from('jobnimbus_webhook_events')
       .insert({
         user_id: userId,
@@ -52,13 +80,20 @@ export async function POST(request: NextRequest) {
         entity_type: entityType,
         entity_id: entityId,
         payload: body,
-        payload_preview: JSON.stringify(body).slice(0, 200),
+        payload_preview: rawBody.slice(0, 200),
         received_at: new Date().toISOString(),
         processed: false,
-      });
+      })
+      .select('id')
+      .single();
+
+    if (webhookInsertError) {
+      console.error('Failed to persist webhook event:', webhookInsertError);
+      return NextResponse.json({ received: true, error: 'Failed to persist event' }, { status: 500 });
+    }
 
     // Process the webhook
-    await processWebhook(supabase, userId, eventType, entityType, body);
+    await processWebhook(supabase, userId, eventType, entityType, body, webhookEvent?.id);
 
     return NextResponse.json({ received: true, processed: true });
   } catch (error) {
@@ -72,7 +107,8 @@ async function processWebhook(
   userId: string,
   eventType: string,
   entityType: string,
-  payload: any
+  payload: any,
+  webhookEventId?: string
 ) {
   try {
     const action = eventType.includes('create') ? 'create' 
@@ -111,12 +147,16 @@ async function processWebhook(
         jobnimbus_id: payload.jnid,
       });
 
-    // Mark webhook as processed
-    await (supabase as any)
-      .from('jobnimbus_webhook_events')
-      .update({ processed: true })
-      .eq('entity_id', payload.jnid)
-      .eq('user_id', userId);
+    if (webhookEventId) {
+      await (supabase as any)
+        .from('jobnimbus_webhook_events')
+        .update({
+          processed: true,
+          processed_at: new Date().toISOString(),
+          error_message: null,
+        })
+        .eq('id', webhookEventId);
+    }
 
   } catch (error) {
     console.error('Webhook processing error:', error);
@@ -132,6 +172,17 @@ async function processWebhook(
         message: `Webhook failed: ${error}`,
         jobnimbus_id: payload.jnid,
       });
+
+    if (webhookEventId) {
+      await (supabase as any)
+        .from('jobnimbus_webhook_events')
+        .update({
+          processed: false,
+          processed_at: new Date().toISOString(),
+          error_message: String(error),
+        })
+        .eq('id', webhookEventId);
+    }
   }
 }
 

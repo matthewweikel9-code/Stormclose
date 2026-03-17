@@ -83,16 +83,16 @@ export async function middleware(request: NextRequest) {
 	const isProtectedPageRoute = isDashboardRoute || isSettingsRoute;
 	const isReportGenerationRoute =
 		pathname === "/dashboard/report" || pathname.startsWith("/dashboard/report/");
+	const isDeprecatedStormOpsRoute =
+		pathname === "/dashboard/command-center" ||
+		pathname.startsWith("/dashboard/command-center/") ||
+		pathname === "/dashboard/leads" ||
+		pathname.startsWith("/dashboard/leads/") ||
+		pathname === "/dashboard/route-planner" ||
+		pathname.startsWith("/dashboard/route-planner/");
 
 	if (isApiRoute) {
 		if (isPublicApiPath(pathname)) {
-			return response;
-		}
-
-		const requiresRoleCheck = API_ROLE_RULES.some(
-			(rule) => pathname === rule.prefix || pathname.startsWith(`${rule.prefix}/`)
-		);
-		if (!requiresRoleCheck) {
 			return response;
 		}
 
@@ -135,6 +135,12 @@ export async function middleware(request: NextRequest) {
 		}
 
 		return response;
+	}
+
+	if (isDeprecatedStormOpsRoute) {
+		const redirectUrl = request.nextUrl.clone();
+		redirectUrl.pathname = "/dashboard/storm-map";
+		return NextResponse.redirect(redirectUrl);
 	}
 
 	if (!isProtectedPageRoute) {

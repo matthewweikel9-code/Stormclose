@@ -14,6 +14,11 @@
 	--storm-z1: #111827;
 	--storm-z2: #1A1F2E;
 	--storm-border: #1F2937;
+	--token-surface: #111827;
+	--token-surface-muted: #0f172a;
+	--token-text-muted: #94a3b8;
+	--token-input: #0b1220;
+	--token-btn-primary: #6D5CFF;
 }
 
 html {
@@ -49,6 +54,23 @@ body {
 
 /* ─── Enterprise Component Layer ─── */
 @layer components {
+	/* Lightweight token bridge for demo-critical pages */
+	.surface {
+		@apply rounded-2xl border border-storm-border bg-storm-z1 shadow-depth-1;
+	}
+	.surface-muted {
+		@apply rounded-xl border border-storm-border bg-storm-z0;
+	}
+	.text-muted {
+		@apply text-storm-muted;
+	}
+	.input {
+		@apply mt-1 block w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle outline-none transition-all duration-200 ring-storm-purple focus:border-storm-purple focus:ring-2 focus:ring-storm-purple/20;
+	}
+	.btn-primary {
+		@apply inline-flex items-center justify-center rounded-xl bg-storm-purple px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-[#5B4AE8] hover:shadow-glow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+	}
+
 	/* Depth surface cards */
 	.surface-z0 {
 		@apply bg-storm-z0;
@@ -123,9 +145,6 @@ body {
 	}
 
 	/* Form elements */
-	.input {
-		@apply mt-1 block w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle outline-none transition-all duration-200 ring-storm-purple focus:border-storm-purple focus:ring-2 focus:ring-storm-purple/20;
-	}
 	.textarea {
 		@apply input min-h-28 resize-y;
 	}

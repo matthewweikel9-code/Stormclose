@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function normalizeNextPath(path: string) {
   if (!path || !path.startsWith("/") || path.startsWith("//")) {
@@ -56,7 +57,7 @@ export async function signup(formData: FormData) {
   try {
     const supabase = await createClient();
     const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -66,6 +67,33 @@ export async function signup(formData: FormData) {
 
     if (error) {
       redirect(`/signup?error=${encodeURIComponent(error.message)}`);
+    }
+
+    // If email confirmation is disabled in Supabase, a session is returned immediately.
+    if (data.session) {
+      revalidatePath("/", "layout");
+      redirect("/dashboard");
+    }
+
+    // Optional local/dev bypass to speed up QA when email confirmation is enabled.
+    const shouldAutoConfirmInDev =
+      process.env.NODE_ENV !== "production" &&
+      process.env.DEV_AUTO_CONFIRM_SIGNUPS === "true" &&
+      Boolean(data.user?.id);
+
+    if (shouldAutoConfirmInDev && data.user?.id) {
+      try {
+        const admin = createAdminClient();
+        await admin.auth.admin.updateUserById(data.user.id, { email_confirm: true });
+
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (!signInError) {
+          revalidatePath("/", "layout");
+          redirect("/dashboard");
+        }
+      } catch {
+        // Fall through to email verification message.
+      }
     }
 
     revalidatePath("/", "layout");
