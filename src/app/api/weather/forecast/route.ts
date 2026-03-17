@@ -55,13 +55,23 @@ export async function GET(request: NextRequest) {
 
     if (!res.ok) {
       console.error('[Forecast] Xweather error:', res.status);
-      return NextResponse.json({ error: 'Failed to fetch forecast' }, { status: 502 });
+      return NextResponse.json({
+        forecast: [],
+        summary: { severeDays: 0, canvassingDays: 0, nextSevereDay: null, bestCanvassingDay: null },
+        location: { lat: parseFloat(lat), lng: parseFloat(lng) },
+        error: 'Weather service temporarily unavailable',
+      }, { status: 200 });
     }
 
     const data = await res.json();
 
     if (!data.success || !data.response?.length) {
-      return NextResponse.json({ error: 'No forecast data returned' }, { status: 502 });
+      return NextResponse.json({
+        forecast: [],
+        summary: { severeDays: 0, canvassingDays: 0, nextSevereDay: null, bestCanvassingDay: null },
+        location: { lat: parseFloat(lat), lng: parseFloat(lng) },
+        error: 'No forecast data available',
+      }, { status: 200 });
     }
 
     const periods = data.response[0]?.periods || [];
@@ -137,6 +147,13 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('[Forecast] Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const lat = request.nextUrl.searchParams.get('lat');
+    const lng = request.nextUrl.searchParams.get('lng');
+    return NextResponse.json({
+      forecast: [],
+      summary: { severeDays: 0, canvassingDays: 0, nextSevereDay: null, bestCanvassingDay: null },
+      location: lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : null,
+      error: 'Failed to fetch forecast',
+    }, { status: 200 });
   }
 }

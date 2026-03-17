@@ -284,14 +284,19 @@ export function DashboardContent({ user }: DashboardContentProps) {
     finally { setForecastLoading(false); }
   };
 
+  const [briefingUpgradeRequired, setBriefingUpgradeRequired] = useState(false);
+
   const fetchBriefing = async (lat: number, lng: number) => {
     setBriefingLoading(true);
+    setBriefingUpgradeRequired(false);
     try {
       const res = await fetch(`/api/ai/daily-briefing?lat=${lat}&lng=${lng}`);
       if (res.ok) {
         const data = await res.json();
         setBriefing(data.briefing);
         setBriefingRaw(data.raw);
+      } else if (res.status === 402) {
+        setBriefingUpgradeRequired(true);
       }
     } catch (e) { console.error('Briefing error:', e); }
     finally { setBriefingLoading(false); }
@@ -798,6 +803,14 @@ export function DashboardContent({ user }: DashboardContentProps) {
             <div className="p-6 text-center">
               <Brain className="w-8 h-8 text-storm-subtle mx-auto mb-2" />
               <p className="text-storm-subtle text-sm">Enable location for your personalized AI briefing</p>
+            </div>
+          ) : briefingUpgradeRequired ? (
+            <div className="p-6 text-center">
+              <Brain className="w-8 h-8 text-storm-subtle mx-auto mb-2" />
+              <p className="text-storm-subtle text-sm">AI briefing requires a Pro or Enterprise plan.</p>
+              <Link href="/settings/billing" className="button-primary mt-3 text-xs inline-flex items-center gap-2">
+                Upgrade
+              </Link>
             </div>
           ) : (
             <div className="p-6 text-center">

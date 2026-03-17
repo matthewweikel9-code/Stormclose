@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Fetch team member locations
 export async function GET() {
   try {
@@ -16,18 +18,13 @@ export async function GET() {
       .from('team_members')
       .select('team_id')
       .eq('user_id', user.id)
-      .single() as { data: { team_id: string } | null };
+      .maybeSingle() as { data: { team_id: string } | null };
 
-    // Get team locations with user info and today's performance
+    // Get team locations (no embed - team_locations.user_id refs auth.users, not public.users)
     const today = new Date().toISOString().split('T')[0];
     
     let query = (supabase.from('team_locations') as any)
-      .select(`
-        *,
-        users:user_id (
-          email
-        )
-      `)
+      .select('*')
       .order('updated_at', { ascending: false });
 
     // Filter by team if user is part of a team
@@ -45,22 +42,25 @@ export async function GET() {
       return NextResponse.json({ error: 'Failed to fetch locations' }, { status: 500 });
     }
 
-    // Get today's performance for each user
-    const userIds = locations?.map((l: any) => l.user_id) || [];
-    
+    const userIds = [...new Set((locations || []).map((l: any) => l.user_id).filter(Boolean))];
+    const { data: users } = userIds.length > 0
+      ? await (supabase.from('users') as any).select('id, email').in('id', userIds)
+      : { data: [] };
+    const userById = new Map((users || []).map((u: any) => [u.id, u]));
+
     const { data: performance } = await (supabase.from('team_performance_daily') as any)
       .select('*')
       .in('user_id', userIds)
       .eq('date', today);
 
-    // Merge performance data with locations
-    const members = locations?.map((location: any) => {
+    const members = (locations || []).map((location: any) => {
+      const u = userById.get(location.user_id);
       const perf = performance?.find((p: any) => p.user_id === location.user_id);
       return {
         id: location.id,
         user_id: location.user_id,
-        name: location.users?.email?.split('@')[0] || 'Unknown',
-        email: location.users?.email,
+        name: u?.email?.split('@')[0] || 'Unknown',
+        email: u?.email,
         latitude: location.latitude,
         longitude: location.longitude,
         accuracy: location.accuracy,
@@ -75,7 +75,7 @@ export async function GET() {
         contacts_made: perf?.contacts_made || 0,
         appointments_set: perf?.appointments_set || 0,
       };
-    }) || [];
+    });
 
     return NextResponse.json({ members });
   } catch (error) {
