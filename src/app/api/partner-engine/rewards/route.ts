@@ -51,7 +51,7 @@ export async function GET() {
 		const { supabase, userId } = await getAuth();
 		if (!userId) return errorResponse("Unauthorized", 401);
 
-		const { data, error } = await supabase
+		const { data, error } = await (supabase as any)
 			.from("partner_engine_rewards")
 			.select(
 				"id,partner_id,referral_id,amount,reward_type,reward_rule,status,approved_by,paid_at,paid_method,payout_batch_id,created_at,updated_at,partner_engine_partners(name),partner_engine_referrals(property_address)"
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
 		const body = CreateRewardSchema.parse(await request.json());
 
-		const { data: referralRow, error: referralError } = await supabase
+		const { data: referralRow, error: referralError } = await (supabase as any)
 			.from("partner_engine_referrals")
 			.select("id,partner_id")
 			.eq("id", body.referralId)
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
 		const partnerId = (referralRow as Record<string, unknown>).partner_id as string | null;
 
-		const { data, error } = await supabase
+		const { data, error } = await (supabase as any)
 			.from("partner_engine_rewards")
 			.insert({
 				user_id: userId,
@@ -137,7 +137,7 @@ export async function PATCH(request: NextRequest) {
 			patch.paid_method = null;
 		}
 
-		const { data, error } = await supabase
+		const { data, error } = await (supabase as any)
 			.from("partner_engine_rewards")
 			.update(patch)
 			.eq("id", body.id)

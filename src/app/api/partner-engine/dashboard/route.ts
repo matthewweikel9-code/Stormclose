@@ -13,7 +13,7 @@ export async function GET() {
 		if (!userId) return errorResponse("Unauthorized", 401);
 
 		const [partnersRes, referralsRes, rewardsRes] = await Promise.all([
-			supabase
+			(supabase as any)
 				.from("partner_engine_partners")
 				.select("id", { count: "exact", head: true })
 				.eq("user_id", userId),
@@ -21,7 +21,7 @@ export async function GET() {
 				.from("partner_engine_referrals")
 				.select("id,status,partner_id,contract_value,created_at,updated_at")
 				.eq("user_id", userId),
-			supabase
+			(supabase as any)
 				.from("partner_engine_rewards")
 				.select("id,amount,status")
 				.eq("user_id", userId),
@@ -104,7 +104,7 @@ export async function GET() {
 			{ name: string; type: string; tier: string }
 		>();
 		if (partnerIds.length) {
-			const { data: partnerRows } = await supabase
+			const { data: partnerRows } = await (supabase as any)
 				.from("partner_engine_partners")
 				.select("id,name,partner_type,tier")
 				.in("id", partnerIds)
@@ -138,7 +138,7 @@ export async function GET() {
 			.sort((a, b) => b.revenue - a.revenue)
 			.slice(0, 10);
 
-		const { data: recentReferralsRaw } = await supabase
+		const { data: recentReferralsRaw } = await (supabase as any)
 			.from("partner_engine_referrals")
 			.select("id,property_address,status,contract_value,created_at,partner_id,partner_engine_partners(name)")
 			.eq("user_id", userId)

@@ -23,15 +23,16 @@ export async function POST(
 		} = await supabase.auth.getUser();
 		if (!user) return errorResponse("Unauthorized", 401);
 
-		const { data: integration, error: integrationError } = await (supabase
-			.from("jobnimbus_integrations") as any)
+		const { data: integration, error: integrationError } = await (supabase as any)
+			.from("jobnimbus_integrations")
 			.select("api_key_encrypted")
 			.eq("user_id", user.id)
 			.maybeSingle();
 		if (integrationError) return errorResponse(integrationError.message, 500);
 		if (!integration?.api_key_encrypted) return errorResponse("JobNimbus is not connected", 400);
 
-		const { data: referral, error: referralError } = await (supabase.from("partner_engine_referrals") as any)
+		const { data: referral, error: referralError } = await (supabase as any)
+			.from("partner_engine_referrals")
 			.select("id,homeowner_name,homeowner_phone,homeowner_email,property_address,city,state,zip,notes,external_record_id,last_synced_at")
 			.eq("id", id)
 			.eq("user_id", user.id)
@@ -61,7 +62,8 @@ export async function POST(
 
 		if (!createContact.success || !createContact.data) {
 			const detail = createContact.error?.detail || "Unknown sync error";
-			await (supabase.from("partner_engine_referrals") as any)
+			await (supabase as any)
+				.from("partner_engine_referrals")
 				.update({ sync_error: detail, updated_at: new Date().toISOString() })
 				.eq("id", id)
 				.eq("user_id", user.id);
@@ -73,7 +75,8 @@ export async function POST(
 			((createContact.data as Record<string, unknown>).jnid as string | undefined) ??
 			"unknown";
 
-		const { error: updateError } = await (supabase.from("partner_engine_referrals") as any)
+		const { error: updateError } = await (supabase as any)
+			.from("partner_engine_referrals")
 			.update({
 				external_crm: "jobnimbus",
 				external_record_id: contactId,

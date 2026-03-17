@@ -38,7 +38,7 @@ export async function GET() {
 		const { supabase, userId } = await getAuth();
 		if (!userId) return errorResponse("Unauthorized", 401);
 
-		const { data, error } = await supabase
+		const { data, error } = await (supabase as any)
 			.from("partner_engine_settings")
 			.select("company_slug,default_reward_type,default_reward_amount,sla_contact_hours,auto_reward_on_install,notify_partners_on_storm,jobnimbus_sync_stage,created_at,updated_at")
 			.eq("user_id", userId)
@@ -73,7 +73,7 @@ export async function PUT(request: NextRequest) {
 
 		const body = PutSettingsSchema.parse(await request.json());
 
-		const { data: existing } = await supabase
+		const { data: existing } = await (supabase as any)
 			.from("partner_engine_settings")
 			.select("*")
 			.eq("user_id", userId)
@@ -92,7 +92,7 @@ export async function PUT(request: NextRequest) {
 			updated_at: new Date().toISOString(),
 		};
 
-		const { data, error } = await supabase
+		const { data, error } = await (supabase as any)
 			.from("partner_engine_settings")
 			.upsert(upsertPayload, { onConflict: "user_id" })
 			.select()

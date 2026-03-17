@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 		const supabase = await createClient();
 		const body = PublicReferralSchema.parse(await request.json());
 
-		const { data: partner, error: partnerError } = await supabase
+		const { data: partner, error: partnerError } = await (supabase as any)
 			.from("partner_engine_partners")
 			.select("id,user_id,status")
 			.eq("referral_code", body.referralCode)
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 		const userId = (partner as Record<string, unknown>).user_id as string;
 		const partnerId = (partner as Record<string, unknown>).id as string;
 
-		const { data, error } = await supabase
+		const { data, error } = await (supabase as any)
 			.from("partner_engine_referrals")
 			.insert({
 				user_id: userId,
@@ -57,12 +57,9 @@ export async function POST(request: NextRequest) {
 
 		if (error) return errorResponse(error.message, 500);
 
-		await supabase
+		await (supabase as any)
 			.from("partner_engine_partners")
-			.update({
-				total_referrals: (supabase.rpc as unknown) ? undefined : undefined,
-				last_active_at: new Date().toISOString(),
-			})
+			.update({ last_active_at: new Date().toISOString() })
 			.eq("id", partnerId);
 
 		return successResponse(

@@ -81,8 +81,8 @@ async function getAuth() {
 }
 
 async function getSlaContactBy(supabase: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<Date | null> {
-	const { data } = await supabase
-		.from("partner_engine_settings")
+		const { data } = await (supabase as any)
+			.from("partner_engine_settings")
 		.select("sla_contact_hours")
 		.eq("user_id", userId)
 		.single();
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
 		const priority = url.searchParams.get("priority");
 		const source = url.searchParams.get("source");
 
-		let query = supabase
+		let query = (supabase as any)
 			.from("partner_engine_referrals")
 			.select(
 				"id,partner_id,homeowner_name,homeowner_phone,homeowner_email,property_address,city,state,zip,notes,photo_urls,status,priority,source,lost_reason,job_id,contract_value,sla_contact_by,first_contacted_at,external_crm,external_record_id,last_synced_at,sync_error,created_at,updated_at,partner_engine_partners(name)"
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
 			sla_contact_by: slaContactBy?.toISOString() ?? null,
 		};
 
-		const { data, error } = await supabase
+		const { data, error } = await (supabase as any)
 			.from("partner_engine_referrals")
 			.insert(insert)
 			.select()
@@ -188,7 +188,7 @@ export async function PATCH(request: NextRequest) {
 		if (body.priority !== undefined) patch.priority = body.priority;
 		if (body.notes !== undefined) patch.notes = body.notes;
 
-		const { data: existing, error: fetchError } = await supabase
+		const { data: existing, error: fetchError } = await (supabase as any)
 			.from("partner_engine_referrals")
 			.select("id,status,partner_id")
 			.eq("id", body.id)
@@ -200,7 +200,7 @@ export async function PATCH(request: NextRequest) {
 		const prevStatus = (existing as Record<string, unknown>).status as string;
 		const newStatus = body.status as string | undefined;
 
-		const { data, error } = await supabase
+		const { data, error } = await (supabase as any)
 			.from("partner_engine_referrals")
 			.update(patch)
 			.eq("id", body.id)
@@ -211,7 +211,7 @@ export async function PATCH(request: NextRequest) {
 		if (error) return errorResponse(error.message, 500);
 
 		if (newStatus === "roof_installed" && prevStatus !== "roof_installed") {
-			const { data: settings } = await supabase
+			const { data: settings } = await (supabase as any)
 				.from("partner_engine_settings")
 				.select("auto_reward_on_install,default_reward_amount,default_reward_type")
 				.eq("user_id", userId)
@@ -221,7 +221,7 @@ export async function PATCH(request: NextRequest) {
 			if (autoReward) {
 				const amount = Number(settings?.default_reward_amount ?? 250);
 				const partnerId = (existing as Record<string, unknown>).partner_id as string | null;
-				await supabase.from("partner_engine_rewards").insert({
+				await (supabase as any).from("partner_engine_rewards").insert({
 					user_id: userId,
 					partner_id: partnerId,
 					referral_id: body.id,

@@ -19,7 +19,7 @@ export async function POST() {
 
 		// Get or create a test partner
 		let partnerId: string | null = null;
-		const { data: existingPartners } = await supabase
+		const { data: existingPartners } = await (supabase as any)
 			.from("partner_engine_partners")
 			.select("id")
 			.eq("user_id", user.id)
@@ -29,7 +29,7 @@ export async function POST() {
 			partnerId = (existingPartners[0] as { id: string }).id;
 		} else {
 			const referralCode = generateReferralCode();
-			const { data: newPartner, error: partnerError } = await supabase
+			const { data: newPartner, error: partnerError } = await (supabase as any)
 				.from("partner_engine_partners")
 				.insert({
 					user_id: user.id,
@@ -52,7 +52,7 @@ export async function POST() {
 		const mockAddress = `123 Test St, Oklahoma City, OK 73013`;
 		const mockName = `Test Contact ${suffix}`;
 		const mockEmail = `test.${suffix}@example.com`;
-		const { data: referral, error: referralError } = await supabase
+		const { data: referral, error: referralError } = await (supabase as any)
 			.from("partner_engine_referrals")
 			.insert({
 				user_id: user.id,
@@ -90,7 +90,7 @@ export async function POST() {
 		// Actually, fetch to self won't work well with auth. Let me inline the sync logic instead.
 		// I'll refactor to call the sync logic directly.
 		// For now, let me just create the referral and return it - the user can click Sync. Or we can inline the sync.
-		const { data: integration } = await supabase
+		const { data: integration } = await (supabase as any)
 			.from("jobnimbus_integrations")
 			.select("api_key_encrypted")
 			.eq("user_id", user.id)
@@ -123,7 +123,7 @@ export async function POST() {
 						((createContact.data as Record<string, unknown>).id as string) ??
 						((createContact.data as Record<string, unknown>).jnid as string) ??
 						"unknown";
-					await supabase
+					await (supabase as any)
 						.from("partner_engine_referrals")
 						.update({
 							external_crm: "jobnimbus",
@@ -137,7 +137,7 @@ export async function POST() {
 					synced = true;
 				} else {
 					syncError = (createContact.error as { detail?: string })?.detail || "Unknown sync error";
-					await supabase
+					await (supabase as any)
 						.from("partner_engine_referrals")
 						.update({
 							sync_error: syncError,
@@ -148,7 +148,7 @@ export async function POST() {
 				}
 			} catch (err) {
 				syncError = err instanceof Error ? err.message : "Sync failed";
-				await supabase
+				await (supabase as any)
 					.from("partner_engine_referrals")
 					.update({
 						sync_error: syncError,

@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
 		const selectCols =
 			"id,name,business_name,email,phone,partner_type,referral_code,invite_code,status,tier,territory,city,state,zip,total_referrals,total_installs,total_revenue,total_rewards_paid,last_active_at,notes,tags,notify_email,notify_sms,notify_in_app,created_at,updated_at";
 
-		let query = supabase
+		let query = (supabase as any)
 			.from("partner_engine_partners")
 			.select(selectCols)
 			.eq("user_id", userId)
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
 
 		const { data, error } = await query;
 		if (error) return errorResponse(error.message, 500);
-		return successResponse((data ?? []).map((row) => mapPartner(row as Record<string, unknown>)));
+		return successResponse((data ?? []).map((row: Record<string, unknown>) => mapPartner(row)));
 	} catch (error) {
 		return errorResponse(error instanceof Error ? error.message : "Failed to list partners", 500);
 	}
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
 			tags: body.tags ?? [],
 		};
 
-		const { data, error } = await supabase
+		const { data, error } = await (supabase as any)
 			.from("partner_engine_partners")
 			.insert(insert)
 			.select()
@@ -200,7 +200,7 @@ export async function PATCH(request: NextRequest) {
 		if (body.notifySms !== undefined) patch.notify_sms = body.notifySms;
 		if (body.notifyInApp !== undefined) patch.notify_in_app = body.notifyInApp;
 
-		const { data, error } = await supabase
+		const { data, error } = await (supabase as any)
 			.from("partner_engine_partners")
 			.update(patch)
 			.eq("id", body.id)

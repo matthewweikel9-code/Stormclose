@@ -121,7 +121,7 @@ export class JobNimbusClient {
       
       return {
         success: true,
-        data: (data as T) ?? data,
+        data: data as T,
       };
     } catch (error) {
       return {
