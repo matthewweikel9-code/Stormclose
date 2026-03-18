@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { TrendingUp, Users, ArrowRight, Award, Settings } from "lucide-react";
 
 const tabs = [
-	{ label: "Overview", href: "/partner-engine" },
-	{ label: "Partners", href: "/partner-engine/partners" },
-	{ label: "Referrals", href: "/partner-engine/referrals" },
-	{ label: "Rewards", href: "/partner-engine/rewards" },
-	{ label: "Settings", href: "/partner-engine/settings" },
+	{ label: "Overview", href: "/partner-engine", icon: TrendingUp },
+	{ label: "Partners", href: "/partner-engine/partners", icon: Users },
+	{ label: "Referrals", href: "/partner-engine/referrals", icon: ArrowRight },
+	{ label: "Rewards", href: "/partner-engine/rewards", icon: Award },
+	{ label: "Settings", href: "/partner-engine/settings", icon: Settings },
 ];
 
 export default function PartnerEngineLayout({
@@ -19,10 +20,11 @@ export default function PartnerEngineLayout({
 	const pathname = usePathname();
 
 	return (
-		<div className="min-h-screen bg-storm-bg">
-			<div className="border-b border-storm-border bg-storm-z0">
-				<nav className="flex gap-1 px-6 pt-4">
+		<div>
+			<div className="mb-6 glass rounded-2xl p-1.5 overflow-x-auto scrollbar-hide">
+				<nav className="flex items-center gap-1">
 					{tabs.map((tab) => {
+						const Icon = tab.icon;
 						const isActive =
 							tab.href === "/partner-engine"
 								? pathname === "/partner-engine"
@@ -31,22 +33,23 @@ export default function PartnerEngineLayout({
 							<Link
 								key={tab.href}
 								href={tab.href}
-								className={`relative px-4 py-3 text-sm font-medium transition-colors ${
+								className={`relative flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
 									isActive
-										? "text-storm-glow"
-										: "text-storm-muted hover:text-white"
+										? "bg-storm-purple/15 text-storm-glow shadow-glow-sm"
+										: "text-storm-muted hover:bg-storm-z2/60 hover:text-white"
 								}`}
 							>
+								<Icon className={`h-4 w-4 ${isActive ? "text-storm-glow" : ""}`} />
 								{tab.label}
 								{isActive && (
-									<span className="absolute bottom-0 left-0 right-0 h-0.5 bg-storm-purple" />
+									<span className="absolute inset-x-3 -bottom-[7px] h-[2px] rounded-full bg-gradient-to-r from-storm-purple to-storm-glow" />
 								)}
 							</Link>
 						);
 					})}
 				</nav>
 			</div>
-			<main className="p-6">{children}</main>
+			<main>{children}</main>
 		</div>
 	);
 }

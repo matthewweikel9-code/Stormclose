@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Users, UserPlus, Building2, Loader2, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface TeamMember {
 	id: string;
@@ -17,6 +19,28 @@ interface TeamMember {
 	};
 }
 
+const ROLE_BADGE: Record<string, "purple" | "info" | "default"> = {
+	admin: "purple",
+	manager: "info",
+	sales_rep: "default",
+};
+
+function SkeletonRows({ count = 3 }: { count?: number }) {
+	return (
+		<div className="space-y-3 p-4">
+			{Array.from({ length: count }).map((_, i) => (
+				<div key={i} className="flex items-center gap-3">
+					<div className="skeleton h-10 w-10 rounded-xl" />
+					<div className="flex-1 space-y-2">
+						<div className="skeleton h-4 w-3/4 rounded" />
+						<div className="skeleton h-2 w-1/2 rounded" />
+					</div>
+				</div>
+			))}
+		</div>
+	);
+}
+
 export default function TeamSettingsPage() {
 	const [members, setMembers] = useState<TeamMember[]>([]);
 	const [hasTeam, setHasTeam] = useState(false);
@@ -28,9 +52,7 @@ export default function TeamSettingsPage() {
 	const [teamName, setTeamName] = useState("");
 	const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-	useEffect(() => {
-		loadTeam();
-	}, []);
+	useEffect(() => { loadTeam(); }, []);
 
 	const loadTeam = async () => {
 		try {
@@ -42,9 +64,7 @@ export default function TeamSettingsPage() {
 			}
 		} catch (error) {
 			console.error("Error loading team:", error);
-		} finally {
-			setLoading(false);
-		}
+		} finally { setLoading(false); }
 	};
 
 	const createTeam = async () => {
@@ -58,18 +78,16 @@ export default function TeamSettingsPage() {
 				body: JSON.stringify({ name: teamName.trim() }),
 			});
 			if (res.ok) {
-				setMessage({ type: "success", text: "Team created! You can now invite members." });
+				setMessage({ type: "success", text: "Company created! You can now invite employees." });
 				setTeamName("");
 				loadTeam();
 			} else {
 				const data = await res.json();
 				setMessage({ type: "error", text: data.error || "Failed to create team" });
 			}
-		} catch (error) {
-			setMessage({ type: "error", text: "Failed to create team" });
-		} finally {
-			setCreating(false);
-		}
+		} catch {
+			setMessage({ type: "error", text: "Failed to create company" });
+		} finally { setCreating(false); }
 	};
 
 	const inviteMember = async () => {
@@ -82,7 +100,6 @@ export default function TeamSettingsPage() {
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
 			});
-
 			if (res.ok) {
 				setMessage({ type: "success", text: `Invitation sent to ${inviteEmail}` });
 				setInviteEmail("");
@@ -91,187 +108,148 @@ export default function TeamSettingsPage() {
 				const data = await res.json();
 				setMessage({ type: "error", text: data.error || "Failed to invite member" });
 			}
-		} catch (error) {
+		} catch {
 			setMessage({ type: "error", text: "Failed to send invitation" });
-		} finally {
-			setInviting(false);
-		}
+		} finally { setInviting(false); }
 	};
 
 	const removeMember = async (memberId: string) => {
-		if (!confirm("Are you sure you want to remove this team member?")) return;
+		if (!confirm("Are you sure you want to remove this employee?")) return;
 		try {
 			const res = await fetch(`/api/team/members?id=${memberId}`, { method: "DELETE" });
 			if (res.ok) {
 				setMembers(members.filter((m) => m.id !== memberId));
-				setMessage({ type: "success", text: "Team member removed" });
+				setMessage({ type: "success", text: "Employee removed" });
 			}
-		} catch (error) {
+		} catch {
 			setMessage({ type: "error", text: "Failed to remove member" });
-		}
-	};
-
-	const getRoleBadge = (role: string) => {
-		switch (role) {
-			case "admin":
-				return "bg-purple-500/20 text-purple-400 border-purple-500/50";
-			case "manager":
-				return "bg-blue-500/20 text-blue-400 border-blue-500/50";
-			default:
-				return "bg-zinc-700 text-zinc-300 border-zinc-600";
-		}
-	};
-
-	const getStatusBadge = (status: string) => {
-		switch (status) {
-			case "active":
-				return "bg-green-500/20 text-green-400";
-			case "invited":
-				return "bg-yellow-500/20 text-yellow-400";
-			default:
-				return "bg-zinc-700 text-zinc-400";
 		}
 	};
 
 	if (loading) {
 		return (
-			<div className="p-6 max-w-3xl mx-auto">
-				<div className="animate-pulse space-y-4">
-					<div className="h-8 bg-zinc-800 rounded w-48" />
-					<div className="h-64 bg-zinc-800 rounded-xl" />
-				</div>
+			<div className="max-w-3xl space-y-5 animate-fade-in">
+				<div className="flex justify-between"><div className="skeleton h-7 w-52 rounded-lg" /><div className="skeleton h-10 w-36 rounded-xl" /></div>
+				<div className="storm-card"><SkeletonRows count={4} /></div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="p-6 max-w-3xl mx-auto">
-			<div className="mb-6">
-				<h1 className="text-2xl font-bold">Team Management</h1>
-				<p className="text-zinc-400 text-sm mt-1">Invite and manage your team members</p>
+		<div className="max-w-3xl space-y-5">
+			<div>
+				<h1 className="text-lg font-bold text-white">Company Management</h1>
+				<p className="text-2xs text-storm-subtle mt-0.5">Invite employees — they inherit your company&apos;s plan (Enterprise, Pro, etc.)</p>
 			</div>
 
 			{message && (
-				<div className={`mb-4 p-3 rounded-lg text-sm ${message.type === "success" ? "bg-green-500/20 text-green-400 border border-green-500/50" : "bg-red-500/20 text-red-400 border border-red-500/50"}`}>
+				<div className={`rounded-xl border p-3 text-sm ${message.type === "success" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-red-500/30 bg-red-500/10 text-red-400"}`}>
 					{message.text}
 				</div>
 			)}
 
-			{/* Create Team - shown when user has no team */}
+			{/* Create Team */}
 			{!hasTeam && (
-				<div className="bg-zinc-800 rounded-xl p-6 mb-6">
-					<h2 className="text-lg font-semibold mb-2">Create Your Team</h2>
-					<p className="text-zinc-400 text-sm mb-4">Create a team to invite members and collaborate on storm leads.</p>
-					<div className="flex gap-3">
-						<input
-							type="text"
-							value={teamName}
-							onChange={(e) => setTeamName(e.target.value)}
-							onKeyDown={(e) => e.key === "Enter" && createTeam()}
-							placeholder="e.g. Acme Roofing"
-							className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500"
-						/>
-						<button
-							onClick={createTeam}
-							disabled={creating || !teamName.trim()}
-							className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
-						>
-							{creating ? (
-								<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-							) : (
-								"Create Team"
-							)}
-						</button>
+				<section className="storm-card overflow-hidden">
+					<div className="glow-line" />
+					<div className="p-5 space-y-4">
+						<div className="flex items-center gap-3">
+							<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-storm-purple/15">
+								<Building2 className="h-4 w-4 text-storm-glow" />
+							</div>
+							<div>
+								<h2 className="text-sm font-semibold text-white">Create Your Company</h2>
+								<p className="text-2xs text-storm-subtle">Create a company to invite employees. They&apos;ll get the same tier you pay for.</p>
+							</div>
+						</div>
+						<div className="flex gap-2">
+							<input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createTeam()} placeholder="e.g. Acme Roofing" className="dashboard-input flex-1" />
+							<button onClick={createTeam} disabled={creating || !teamName.trim()} className="button-primary flex items-center gap-2 text-sm whitespace-nowrap">
+								{creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+								Create Company
+							</button>
+						</div>
 					</div>
-				</div>
+				</section>
 			)}
 
-			{/* Invite Member - shown when user has a team */}
+			{/* Invite Member */}
 			{hasTeam && (
-			<div className="bg-zinc-800 rounded-xl p-6 mb-6">
-				<h2 className="text-lg font-semibold mb-4">Invite Team Member</h2>
-				<div className="flex gap-3">
-					<input
-						type="email"
-						value={inviteEmail}
-						onChange={(e) => setInviteEmail(e.target.value)}
-						onKeyDown={(e) => e.key === "Enter" && inviteMember()}
-						placeholder="teammate@email.com"
-						className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500"
-					/>
-					<select
-						value={inviteRole}
-						onChange={(e) => setInviteRole(e.target.value as typeof inviteRole)}
-						className="bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500"
-					>
-						<option value="sales_rep">Sales Rep</option>
-						<option value="manager">Manager</option>
-					</select>
-					<button
-						onClick={inviteMember}
-						disabled={inviting || !inviteEmail.trim()}
-						className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-2"
-					>
-						{inviting ? (
-							<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-						) : (
-							"Send Invite"
-						)}
-					</button>
-				</div>
-			</div>
+				<section className="storm-card overflow-hidden">
+					<div className="glow-line" />
+					<div className="p-5 space-y-4">
+						<div className="flex items-center gap-3">
+							<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/15">
+								<UserPlus className="h-4 w-4 text-blue-400" />
+							</div>
+							<div>
+								<h2 className="text-sm font-semibold text-white">Invite Employee</h2>
+								<p className="text-2xs text-storm-subtle">Send an invite to add someone to your company</p>
+							</div>
+						</div>
+						<div className="flex gap-2">
+							<input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && inviteMember()} placeholder="teammate@email.com" className="dashboard-input flex-1" />
+							<select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as typeof inviteRole)} className="dashboard-select">
+								<option value="sales_rep">Sales Rep</option>
+								<option value="manager">Manager</option>
+							</select>
+							<button onClick={inviteMember} disabled={inviting || !inviteEmail.trim()} className="button-primary flex items-center gap-2 text-sm whitespace-nowrap">
+								{inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+								Send Invite
+							</button>
+						</div>
+					</div>
+				</section>
 			)}
 
 			{/* Team Members */}
 			{hasTeam && (
-			<div className="bg-zinc-800 rounded-xl p-6">
-				<div className="flex items-center justify-between mb-4">
-					<h2 className="text-lg font-semibold">Team Members ({members.length})</h2>
-				</div>
-
-				{members.length === 0 ? (
-					<div className="text-center py-12 text-zinc-500">
-						<div className="text-4xl mb-3">👥</div>
-						<p className="font-medium">No team members yet</p>
-						<p className="text-sm mt-1">Invite your team to collaborate on storm leads and routes</p>
+				<section className="storm-card overflow-hidden">
+					<div className="glow-line" />
+					<div className="flex items-center justify-between p-4 pb-2">
+						<div className="flex items-center gap-2">
+							<Users className="h-4 w-4 text-storm-glow" />
+							<h2 className="text-sm font-semibold text-white">Employees</h2>
+							{members.length > 0 && <Badge variant="default">{members.length}</Badge>}
+						</div>
 					</div>
-				) : (
-					<div className="space-y-3">
-						{members.map((member) => (
-							<div key={member.id} className="flex items-center justify-between p-4 bg-zinc-900 rounded-lg border border-zinc-700">
-								<div className="flex items-center gap-4">
-									<div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">
+					{members.length === 0 ? (
+						<div className="flex flex-col items-center justify-center py-14 px-4">
+							<div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-storm-z2 mb-3">
+								<Users className="h-7 w-7 text-storm-subtle" />
+							</div>
+							<p className="text-sm font-medium text-white">No employees yet</p>
+							<p className="text-xs text-storm-subtle mt-1">Invite employees — they&apos;ll get your company&apos;s plan tier</p>
+						</div>
+					) : (
+						<div className="stagger-children px-4 pb-4">
+							{members.map((member) => (
+								<div key={member.id} className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-storm-z2/30 transition-colors">
+									<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-storm-purple/20 to-storm-glow/10 text-sm font-bold text-storm-glow flex-shrink-0">
 										{(member.full_name || member.email).charAt(0).toUpperCase()}
 									</div>
-									<div>
-										<div className="font-medium">{member.full_name || member.email}</div>
-										<div className="text-sm text-zinc-500">{member.email}</div>
+									<div className="flex-1 min-w-0">
+										<div className="flex items-center gap-2 flex-wrap">
+											<span className="text-sm font-medium text-white truncate">{member.full_name || member.email}</span>
+											<Badge variant={ROLE_BADGE[member.role] ?? "default"}>
+												{member.role === "sales_rep" ? "Sales Rep" : member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+											</Badge>
+											<Badge variant={member.status === "active" ? "success" : member.status === "invited" ? "warning" : "default"}>
+												{member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+											</Badge>
+										</div>
+										<p className="text-2xs text-storm-subtle mt-0.5 truncate">{member.email}</p>
 									</div>
-								</div>
-								<div className="flex items-center gap-3">
-									<span className={`px-2 py-1 rounded text-xs font-medium border ${getRoleBadge(member.role)}`}>
-										{member.role === "sales_rep" ? "Sales Rep" : member.role.charAt(0).toUpperCase() + member.role.slice(1)}
-									</span>
-									<span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(member.status)}`}>
-										{member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-									</span>
 									{member.role !== "admin" && (
-										<button
-											onClick={() => removeMember(member.id)}
-											className="p-1.5 text-zinc-500 hover:text-red-500 transition-colors"
-											title="Remove member"
-										>
-											<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-											</svg>
+										<button onClick={() => void removeMember(member.id)} className="rounded-lg p-2 text-storm-subtle hover:text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0" title="Remove employee">
+											<Trash2 className="h-4 w-4" />
 										</button>
 									)}
 								</div>
-							</div>
-						))}
-					</div>
-				)}
-			</div>
+							))}
+						</div>
+					)}
+				</section>
 			)}
 		</div>
 	);

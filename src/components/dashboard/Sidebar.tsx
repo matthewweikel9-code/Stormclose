@@ -69,11 +69,12 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0a5.002 5.002 0 00-9.288 0M7 20H2v-2a3 3 0 015.356-1.857M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
 				</svg>
 			),
-			badge: "NEW",
-			badgeVariant: "warning" as const,
+			badge: "Enterprise",
+			badgeVariant: "success" as const,
+			requiresEnterprise: true,
 		},
 		{
-			label: "Deal Desk",
+			label: "Documents",
 			href: "/dashboard/documents",
 			icon: (
 				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -82,7 +83,7 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 			),
 		},
 		{
-			label: "Team",
+			label: "Company",
 			href: "/dashboard/team",
 			icon: (
 				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,6 +92,19 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 			),
 			badge: "Enterprise",
 			badgeVariant: "success" as const,
+			requiresEnterprise: true,
+		},
+		{
+			label: "Mission Control",
+			href: "/dashboard/mission-control",
+			matchPrefixes: ["/dashboard/mission-control"],
+			icon: (
+				<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+				</svg>
+			),
+			badge: "TV",
+			badgeVariant: "live" as const,
 			requiresEnterprise: true,
 		},
 		{

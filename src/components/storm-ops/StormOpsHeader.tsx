@@ -1,5 +1,8 @@
 "use client";
 
+import { MapPin, Radar, RefreshCw, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
 interface StormOpsHeaderProps {
   isLive: boolean;
   setIsLive: (v: boolean) => void;
@@ -30,56 +33,55 @@ export function StormOpsHeader({
   loading,
 }: StormOpsHeaderProps) {
   return (
-    <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/50">
-      <div className="flex items-center gap-4">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-storm-glow to-storm-purple bg-clip-text text-transparent">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-storm-border/50 glass shrink-0">
+      <div className="flex items-center gap-3">
+        <h1 className="text-lg font-bold text-gradient-purple tracking-tight">
           Storm Ops
         </h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsLive(!isLive)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 transition-colors ${
-              isLive ? "bg-storm-purple text-white" : "bg-zinc-700 text-zinc-300"
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${isLive ? "bg-storm-glow animate-pulse" : "bg-zinc-500"}`} />
-            {isLive ? "LIVE" : "Historical"}
-          </button>
-          {dataSource && dataSource !== "loading" && (
-            <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-1 rounded">
-              Source: {dataSource}
-            </span>
-          )}
-        </div>
+        <button
+          onClick={() => setIsLive(!isLive)}
+          className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+            isLive
+              ? "bg-storm-purple/20 text-storm-glow border border-storm-purple/30 shadow-glow-sm"
+              : "bg-storm-z2 text-storm-muted border border-storm-border hover:border-storm-purple/30"
+          }`}
+        >
+          <span className={`h-2 w-2 rounded-full ${isLive ? "bg-storm-glow animate-pulse" : "bg-storm-subtle"}`} />
+          {isLive ? "LIVE" : "Historical"}
+        </button>
+        {dataSource && dataSource !== "loading" && (
+          <Badge variant="default">{dataSource}</Badge>
+        )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <button
           onClick={getLocation}
           disabled={geoLoading}
-          className={`p-2 rounded-lg transition-colors ${
-            hasLocation ? "bg-storm-purple/20 text-storm-glow" : "bg-zinc-800 hover:bg-zinc-700"
+          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+            hasLocation
+              ? "bg-storm-purple/20 text-storm-glow border border-storm-purple/30"
+              : "bg-storm-z2 text-storm-muted border border-storm-border hover:border-storm-purple/30 hover:text-white"
           }`}
           title={hasLocation ? "Location active" : "Use my location"}
         >
           {geoLoading ? (
-            <div className="w-5 h-5 border-2 border-storm-purple border-t-transparent rounded-full animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+            <MapPin className="h-4 w-4" />
           )}
         </button>
 
         <button
           onClick={() => setShowRadar(!showRadar)}
-          className={`p-2 rounded-lg transition-colors ${
-            showRadar ? "bg-storm-purple text-white" : "bg-zinc-800 hover:bg-zinc-700"
+          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+            showRadar
+              ? "bg-storm-purple/20 text-storm-glow border border-storm-purple/30"
+              : "bg-storm-z2 text-storm-muted border border-storm-border hover:border-storm-purple/30 hover:text-white"
           }`}
           title="Toggle radar"
         >
-          📡
+          <Radar className="h-4 w-4" />
         </button>
 
         {!isLive && (
@@ -87,17 +89,17 @@ export function StormOpsHeader({
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm focus:border-storm-purple/50 focus:ring-1 focus:ring-storm-purple/20"
+            className="dashboard-input text-xs py-1.5 px-2.5"
           />
         )}
+
         <button
           onClick={fetchStormData}
           disabled={loading}
-          className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-storm-z2 text-storm-muted border border-storm-border hover:border-storm-purple/30 hover:text-white transition-all disabled:opacity-50"
+          title="Refresh"
         >
-          <svg className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
     </div>

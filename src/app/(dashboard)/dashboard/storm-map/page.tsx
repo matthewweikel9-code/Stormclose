@@ -12,10 +12,10 @@ import { KPIStrip } from "@/components/storm-ops/KPIStrip";
 const MapboxMap = dynamic(() => import("@/components/ui/MapboxMap"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+    <div className="w-full h-full flex items-center justify-center bg-storm-z0">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-zinc-400">Loading map...</span>
+        <div className="w-8 h-8 border-2 border-storm-purple border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm text-storm-muted">Loading map...</span>
       </div>
     </div>
   ),
@@ -989,13 +989,13 @@ export default function StormMapPage() {
   const getMissionStatusBadge = (status: MissionStatus) => {
     switch (status) {
       case "in_progress":
-        return "bg-emerald-500/20 text-emerald-400";
+        return "bg-emerald-500/15 text-emerald-400";
       case "planned":
-        return "bg-blue-500/20 text-blue-400";
+        return "bg-blue-500/15 text-blue-400";
       case "completed":
-        return "bg-purple-500/20 text-purple-300";
+        return "bg-storm-purple/15 text-storm-glow";
       default:
-        return "bg-red-500/20 text-red-400";
+        return "bg-red-500/15 text-red-400";
     }
   };
 
@@ -1003,15 +1003,15 @@ export default function StormMapPage() {
     switch (outcome) {
       case "appointment_set":
       case "inspection_set":
-        return "bg-emerald-500/20 text-emerald-400";
+        return "bg-emerald-500/15 text-emerald-400";
       case "knocked":
-        return "bg-blue-500/20 text-blue-400";
+        return "bg-blue-500/15 text-blue-400";
       case "not_home":
-        return "bg-yellow-500/20 text-yellow-400";
+        return "bg-amber-500/15 text-amber-400";
       case "pending":
-        return "bg-zinc-700 text-zinc-300";
+        return "bg-storm-z2 text-storm-muted";
       default:
-        return "bg-red-500/20 text-red-400";
+        return "bg-red-500/15 text-red-400";
     }
   };
 
@@ -1070,19 +1070,19 @@ export default function StormMapPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left Rail */}
-        <div className="w-[280px] border-r border-zinc-800 bg-zinc-900/50 flex flex-col shrink-0 overflow-hidden">
-          <div className="p-3 border-b border-zinc-800">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-0.5">Storm Events</h3>
-            <p className="text-[10px] text-zinc-500 mb-2">Select to deploy mission route</p>
+        <div className="w-[280px] border-r border-storm-border/50 bg-storm-z0/60 backdrop-blur-sm flex flex-col shrink-0 overflow-hidden">
+          <div className="p-3 border-b border-storm-border/30">
+            <h3 className="text-2xs font-semibold uppercase tracking-wider text-storm-subtle mb-0.5">Storm Events</h3>
+            <p className="text-[10px] text-storm-subtle mb-2">Select to deploy mission route</p>
             <div className="flex items-center gap-1 mb-2">
               {[7, 30, 60, 90].map((days) => (
                 <button
                   key={days}
                   onClick={() => setTimelineDays(days)}
-                  className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+                  className={`text-[10px] px-2 py-1 rounded-lg border transition-all ${
                     timelineDays === days
-                      ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
-                      : "text-zinc-400 border-zinc-700 hover:border-zinc-500"
+                      ? "bg-storm-purple/20 text-storm-glow border-storm-purple/40 shadow-glow-sm"
+                      : "text-storm-muted border-storm-border/50 hover:border-storm-purple/30"
                   }`}
                 >
                   {days}d
@@ -1095,14 +1095,14 @@ export default function StormMapPage() {
                 const lng = longitude || -98.0;
                 void fetchTimeline(lat, lng, timelineDays);
               }}
-              className="text-[10px] px-2 py-1 rounded border border-zinc-700 hover:border-zinc-500 text-zinc-300"
+              className="text-[10px] px-2 py-1 rounded-lg border border-storm-border/50 hover:border-storm-purple/30 text-storm-muted hover:text-white transition-colors"
             >
               Refresh
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
             {!timelineLoading && timeline.length === 0 && storms.length > 0 && (
-              <div className="mx-2 mb-2 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-[10px] text-amber-300">
+              <div className="mx-2 mt-2 mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-[10px] text-amber-300">
                 {timelineError ? (
                   <>Timeline error: {timelineError}. Showing live storm reports.</>
                 ) : (
@@ -1112,10 +1112,10 @@ export default function StormMapPage() {
             )}
             {timelineLoading ? (
               <div className="py-6 flex justify-center">
-                <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-storm-purple border-t-transparent rounded-full animate-spin" />
               </div>
             ) : timelineForDisplay.length === 0 ? (
-              <div className="px-3 py-4 text-center text-xs text-zinc-500">No storm events</div>
+              <div className="px-3 py-4 text-center text-xs text-storm-subtle">No storm events</div>
             ) : (
               <div className="space-y-0.5 p-2">
                 {timelineForDisplay.slice(0, 25).map((event) => {
@@ -1145,35 +1145,37 @@ export default function StormMapPage() {
                           setFocusedMapZoom(11);
                         }
                       }}
-                      className={`w-full text-left p-2 rounded-lg border transition-colors ${
-                        isSelected ? "bg-purple-500/10 border-purple-500/40" : "bg-zinc-800/50 border-zinc-700/80 hover:border-zinc-600"
+                      className={`w-full text-left p-2 rounded-xl border transition-all ${
+                        isSelected ? "bg-storm-purple/10 border-storm-purple/40 shadow-glow-sm" : "bg-storm-z1/50 border-storm-border/30 hover:border-storm-purple/20"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs truncate">
+                        <span className="text-xs truncate text-white">
                           {event.type === "hail" ? "🧊" : event.type === "tornado" ? "🌪️" : event.type === "wind" ? "💨" : "⛈️"}{" "}
                           {event.location}
                           {event.hailSize ? ` (${event.hailSize}")` : ""}
                         </span>
-                        <span className="text-[10px] text-zinc-500 shrink-0">{event.daysAgo === 0 ? "Today" : `${event.daysAgo}d`}</span>
+                        <span className="text-[10px] text-storm-subtle shrink-0">{event.daysAgo === 0 ? "Today" : `${event.daysAgo}d`}</span>
                       </div>
-                      <div className="text-[10px] text-purple-300 font-medium mt-0.5">{formatPipeline(event.estimatedOpportunity)}</div>
+                      <div className="text-[10px] text-storm-glow font-medium mt-0.5">{formatPipeline(event.estimatedOpportunity)}</div>
                     </button>
                   );
                 })}
               </div>
             )}
           </div>
-          <div className="p-3 border-t border-zinc-800">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Mission Routes</h3>
-            <button
-              onClick={() => void fetchMissions()}
-              className="text-[10px] px-2 py-1 rounded border border-zinc-700 hover:border-zinc-500 text-zinc-300 mb-2"
-            >
-              Refresh
-            </button>
+          <div className="p-3 border-t border-storm-border/30">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-2xs font-semibold uppercase tracking-wider text-storm-subtle">Mission Routes</h3>
+              <button
+                onClick={() => void fetchMissions()}
+                className="text-[10px] px-2 py-0.5 rounded-lg border border-storm-border/50 hover:border-storm-purple/30 text-storm-muted hover:text-white transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
             {missions.length === 0 ? (
-              <div className="text-xs text-zinc-500 py-2">No missions</div>
+              <div className="text-xs text-storm-subtle py-2">No missions</div>
             ) : (
               <div className="space-y-0.5 max-h-32 overflow-y-auto">
                 {missions.slice(0, 10).map((mission) => (
@@ -1184,17 +1186,17 @@ export default function StormMapPage() {
                       setSelectedTimelineEvent(null);
                       void fetchMissionDetail(mission.id);
                     }}
-                    className={`w-full text-left p-2 rounded-lg border transition-colors ${
-                      activeMission?.id === mission.id ? "bg-purple-500/10 border-purple-500/40" : "bg-zinc-800/50 border-zinc-700/80 hover:border-zinc-600"
+                    className={`w-full text-left p-2 rounded-xl border transition-all ${
+                      activeMission?.id === mission.id ? "bg-storm-purple/10 border-storm-purple/40 shadow-glow-sm" : "bg-storm-z1/50 border-storm-border/30 hover:border-storm-purple/20"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-xs truncate">{mission.name}</span>
-                      <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${getMissionStatusBadge(mission.status)}`}>
+                      <span className="text-xs truncate text-white">{mission.name}</span>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold ${getMissionStatusBadge(mission.status)}`}>
                         {mission.status.replace("_", " ")}
                       </span>
                     </div>
-                    <div className="text-[10px] text-zinc-400">{mission.totalStops} stops · {formatPipeline(mission.estimatedPipeline)}</div>
+                    <div className="text-[10px] text-storm-muted">{mission.totalStops} stops · {formatPipeline(mission.estimatedPipeline)}</div>
                   </button>
                 ))}
               </div>
@@ -1205,7 +1207,7 @@ export default function StormMapPage() {
         {/* Map */}
         <div className="flex-1 relative min-w-0">
           {/* Layer Controls */}
-          <div className="absolute top-4 left-4 z-10 bg-zinc-900/95 rounded-xl border border-zinc-700 p-2 flex flex-col gap-1">
+          <div className="absolute top-4 left-4 z-10 glass rounded-xl p-1.5 flex flex-col gap-0.5">
             {[
               { id: "all", label: "All Layers", icon: "🗺️" },
               { id: "hail", label: "Hail", icon: "🧊" },
@@ -1216,10 +1218,10 @@ export default function StormMapPage() {
               <button
                 key={layer.id}
                 onClick={() => setActiveLayer(layer.id as typeof activeLayer)}
-                className={`px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${
+                className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-all ${
                   activeLayer === layer.id
-                    ? "bg-storm-purple text-white"
-                    : "hover:bg-zinc-800 text-zinc-400"
+                    ? "bg-storm-purple/20 text-storm-glow shadow-glow-sm"
+                    : "hover:bg-storm-z2/60 text-storm-muted hover:text-white"
                 }`}
               >
                 <span>{layer.icon}</span>
@@ -1229,29 +1231,29 @@ export default function StormMapPage() {
           </div>
 
           {/* Legend */}
-          <div className="absolute bottom-4 left-4 z-10 bg-zinc-900/95 rounded-xl border border-zinc-700 p-4">
-            <h4 className="text-sm font-semibold mb-3">Storm Severity</h4>
-            <div className="space-y-2 text-sm">
+          <div className="absolute bottom-4 left-4 z-10 glass rounded-xl p-3.5">
+            <h4 className="text-xs font-semibold text-white mb-2">Storm Severity</h4>
+            <div className="space-y-1.5 text-xs">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-600" />
-                <span className="text-zinc-400">Extreme</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-red-600" />
+                <span className="text-storm-muted">Extreme</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-orange-500" />
-                <span className="text-zinc-400">Severe</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                <span className="text-storm-muted">Severe</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-yellow-500" />
-                <span className="text-zinc-400">Moderate</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                <span className="text-storm-muted">Moderate</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-blue-500" />
-                <span className="text-zinc-400">Minor</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                <span className="text-storm-muted">Minor</span>
               </div>
             </div>
             {hasLocation && (
-              <div className="mt-3 pt-3 border-t border-zinc-700 text-xs text-zinc-500">
-                📍 Your location: {latitude?.toFixed(4)}, {longitude?.toFixed(4)}
+              <div className="mt-2.5 pt-2.5 border-t border-storm-border/30 text-2xs text-storm-subtle">
+                📍 {latitude?.toFixed(4)}, {longitude?.toFixed(4)}
               </div>
             )}
           </div>
@@ -1271,10 +1273,10 @@ export default function StormMapPage() {
 
           {/* Loading overlay */}
           {loading && (
-            <div className="absolute inset-0 bg-zinc-950/60 flex items-center justify-center z-20">
-              <div className="flex flex-col items-center gap-3 bg-zinc-900 p-6 rounded-xl">
+            <div className="absolute inset-0 bg-storm-z0/70 backdrop-blur-sm flex items-center justify-center z-20">
+              <div className="flex flex-col items-center gap-3 glass rounded-2xl p-6 shadow-depth-3">
                 <div className="w-8 h-8 border-2 border-storm-purple border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm text-zinc-400">
+                <span className="text-sm text-storm-muted">
                   {geoLoading ? "Getting your location..." : "Loading storm data from Xweather..."}
                 </span>
               </div>
@@ -1283,18 +1285,18 @@ export default function StormMapPage() {
 
           {/* Geo error message */}
           {geoError && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 bg-yellow-600/95 text-white px-4 py-3 rounded-lg text-sm shadow-lg flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
-              <span>⚠️ {geoError}</span>
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 glass rounded-xl border border-amber-500/30 px-4 py-3 text-sm shadow-depth-2 flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+              <span className="text-amber-300">⚠️ {geoError}</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => getLocation()}
-                  className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded font-medium text-xs"
+                  className="button-secondary text-xs px-3 py-1.5"
                 >
                   Retry
                 </button>
                 <Link
                   href="/settings/profile"
-                  className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded font-medium text-xs"
+                  className="button-secondary text-xs px-3 py-1.5"
                 >
                   Set default location
                 </Link>
@@ -1304,23 +1306,23 @@ export default function StormMapPage() {
         </div>
 
         {/* Right Context Panel */}
-        <div className="w-[320px] border-l border-zinc-800 bg-zinc-900/50 flex flex-col shrink-0 overflow-hidden">
+        <div className="w-[320px] border-l border-storm-border/50 bg-storm-z0/60 backdrop-blur-sm flex flex-col shrink-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto">
             {/* Active Alerts */}
             {alerts.length > 0 && (
-              <div className="p-3 border-b border-zinc-800 bg-red-900/20">
-                <h3 className="text-xs font-semibold text-red-400 mb-2">Active Alerts ({alerts.length})</h3>
-                <div className="space-y-2">
+              <div className="p-3 border-b border-red-500/20 bg-red-500/5">
+                <h3 className="text-2xs font-semibold uppercase tracking-wider text-red-400 mb-2">Active Alerts ({alerts.length})</h3>
+                <div className="space-y-1.5">
                   {alerts.slice(0, 3).map((alert) => (
                     <div
                       key={alert.id}
-                      className={`p-2 rounded-lg border text-sm ${
-                        alert.emergency ? "bg-red-900/40 border-red-700" : "bg-zinc-800 border-zinc-700"
+                      className={`p-2.5 rounded-xl border text-sm ${
+                        alert.emergency ? "bg-red-500/10 border-red-500/30" : "bg-storm-z1/50 border-storm-border/30"
                       }`}
                     >
-                      <div className="font-medium">{alert.name}</div>
-                      <div className="text-xs text-zinc-400 mt-0.5">{alert.location}</div>
-                      <div className="text-xs text-zinc-500">Expires: {formatTime(alert.expiresAt)}</div>
+                      <div className="font-medium text-white text-xs">{alert.name}</div>
+                      <div className="text-2xs text-storm-muted mt-0.5">{alert.location}</div>
+                      <div className="text-2xs text-storm-subtle">Expires: {formatTime(alert.expiresAt)}</div>
                     </div>
                   ))}
                 </div>
@@ -1329,20 +1331,20 @@ export default function StormMapPage() {
 
             {/* Context: Storm or Timeline Event */}
             {(selectedStorm || selectedTimelineEvent) && !activeMission && (
-              <div className="p-3 border-b border-zinc-800">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">Context</h3>
+              <div className="p-3 border-b border-storm-border/30">
+                <h3 className="text-2xs font-semibold uppercase tracking-wider text-storm-subtle mb-3">Context</h3>
                 {selectedStorm && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <span className="text-2xl">{getTypeIcon(selectedStorm.type)}</span>
                       <div>
-                        <div className="font-bold capitalize">{selectedStorm.type.replace("_", " ")}</div>
-                        <div className={`text-xs ${getSeverityColor(selectedStorm.severity)} px-2 py-0.5 rounded inline-block text-white`}>
+                        <div className="font-bold text-white capitalize text-sm">{selectedStorm.type.replace("_", " ")}</div>
+                        <div className={`text-[10px] ${getSeverityColor(selectedStorm.severity)} px-2 py-0.5 rounded-md inline-block text-white font-bold`}>
                           {selectedStorm.severity.toUpperCase()}
                         </div>
                       </div>
                     </div>
-                    <div className="text-xs text-zinc-400">
+                    <div className="text-xs text-storm-muted">
                       {resolveDisplayLocation({
                         location: selectedStorm.location ?? null,
                         county: selectedStorm.county ?? null,
@@ -1351,17 +1353,17 @@ export default function StormMapPage() {
                         lng: selectedStorm.lng,
                       })}
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div><span className="text-zinc-500 text-xs">Damage</span><div className="font-bold">{selectedStorm.damageScore}/100</div></div>
-                      <div><span className="text-zinc-500 text-xs">Radius</span><div className="font-bold">{selectedStorm.radius} mi</div></div>
-                      {selectedStorm.hailSize && <div><span className="text-zinc-500 text-xs">Hail</span><div className="font-bold">{selectedStorm.hailSize}"</div></div>}
-                      {selectedStorm.windSpeed && <div><span className="text-zinc-500 text-xs">Wind</span><div className="font-bold">{selectedStorm.windSpeed} mph</div></div>}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-2"><span className="text-2xs text-storm-subtle">Damage</span><div className="text-sm font-bold text-white">{selectedStorm.damageScore}/100</div></div>
+                      <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-2"><span className="text-2xs text-storm-subtle">Radius</span><div className="text-sm font-bold text-white">{selectedStorm.radius} mi</div></div>
+                      {selectedStorm.hailSize && <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-2"><span className="text-2xs text-storm-subtle">Hail</span><div className="text-sm font-bold text-white">{selectedStorm.hailSize}"</div></div>}
+                      {selectedStorm.windSpeed && <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-2"><span className="text-2xs text-storm-subtle">Wind</span><div className="text-sm font-bold text-white">{selectedStorm.windSpeed} mph</div></div>}
                     </div>
-                    <div className="space-y-2 pt-2 border-t border-zinc-700">
+                    <div className="space-y-2 pt-2 border-t border-storm-border/20">
                       <button
                         onClick={() => void deployToTimelineEvent(stormToTimelineEvent(selectedStorm))}
                         disabled={missionLoading}
-                        className="w-full bg-storm-purple hover:bg-storm-purple/90 text-white py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+                        className="button-primary w-full text-sm flex items-center justify-center"
                       >
                         {missionLoading ? "Deploying..." : "Deploy Mission Route"}
                       </button>
@@ -1372,7 +1374,7 @@ export default function StormMapPage() {
                           if (selectedStorm.lng) params.set("lng", String(selectedStorm.lng));
                           window.open(`/dashboard/knock-list?${params.toString()}`, "_self");
                         }}
-                        className="w-full bg-zinc-600 hover:bg-zinc-500 text-white py-2 rounded-lg text-sm font-medium"
+                        className="button-secondary w-full text-sm flex items-center justify-center"
                       >
                         Generate Knock List
                       </button>
@@ -1386,19 +1388,19 @@ export default function StormMapPage() {
                         {selectedTimelineEvent.type === "hail" ? "🧊" : selectedTimelineEvent.type === "tornado" ? "🌪️" : selectedTimelineEvent.type === "wind" ? "💨" : "⛈️"}
                       </span>
                       <div>
-                        <div className="font-bold">{selectedTimelineEvent.location}</div>
-                        <div className="text-xs text-zinc-400">{formatPipeline(selectedTimelineEvent.estimatedOpportunity)} · {selectedTimelineEvent.estimatedProperties} props</div>
+                        <div className="font-bold text-white text-sm">{selectedTimelineEvent.location}</div>
+                        <div className="text-xs text-storm-muted">{formatPipeline(selectedTimelineEvent.estimatedOpportunity)} · {selectedTimelineEvent.estimatedProperties} props</div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div><span className="text-zinc-500">Canvassed</span><div className="font-medium">{selectedTimelineEvent.propertiesCanvassed}</div></div>
-                      <div><span className="text-zinc-500">Leads</span><div className="font-medium">{selectedTimelineEvent.leadsGenerated}</div></div>
-                      <div><span className="text-zinc-500">Appts</span><div className="font-medium">{selectedTimelineEvent.appointmentsSet}</div></div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-2 text-center"><span className="text-2xs text-storm-subtle">Canvassed</span><div className="text-xs font-bold text-white">{selectedTimelineEvent.propertiesCanvassed}</div></div>
+                      <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-2 text-center"><span className="text-2xs text-storm-subtle">Leads</span><div className="text-xs font-bold text-white">{selectedTimelineEvent.leadsGenerated}</div></div>
+                      <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-2 text-center"><span className="text-2xs text-storm-subtle">Appts</span><div className="text-xs font-bold text-emerald-400">{selectedTimelineEvent.appointmentsSet}</div></div>
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); void deployToTimelineEvent(selectedTimelineEvent); }}
                       disabled={missionLoading}
-                      className="w-full bg-storm-purple hover:bg-storm-purple/90 text-white py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+                      className="button-primary w-full text-sm flex items-center justify-center"
                     >
                       {missionLoading ? "Deploying..." : "Deploy Mission Route"}
                     </button>
@@ -1409,81 +1411,81 @@ export default function StormMapPage() {
 
             {/* Context: Mission */}
             {activeMission && (
-              <div className="p-3 border-b border-zinc-800">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">Mission</h3>
+              <div className="p-3 border-b border-storm-border/30">
+                <h3 className="text-2xs font-semibold uppercase tracking-wider text-storm-subtle mb-3">Mission</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold truncate pr-2">{activeMission.name}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${getMissionStatusBadge(activeMission.status)}`}>
+                    <span className="text-sm font-semibold text-white truncate pr-2">{activeMission.name}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${getMissionStatusBadge(activeMission.status)}`}>
                       {activeMission.status.replace("_", " ").toUpperCase()}
                     </span>
                   </div>
-                  <div className="w-full h-2 bg-zinc-700 rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-storm-z2 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-purple-500 rounded-full transition-all"
+                      className="h-full bg-gradient-to-r from-storm-purple to-storm-glow rounded-full transition-all"
                       style={{ width: `${activeMission.totalStops > 0 ? (activeMission.stopsCompleted / activeMission.totalStops) * 100 : 0}%` }}
                     />
                   </div>
                   <div className="grid grid-cols-4 gap-1 text-center text-[10px]">
-                    <div><div className="font-bold">{activeMission.stopsCompleted}/{activeMission.totalStops}</div><div className="text-zinc-500">Stops</div></div>
-                    <div><div className="font-bold">{activeMission.stopsKnocked}</div><div className="text-zinc-500">Knocked</div></div>
-                    <div><div className="font-bold text-emerald-400">{activeMission.appointmentsSet}</div><div className="text-zinc-500">Appts</div></div>
-                    <div><div className="font-bold text-purple-300">{formatPipeline(activeMission.estimatedPipeline)}</div><div className="text-zinc-500">Pipeline</div></div>
+                    <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-1.5"><div className="font-bold text-white">{activeMission.stopsCompleted}/{activeMission.totalStops}</div><div className="text-storm-subtle">Stops</div></div>
+                    <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-1.5"><div className="font-bold text-white">{activeMission.stopsKnocked}</div><div className="text-storm-subtle">Knocked</div></div>
+                    <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-1.5"><div className="font-bold text-emerald-400">{activeMission.appointmentsSet}</div><div className="text-storm-subtle">Appts</div></div>
+                    <div className="rounded-lg bg-storm-z1/60 border border-storm-border/20 p-1.5"><div className="font-bold text-storm-glow">{formatPipeline(activeMission.estimatedPipeline)}</div><div className="text-storm-subtle">Pipeline</div></div>
                   </div>
                   <div className="grid grid-cols-3 gap-1">
                     <button
                       onClick={() => void updateMissionStatus("start")}
                       disabled={missionLoading || activeMission.status === "in_progress" || activeMission.status === "completed"}
-                      className="text-[10px] rounded py-1 bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-50"
+                      className="text-[10px] rounded-lg py-1 bg-blue-500/15 text-blue-300 border border-blue-500/20 hover:bg-blue-500/25 disabled:opacity-40 transition-colors"
                     >Start</button>
                     <button
                       onClick={() => void updateMissionStatus("complete")}
                       disabled={missionLoading || activeMission.status === "completed" || activeMission.status === "cancelled"}
-                      className="text-[10px] rounded py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 disabled:opacity-50"
+                      className="text-[10px] rounded-lg py-1 bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/25 disabled:opacity-40 transition-colors"
                     >Complete</button>
                     <button
                       onClick={() => void updateMissionStatus("cancel")}
                       disabled={missionLoading || activeMission.status === "cancelled" || activeMission.status === "completed"}
-                      className="text-[10px] rounded py-1 bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 disabled:opacity-50"
+                      className="text-[10px] rounded-lg py-1 bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/25 disabled:opacity-40 transition-colors"
                     >Cancel</button>
                   </div>
                   {missionError && (
-                    <div className="rounded border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-300">{missionError}</div>
+                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-300">{missionError}</div>
                   )}
                   {missionRouteInfo && (
-                    <div className="bg-zinc-800 rounded p-2 text-xs">
-                      <div className="flex justify-between text-zinc-400 mb-1">{missionRouteInfo.totalDistance} · {missionRouteInfo.totalDuration}</div>
+                    <div className="glass-subtle rounded-lg p-2 text-xs">
+                      <div className="flex justify-between text-storm-muted">{missionRouteInfo.totalDistance} · {missionRouteInfo.totalDuration}</div>
                     </div>
                   )}
                   {missionStops.length > 0 ? (
                     <div className="space-y-1 max-h-[200px] overflow-y-auto">
                       {missionStops.map((stop) => (
-                        <div key={stop.id} className="p-2 rounded border border-zinc-700 bg-zinc-800">
+                        <div key={stop.id} className="p-2 rounded-xl border border-storm-border/20 bg-storm-z1/50">
                           <div className="flex items-center justify-between gap-1 mb-1">
-                            <span className="text-xs truncate">#{stop.stopOrder} {resolveStopAddress(stop)}</span>
+                            <span className="text-xs truncate text-white">#{stop.stopOrder} {resolveStopAddress(stop)}</span>
                             <span className="flex items-center gap-1">
                               {stop.outcome === "appointment_set" && exportedStopIds.has(stop.id) && (
-                                <span className="text-[9px] text-emerald-400">✓ JobNimbus</span>
+                                <span className="text-[9px] text-emerald-400">✓ JN</span>
                               )}
-                              <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${getOutcomeBadge(stop.outcome)}`}>{stop.outcome.replace("_", " ").toUpperCase()}</span>
+                              <span className={`text-[9px] px-1 py-0.5 rounded-md font-bold ${getOutcomeBadge(stop.outcome)}`}>{stop.outcome.replace("_", " ").toUpperCase()}</span>
                             </span>
                           </div>
                           {stop.outcome === "pending" && (
                             <div className="grid grid-cols-2 gap-1 mt-1">
-                              <button onClick={() => void updateStopOutcome(stop.id, "knocked")} disabled={missionLoading} className="text-[9px] bg-blue-500/15 text-blue-300 border border-blue-500/30 rounded py-0.5 hover:bg-blue-500/25 disabled:opacity-50">Knocked</button>
-                              <button onClick={() => void updateStopOutcome(stop.id, "not_home")} disabled={missionLoading} className="text-[9px] bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 rounded py-0.5 hover:bg-yellow-500/25 disabled:opacity-50">Not Home</button>
-                              <button onClick={() => void updateStopOutcome(stop.id, "appointment_set")} disabled={missionLoading} className="text-[9px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded py-0.5 hover:bg-emerald-500/25 disabled:opacity-50">Appt</button>
-                              <button onClick={() => void updateStopOutcome(stop.id, "not_interested")} disabled={missionLoading} className="text-[9px] bg-red-500/15 text-red-300 border border-red-500/30 rounded py-0.5 hover:bg-red-500/25 disabled:opacity-50">No</button>
+                              <button onClick={() => void updateStopOutcome(stop.id, "knocked")} disabled={missionLoading} className="text-[9px] bg-blue-500/10 text-blue-300 border border-blue-500/20 rounded-md py-0.5 hover:bg-blue-500/20 disabled:opacity-40 transition-colors">Knocked</button>
+                              <button onClick={() => void updateStopOutcome(stop.id, "not_home")} disabled={missionLoading} className="text-[9px] bg-amber-500/10 text-amber-300 border border-amber-500/20 rounded-md py-0.5 hover:bg-amber-500/20 disabled:opacity-40 transition-colors">Not Home</button>
+                              <button onClick={() => void updateStopOutcome(stop.id, "appointment_set")} disabled={missionLoading} className="text-[9px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 rounded-md py-0.5 hover:bg-emerald-500/20 disabled:opacity-40 transition-colors">Appt</button>
+                              <button onClick={() => void updateStopOutcome(stop.id, "not_interested")} disabled={missionLoading} className="text-[9px] bg-red-500/10 text-red-300 border border-red-500/20 rounded-md py-0.5 hover:bg-red-500/20 disabled:opacity-40 transition-colors">No</button>
                             </div>
                           )}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-xs text-zinc-500 py-2">No stops loaded.</div>
+                    <div className="text-xs text-storm-subtle py-2">No stops loaded.</div>
                   )}
                   {missionStops.length >= 2 && (
-                    <button onClick={exportMissionRoute} className="w-full text-xs bg-zinc-700 text-white border border-zinc-600 rounded-lg py-2 hover:border-purple-400/60">
+                    <button onClick={exportMissionRoute} className="button-secondary w-full text-xs flex items-center justify-center">
                       Export Route to Google Maps
                     </button>
                   )}
@@ -1493,8 +1495,8 @@ export default function StormMapPage() {
 
             {/* Context: Storm Reports (when no storm/timeline selected) - show storm list for quick selection */}
             {!selectedStorm && !selectedTimelineEvent && !activeMission && storms.length > 0 && (
-              <div className="p-3 border-b border-zinc-800">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Storm Reports</h3>
+              <div className="p-3 border-b border-storm-border/30">
+                <h3 className="text-2xs font-semibold uppercase tracking-wider text-storm-subtle mb-2">Storm Reports</h3>
                 <div className="space-y-1 max-h-40 overflow-y-auto">
                   {storms.slice(0, 8).map((storm) => (
                     <button
@@ -1503,13 +1505,13 @@ export default function StormMapPage() {
                         setActiveMission(null);
                         setSelectedStorm(storm);
                       }}
-                      className="w-full text-left p-2 rounded border border-zinc-700 bg-zinc-800/50 hover:border-zinc-600 transition-colors"
+                      className="w-full text-left p-2 rounded-xl border border-storm-border/20 bg-storm-z1/50 hover:border-storm-purple/20 transition-all"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs">{getTypeIcon(storm.type)} {storm.type.replace("_", " ")}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${getSeverityColor(storm.severity)} text-white`}>{storm.damageScore}</span>
+                        <span className="text-xs text-white">{getTypeIcon(storm.type)} {storm.type.replace("_", " ")}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${getSeverityColor(storm.severity)} text-white font-bold`}>{storm.damageScore}</span>
                       </div>
-                      <div className="text-[10px] text-zinc-500 truncate">{resolveDisplayLocation({ location: storm.location ?? null, county: storm.county ?? null, state: storm.state ?? null, lat: storm.lat, lng: storm.lng })}</div>
+                      <div className="text-[10px] text-storm-subtle truncate">{resolveDisplayLocation({ location: storm.location ?? null, county: storm.county ?? null, state: storm.state ?? null, lat: storm.lat, lng: storm.lng })}</div>
                     </button>
                   ))}
                 </div>

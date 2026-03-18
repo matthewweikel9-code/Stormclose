@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createJobNimbusClient } from "@/lib/jobnimbus/client";
 import { decryptJobNimbusApiKey } from "@/lib/jobnimbus/security";
 import { errorResponse, successResponse } from "@/utils/api-response";
+import { requirePartnerEngineAuth, requireManager } from "@/lib/partner-engine/auth";
 
 function splitName(fullName: string | null | undefined) {
 	if (!fullName) return { first: "Homeowner", last: "Referral" };
@@ -17,25 +17,23 @@ export async function POST(
 ) {
 	try {
 		const { id } = params;
-		const supabase = await createClient();
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
-		if (!user) return errorResponse("Unauthorized", 401);
+		const result = await requirePartnerEngineAuth();
+		if (!result.ok) return errorResponse(result.error, result.status);
+		const managerCheck = requireManager(result.auth);
+		if (managerCheck) return errorResponse(managerCheck.error, managerCheck.status);
 
-		const { data: integration, error: integrationError } = await (supabase as any)
-			.from("jobnimbus_integrations")
-			.select("api_key_encrypted")
-			.eq("user_id", user.id)
-			.maybeSingle();
-		if (integrationError) return errorResponse(integrationError.message, 500);
-		if (!integration?.api_key_encrypted) return errorResponse("JobNimbus is not connected", 400);
+		const { supabase, teamId } = result.auth;
+
+		const integration = await import("@/lib/jobnimbus/team-integration").then((m) =>
+			m.getJobNimbusIntegrationForTeam(supabase, teamId)
+		);
+		if (!integration?.api_key_encrypted) return errorResponse("JobNimbus is not connected. Connect it in Settings → Integrations.", 400);
 
 		const { data: referral, error: referralError } = await (supabase as any)
 			.from("partner_engine_referrals")
 			.select("id,homeowner_name,homeowner_phone,homeowner_email,property_address,city,state,zip,notes,external_record_id,last_synced_at")
 			.eq("id", id)
-			.eq("user_id", user.id)
+			.eq("team_id", teamId)
 			.single();
 		if (referralError) return errorResponse("Referral not found", 404);
 
@@ -66,7 +64,7 @@ export async function POST(
 				.from("partner_engine_referrals")
 				.update({ sync_error: detail, updated_at: new Date().toISOString() })
 				.eq("id", id)
-				.eq("user_id", user.id);
+				.eq("team_id", teamId);
 			return errorResponse(`JobNimbus sync failed: ${detail}`, 502);
 		}
 
@@ -85,7 +83,7 @@ export async function POST(
 				updated_at: new Date().toISOString(),
 			})
 			.eq("id", id)
-			.eq("user_id", user.id);
+			.eq("team_id", teamId);
 		if (updateError) return errorResponse(updateError.message, 500);
 
 		return successResponse({ referralId: id, externalCrm: "jobnimbus", externalRecordId: contactId });

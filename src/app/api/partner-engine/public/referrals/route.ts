@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { errorResponse, successResponse } from "@/utils/api-response";
 
 const PublicReferralSchema = z.object({
@@ -18,12 +18,12 @@ const PublicReferralSchema = z.object({
 
 export async function POST(request: NextRequest) {
 	try {
-		const supabase = await createClient();
+		const supabase = createAdminClient();
 		const body = PublicReferralSchema.parse(await request.json());
 
 		const { data: partner, error: partnerError } = await (supabase as any)
 			.from("partner_engine_partners")
-			.select("id,user_id,status")
+			.select("id,user_id,team_id,status")
 			.eq("referral_code", body.referralCode)
 			.maybeSingle();
 
@@ -33,12 +33,14 @@ export async function POST(request: NextRequest) {
 		}
 
 		const userId = (partner as Record<string, unknown>).user_id as string;
+		const teamId = (partner as Record<string, unknown>).team_id as string | null;
 		const partnerId = (partner as Record<string, unknown>).id as string;
 
 		const { data, error } = await (supabase as any)
 			.from("partner_engine_referrals")
 			.insert({
 				user_id: userId,
+				team_id: teamId,
 				partner_id: partnerId,
 				property_address: body.propertyAddress,
 				homeowner_name: body.homeownerName ?? null,

@@ -66,8 +66,9 @@ export interface JNApiResponse<T> {
   };
 }
 
-// JobNimbus: app.jobnimbus.com/api1 for contacts (GET/POST)
+// JobNimbus: app.jobnimbus.com/api1 (legacy) and api.jobnimbus.com (Platform API)
 const JN_APP_BASE = 'https://app.jobnimbus.com/api1';
+const JN_API_BASE = 'https://api.jobnimbus.com';
 
 export class JobNimbusClient {
   private apiKey: string;
@@ -179,7 +180,12 @@ export class JobNimbusClient {
     }
     if (!body.first_name) body.first_name = 'Contact';
     if (!body.last_name) body.last_name = 'Referral';
-    return this.request<JNContact>('POST', '/contacts', body, JN_APP_BASE);
+
+    let result = await this.request<JNContact>('POST', '/contacts', body, JN_APP_BASE);
+    if (!result.success && result.error?.status === 404) {
+      result = await this.request<JNContact>('POST', '/contacts', body, JN_API_BASE);
+    }
+    return result;
   }
   
   /**
@@ -224,6 +230,32 @@ export class JobNimbusClient {
     const qs = params.toString();
     return this.request<{ results: JNContact[] }>('GET', `/contacts${qs ? `?${qs}` : ''}`);
   }
+
+  /**
+   * Search for contacts by address (finds existing contact before creating duplicate)
+   * Fetches recent contacts and filters by address match
+   */
+  async searchContactsByAddress(propertyAddress: string): Promise<JNApiResponse<JNContact[]>> {
+    const streetPart = (propertyAddress || '').trim().split(',')[0]?.trim().toLowerCase() || '';
+    if (!streetPart || streetPart.length < 5) {
+      return { success: true, data: [] };
+    }
+    const result = await this.request<{ results?: JNContact[] }>(
+      'GET',
+      '/contacts?limit=200',
+      undefined,
+      JN_APP_BASE
+    );
+    if (!result.success || !result.data) {
+      return { success: true, data: [] };
+    }
+    const list = (result.data as { results?: JNContact[] }).results ?? [];
+    const matches = list.filter((c) => {
+      const addr = [c.address_line1, c.city, c.state_text, c.zip].filter(Boolean).join(' ').toLowerCase();
+      return addr.includes(streetPart) || (c.address_line1 || '').toLowerCase().includes(streetPart);
+    });
+    return { success: true, data: matches };
+  }
   
   // ============================================
   // JOBS
@@ -252,14 +284,11 @@ export class JobNimbusClient {
    * Tries app.jobnimbus.com/api1 first; JobNimbus may use different API for activities.
    */
   async createActivity(activity: JNActivity): Promise<JNApiResponse<JNActivity>> {
-    console.log('[JobNimbus] createActivity request:', { contact_id: activity.contact_id, type: activity.type, title: activity.title, noteLength: activity.note?.length });
-    const result = await this.request<JNActivity>('POST', '/activities', activity);
+    let result = await this.request<JNActivity>('POST', '/activities', activity, JN_APP_BASE);
     if (!result.success) {
       console.warn('[JobNimbus] createActivity failed:', result.error?.status, result.error?.detail);
       if (result.error?.status === 404) {
-        const altBase = 'https://api.jobnimbus.com';
-        console.log('[JobNimbus] Retrying with', altBase);
-        return this.request<JNActivity>('POST', '/activities', activity, altBase);
+        result = await this.request<JNActivity>('POST', '/activities', activity, JN_API_BASE);
       }
     }
     return result;

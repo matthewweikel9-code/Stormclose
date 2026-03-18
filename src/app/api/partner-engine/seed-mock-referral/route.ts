@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
 import { errorResponse, successResponse } from "@/utils/api-response";
+import { requirePartnerEngineAuth, requireManager } from "@/lib/partner-engine/auth";
 
 function generateReferralCode() {
 	return `test${Math.random().toString(36).slice(2, 8)}`;
@@ -11,18 +11,19 @@ function generateReferralCode() {
  */
 export async function POST() {
 	try {
-		const supabase = await createClient();
-		const {
-			data: { user },
-		} = await supabase.auth.getUser();
-		if (!user) return errorResponse("Unauthorized", 401);
+		const result = await requirePartnerEngineAuth();
+		if (!result.ok) return errorResponse(result.error, result.status);
+		const managerCheck = requireManager(result.auth);
+		if (managerCheck) return errorResponse(managerCheck.error, managerCheck.status);
+
+		const { supabase, userId, teamId } = result.auth;
 
 		// Get or create a test partner
 		let partnerId: string | null = null;
 		const { data: existingPartners } = await (supabase as any)
 			.from("partner_engine_partners")
 			.select("id")
-			.eq("user_id", user.id)
+			.eq("team_id", teamId)
 			.limit(1);
 
 		if (existingPartners?.length) {
@@ -32,7 +33,8 @@ export async function POST() {
 			const { data: newPartner, error: partnerError } = await (supabase as any)
 				.from("partner_engine_partners")
 				.insert({
-					user_id: user.id,
+					user_id: userId,
+					team_id: teamId,
 					name: "Test Partner",
 					business_name: "Test Realty",
 					email: "test@example.com",
@@ -55,7 +57,8 @@ export async function POST() {
 		const { data: referral, error: referralError } = await (supabase as any)
 			.from("partner_engine_referrals")
 			.insert({
-				user_id: user.id,
+				user_id: userId,
+				team_id: teamId,
 				partner_id: partnerId,
 				property_address: mockAddress,
 				homeowner_name: mockName,
@@ -90,16 +93,14 @@ export async function POST() {
 		// Actually, fetch to self won't work well with auth. Let me inline the sync logic instead.
 		// I'll refactor to call the sync logic directly.
 		// For now, let me just create the referral and return it - the user can click Sync. Or we can inline the sync.
-		const { data: integration } = await (supabase as any)
-			.from("jobnimbus_integrations")
-			.select("api_key_encrypted")
-			.eq("user_id", user.id)
-			.maybeSingle();
+		const integration = await import("@/lib/jobnimbus/team-integration").then((m) =>
+			m.getJobNimbusIntegrationForTeam(supabase, teamId)
+		);
 
 		let synced = false;
 		let syncError: string | null = null;
 
-		if (integration?.api_key_encrypted) {
+		if (integration) {
 			try {
 				const { decryptJobNimbusApiKey } = await import("@/lib/jobnimbus/security");
 				const { createJobNimbusClient } = await import("@/lib/jobnimbus/client");
@@ -133,7 +134,7 @@ export async function POST() {
 							updated_at: new Date().toISOString(),
 						})
 						.eq("id", refId)
-						.eq("user_id", user.id);
+						.eq("team_id", teamId);
 					synced = true;
 				} else {
 					syncError = (createContact.error as { detail?: string })?.detail || "Unknown sync error";
@@ -144,7 +145,7 @@ export async function POST() {
 							updated_at: new Date().toISOString(),
 						})
 						.eq("id", refId)
-						.eq("user_id", user.id);
+						.eq("team_id", teamId);
 				}
 			} catch (err) {
 				syncError = err instanceof Error ? err.message : "Sync failed";
@@ -155,7 +156,7 @@ export async function POST() {
 						updated_at: new Date().toISOString(),
 					})
 					.eq("id", refId)
-					.eq("user_id", user.id);
+					.eq("team_id", teamId);
 			}
 		} else {
 			syncError = "JobNimbus is not connected. Connect it in Settings → Integrations.";

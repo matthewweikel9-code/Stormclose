@@ -29,7 +29,7 @@ const tiers = [
 			"Carrier Intelligence Database",
 			"AI Assistant (GPT-4o)",
 			"Storm report generation",
-			"Deal Desk & Revenue Hub",
+			"Documents Hub & Revenue Hub",
 			"Email support",
 		],
 		cta: "Get Pro",

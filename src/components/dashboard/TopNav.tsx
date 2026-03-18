@@ -26,7 +26,8 @@ const breadcrumbLabels: Record<string, string> = {
 	"/partner-engine/rewards": "Referral Engine",
 	"/partner-engine/settings": "Referral Engine",
 	"/dashboard/documents": "Documents",
-	"/dashboard/team": "Team",
+	"/dashboard/team": "Company",
+	"/dashboard/mission-control": "Mission Control",
 	"/settings/billing": "Settings",
 };
 

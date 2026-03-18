@@ -1,13 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useParams } from "next/navigation";
 import { CheckCircle, Upload, AlertTriangle } from "lucide-react";
 
-export default function PublicReferralFormPage({
-	params,
-}: {
-	params: { companySlug: string; referralCode: string };
-}) {
+export default function PublicReferralFormPage() {
+	const params = useParams<{ companySlug: string; referralCode: string }>();
 	const [propertyAddress, setPropertyAddress] = useState("");
 	const [homeownerName, setHomeownerName] = useState("");
 	const [homeownerPhone, setHomeownerPhone] = useState("");
@@ -18,6 +16,16 @@ export default function PublicReferralFormPage({
 	const [notes, setNotes] = useState("");
 	const [formState, setFormState] = useState<"idle" | "submitting" | "done" | "error">("idle");
 	const [message, setMessage] = useState("");
+
+	if (!params?.companySlug || !params?.referralCode) {
+		return (
+			<main className="min-h-screen bg-storm-bg flex items-center justify-center px-4">
+				<div className="text-center">
+					<p className="text-storm-subtle">Loading...</p>
+				</div>
+			</main>
+		);
+	}
 
 	async function onSubmit(event: FormEvent) {
 		event.preventDefault();

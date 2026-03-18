@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Search, Plus, Copy, Check, Loader2 } from "lucide-react";
+import { Search, Plus, Copy, Check, Loader2, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 type ApiEnvelope<T> = { data: T | null; error: string | null; meta: Record<string, unknown> };
@@ -21,31 +21,35 @@ interface Partner {
 	totalRevenue: number;
 }
 
-const PARTNER_TYPES = [
-	"realtor",
-	"insurance_agent",
-	"home_inspector",
-	"property_manager",
-	"contractor",
-	"other",
-];
+const PARTNER_TYPES = ["realtor", "insurance_agent", "home_inspector", "property_manager", "contractor", "other"];
 const STATUSES = ["active", "paused", "archived"];
 const TIERS = ["bronze", "silver", "gold", "platinum"];
 
-const TIER_COLORS: Record<string, string> = {
-	bronze: "bg-amber-700/30 text-amber-400 border-amber-500/30",
-	silver: "bg-slate-400/20 text-slate-300 border-slate-500/30",
-	gold: "bg-amber-500/20 text-amber-300 border-amber-400/30",
-	platinum: "bg-storm-purple/20 text-storm-glow border-storm-purple/30",
+const TIER_BADGE: Record<string, "warning" | "default" | "purple" | "info"> = {
+	bronze: "default",
+	silver: "info",
+	gold: "warning",
+	platinum: "purple",
 };
 
 function formatCurrency(n: number) {
-	return new Intl.NumberFormat("en-US", {
-		style: "currency",
-		currency: "USD",
-		minimumFractionDigits: 0,
-		maximumFractionDigits: 0,
-	}).format(n);
+	return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+}
+
+function SkeletonRows({ count = 4 }: { count?: number }) {
+	return (
+		<div className="space-y-3 p-4">
+			{Array.from({ length: count }).map((_, i) => (
+				<div key={i} className="flex items-center gap-3">
+					<div className="skeleton h-10 w-10 rounded-xl" />
+					<div className="flex-1 space-y-2">
+						<div className="skeleton h-4 w-3/4 rounded" />
+						<div className="skeleton h-2 w-1/2 rounded" />
+					</div>
+				</div>
+			))}
+		</div>
+	);
 }
 
 export default function PartnersPage() {
@@ -60,19 +64,9 @@ export default function PartnersPage() {
 	const [copiedId, setCopiedId] = useState<string | null>(null);
 	const [companySlug, setCompanySlug] = useState("company");
 
-	// Form state
 	const [form, setForm] = useState({
-		name: "",
-		businessName: "",
-		email: "",
-		phone: "",
-		partnerType: "other",
-		territory: "",
-		city: "",
-		state: "",
-		zip: "",
-		tier: "bronze",
-		notes: "",
+		name: "", businessName: "", email: "", phone: "", partnerType: "other",
+		territory: "", city: "", state: "", zip: "", tier: "bronze", notes: "",
 	});
 	const [submitting, setSubmitting] = useState(false);
 	const [formError, setFormError] = useState<string | null>(null);
@@ -92,13 +86,7 @@ export default function PartnersPage() {
 	useEffect(() => {
 		void (async () => {
 			setLoading(true);
-			try {
-				await fetchPartners();
-			} catch (e) {
-				setError(e instanceof Error ? e.message : "Failed to load partners");
-			} finally {
-				setLoading(false);
-			}
+			try { await fetchPartners(); } catch (e) { setError(e instanceof Error ? e.message : "Failed to load partners"); } finally { setLoading(false); }
 		})();
 	}, [fetchPartners]);
 
@@ -129,34 +117,15 @@ export default function PartnersPage() {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					name: form.name,
-					businessName: form.businessName || null,
-					email: form.email || null,
-					phone: form.phone || null,
-					partnerType: form.partnerType,
-					territory: form.territory || null,
-					city: form.city || null,
-					state: form.state || null,
-					zip: form.zip || null,
-					tier: form.tier,
-					notes: form.notes || null,
+					name: form.name, businessName: form.businessName || null, email: form.email || null,
+					phone: form.phone || null, partnerType: form.partnerType, territory: form.territory || null,
+					city: form.city || null, state: form.state || null, zip: form.zip || null,
+					tier: form.tier, notes: form.notes || null,
 				}),
 			});
 			const json = (await res.json()) as ApiEnvelope<Partner>;
 			if (json.error) throw new Error(json.error);
-			setForm({
-				name: "",
-				businessName: "",
-				email: "",
-				phone: "",
-				partnerType: "other",
-				territory: "",
-				city: "",
-				state: "",
-				zip: "",
-				tier: "bronze",
-				notes: "",
-			});
+			setForm({ name: "", businessName: "", email: "", phone: "", partnerType: "other", territory: "", city: "", state: "", zip: "", tier: "bronze", notes: "" });
 			setShowForm(false);
 			void fetchPartners();
 		} catch (e) {
@@ -167,12 +136,7 @@ export default function PartnersPage() {
 	};
 
 	const handleStatusToggle = async (partner: Partner) => {
-		const next =
-			partner.status === "active"
-				? "paused"
-				: partner.status === "paused"
-					? "archived"
-					: "active";
+		const next = partner.status === "active" ? "paused" : partner.status === "paused" ? "archived" : "active";
 		try {
 			const res = await fetch("/api/partner-engine/partners", {
 				method: "PATCH",
@@ -182,337 +146,180 @@ export default function PartnersPage() {
 			const json = (await res.json()) as ApiEnvelope<Partner>;
 			if (json.error) throw new Error(json.error);
 			void fetchPartners();
-		} catch {
-			// ignore
-		}
+		} catch { /* ignore */ }
 	};
 
 	if (loading && partners.length === 0) {
 		return (
-			<div className="flex min-h-[40vh] items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-storm-purple" />
+			<div className="space-y-5 animate-fade-in">
+				<div className="flex justify-between"><div className="skeleton h-8 w-32 rounded-lg" /><div className="skeleton h-10 w-36 rounded-xl" /></div>
+				<div className="storm-card"><SkeletonRows count={6} /></div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-5">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h1 className="text-xl font-bold text-white">Partners</h1>
-				<button
-					type="button"
-					onClick={() => setShowForm(!showForm)}
-					className="inline-flex items-center gap-2 rounded-xl bg-storm-purple px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-storm-purple/90"
-				>
+				<div className="flex items-center gap-3">
+					<Users className="h-5 w-5 text-storm-glow" />
+					<h1 className="text-lg font-bold text-white">Partners</h1>
+					{partners.length > 0 && <Badge variant="default">{partners.length}</Badge>}
+				</div>
+				<button type="button" onClick={() => setShowForm(!showForm)} className="button-primary flex items-center gap-2 text-sm">
 					<Plus className="h-4 w-4" />
 					Add Partner
 				</button>
 			</div>
 
-			{/* Inline Add Form */}
 			{showForm && (
-				<form
-					onSubmit={(e) => void handleSubmit(e)}
-					className="rounded-2xl border border-storm-border bg-storm-z1 p-6"
-				>
-					<h3 className="text-sm font-semibold text-white">New Partner</h3>
+				<form onSubmit={(e) => void handleSubmit(e)} className="storm-card p-5">
+					<h3 className="text-sm font-semibold text-white mb-3">New Partner</h3>
 					{formError && (
-						<div className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
-							{formError}
-						</div>
+						<div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">{formError}</div>
 					)}
-					<div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 						<div>
-							<label className="block text-xs font-medium text-storm-muted">Name *</label>
-							<input
-								required
-								value={form.name}
-								onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-								placeholder="John Smith"
-							/>
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">Name *</label>
+							<input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="dashboard-input" placeholder="John Smith" />
 						</div>
 						<div>
-							<label className="block text-xs font-medium text-storm-muted">Business Name</label>
-							<input
-								value={form.businessName}
-								onChange={(e) => setForm((f) => ({ ...f, businessName: e.target.value }))}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-								placeholder="ABC Realty"
-							/>
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">Business Name</label>
+							<input value={form.businessName} onChange={(e) => setForm((f) => ({ ...f, businessName: e.target.value }))} className="dashboard-input" placeholder="ABC Realty" />
 						</div>
 						<div>
-							<label className="block text-xs font-medium text-storm-muted">Email</label>
-							<input
-								type="email"
-								value={form.email}
-								onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-								placeholder="john@example.com"
-							/>
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">Email</label>
+							<input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="dashboard-input" placeholder="john@example.com" />
 						</div>
 						<div>
-							<label className="block text-xs font-medium text-storm-muted">Phone</label>
-							<input
-								value={form.phone}
-								onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-								placeholder="(555) 123-4567"
-							/>
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">Phone</label>
+							<input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="dashboard-input" placeholder="(555) 123-4567" />
 						</div>
 						<div>
-							<label className="block text-xs font-medium text-storm-muted">Partner Type</label>
-							<select
-								value={form.partnerType}
-								onChange={(e) => setForm((f) => ({ ...f, partnerType: e.target.value }))}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-							>
-								{PARTNER_TYPES.map((t) => (
-									<option key={t} value={t}>
-										{t.replace(/_/g, " ")}
-									</option>
-								))}
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">Partner Type</label>
+							<select value={form.partnerType} onChange={(e) => setForm((f) => ({ ...f, partnerType: e.target.value }))} className="dashboard-select">
+								{PARTNER_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
 							</select>
 						</div>
 						<div>
-							<label className="block text-xs font-medium text-storm-muted">Territory</label>
-							<input
-								value={form.territory}
-								onChange={(e) => setForm((f) => ({ ...f, territory: e.target.value }))}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-								placeholder="North Dallas"
-							/>
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">Territory</label>
+							<input value={form.territory} onChange={(e) => setForm((f) => ({ ...f, territory: e.target.value }))} className="dashboard-input" placeholder="North Dallas" />
 						</div>
 						<div>
-							<label className="block text-xs font-medium text-storm-muted">City</label>
-							<input
-								value={form.city}
-								onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-								placeholder="Dallas"
-							/>
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">City</label>
+							<input value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} className="dashboard-input" placeholder="Dallas" />
 						</div>
 						<div>
-							<label className="block text-xs font-medium text-storm-muted">State</label>
-							<input
-								value={form.state}
-								onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-								placeholder="TX"
-							/>
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">State</label>
+							<input value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} className="dashboard-input" placeholder="TX" />
 						</div>
 						<div>
-							<label className="block text-xs font-medium text-storm-muted">ZIP</label>
-							<input
-								value={form.zip}
-								onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-								placeholder="75201"
-							/>
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">ZIP</label>
+							<input value={form.zip} onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))} className="dashboard-input" placeholder="75201" />
 						</div>
 						<div>
-							<label className="block text-xs font-medium text-storm-muted">Tier</label>
-							<select
-								value={form.tier}
-								onChange={(e) => setForm((f) => ({ ...f, tier: e.target.value }))}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-							>
-								{TIERS.map((t) => (
-									<option key={t} value={t}>
-										{t}
-									</option>
-								))}
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">Tier</label>
+							<select value={form.tier} onChange={(e) => setForm((f) => ({ ...f, tier: e.target.value }))} className="dashboard-select">
+								{TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
 							</select>
 						</div>
 						<div className="sm:col-span-2 lg:col-span-3">
-							<label className="block text-xs font-medium text-storm-muted">Notes</label>
-							<textarea
-								value={form.notes}
-								onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-								rows={2}
-								className="mt-1 w-full rounded-xl border border-storm-border bg-storm-z0 px-3 py-2 text-sm text-white placeholder:text-storm-subtle focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-								placeholder="Notes..."
-							/>
+							<label className="block text-2xs text-storm-subtle uppercase tracking-wider mb-1.5 font-medium">Notes</label>
+							<textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} rows={2} className="dashboard-textarea" placeholder="Notes..." />
 						</div>
 					</div>
 					<div className="mt-4 flex gap-2">
-						<button
-							type="submit"
-							disabled={submitting}
-							className="rounded-xl bg-storm-purple px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-storm-purple/90 disabled:opacity-50"
-						>
+						<button type="submit" disabled={submitting} className="button-primary text-sm">
 							{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Partner"}
 						</button>
-						<button
-							type="button"
-							onClick={() => setShowForm(false)}
-							className="rounded-xl border border-storm-border bg-storm-z0 px-4 py-2.5 text-sm font-medium text-storm-muted transition-colors hover:bg-storm-z2"
-						>
-							Cancel
-						</button>
+						<button type="button" onClick={() => setShowForm(false)} className="button-secondary text-sm">Cancel</button>
 					</div>
 				</form>
 			)}
 
 			{/* Filters */}
-			<div className="flex flex-wrap gap-3">
+			<div className="glass rounded-2xl p-3 flex flex-wrap gap-3">
 				<div className="relative flex-1 min-w-[200px]">
 					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-storm-subtle" />
-					<input
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-						placeholder="Search partners..."
-						className="w-full rounded-xl border border-storm-border bg-storm-z1 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-storm-subtle focus:border-storm-purple focus:outline-none focus:ring-2 focus:ring-storm-purple/20"
-					/>
+					<input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search partners..." className="dashboard-input pl-10" />
 				</div>
-				<select
-					value={typeFilter}
-					onChange={(e) => setTypeFilter(e.target.value)}
-					className="rounded-xl border border-storm-border bg-storm-z1 px-4 py-2.5 text-sm text-white focus:border-storm-purple focus:outline-none"
-				>
+				<select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="dashboard-select">
 					<option value="">All types</option>
-					{PARTNER_TYPES.map((t) => (
-						<option key={t} value={t}>
-							{t.replace(/_/g, " ")}
-						</option>
-					))}
+					{PARTNER_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
 				</select>
-				<select
-					value={statusFilter}
-					onChange={(e) => setStatusFilter(e.target.value)}
-					className="rounded-xl border border-storm-border bg-storm-z1 px-4 py-2.5 text-sm text-white focus:border-storm-purple focus:outline-none"
-				>
+				<select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="dashboard-select">
 					<option value="">All statuses</option>
-					{STATUSES.map((s) => (
-						<option key={s} value={s}>
-							{s}
-						</option>
-					))}
+					{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
 				</select>
-				<select
-					value={tierFilter}
-					onChange={(e) => setTierFilter(e.target.value)}
-					className="rounded-xl border border-storm-border bg-storm-z1 px-4 py-2.5 text-sm text-white focus:border-storm-purple focus:outline-none"
-				>
+				<select value={tierFilter} onChange={(e) => setTierFilter(e.target.value)} className="dashboard-select">
 					<option value="">All tiers</option>
-					{TIERS.map((t) => (
-						<option key={t} value={t}>
-							{t}
-						</option>
-					))}
+					{TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
 				</select>
 			</div>
 
 			{error && (
-				<div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-400">
-					{error}
-				</div>
+				<div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-400">{error}</div>
 			)}
 
-			{/* Partners Table */}
-			<div className="overflow-hidden rounded-2xl border border-storm-border bg-storm-z1">
-				<div className="overflow-x-auto">
-					<table className="w-full text-sm">
-						<thead>
-							<tr className="border-b border-storm-border text-left text-storm-subtle">
-								<th className="px-6 py-3 font-medium">Name / Business</th>
-								<th className="px-6 py-3 font-medium">Type</th>
-								<th className="px-6 py-3 font-medium">Tier</th>
-								<th className="px-6 py-3 font-medium">Territory</th>
-								<th className="px-6 py-3 font-medium">Status</th>
-								<th className="px-6 py-3 font-medium">Referrals</th>
-								<th className="px-6 py-3 font-medium">Revenue</th>
-								<th className="px-6 py-3 font-medium">Referral Link</th>
-								<th className="px-6 py-3 font-medium">Actions</th>
-							</tr>
-						</thead>
-						<tbody>
-							{partners.length === 0 ? (
-								<tr>
-									<td colSpan={9} className="px-6 py-12 text-center text-storm-muted">
-										No partners found
-									</td>
-								</tr>
-							) : (
-								partners.map((p) => (
-									<tr
-										key={p.id}
-										className="border-b border-storm-border/50 hover:bg-storm-z0/50"
+			{/* Partners List */}
+			<div className="storm-card overflow-hidden">
+				<div className="glow-line" />
+				{partners.length === 0 ? (
+					<div className="flex flex-col items-center justify-center py-16">
+						<div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-storm-z2 mb-3">
+							<Users className="h-7 w-7 text-storm-subtle" />
+						</div>
+						<p className="text-sm font-medium text-white">No partners found</p>
+						<p className="text-xs text-storm-subtle mt-1">Add a partner to get started</p>
+					</div>
+				) : (
+					<div className="stagger-children">
+						{partners.map((p) => (
+							<div key={p.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-storm-z2/30 transition-colors border-b border-storm-border/20 last:border-b-0">
+								<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-storm-purple/20 to-storm-glow/10 text-sm font-bold text-storm-glow flex-shrink-0">
+									{p.name.charAt(0).toUpperCase()}
+								</div>
+								<div className="flex-1 min-w-0">
+									<div className="flex items-center gap-2 flex-wrap">
+										<span className="text-sm font-medium text-white truncate">{p.name}</span>
+										<Badge variant={TIER_BADGE[p.tier] ?? "default"}>{p.tier}</Badge>
+										<Badge variant={p.status === "active" ? "success" : p.status === "paused" ? "warning" : "default"}>{p.status}</Badge>
+									</div>
+									<p className="text-2xs text-storm-subtle capitalize mt-0.5">
+										{p.partnerType.replace(/_/g, " ")}{p.businessName ? ` · ${p.businessName}` : ""}{p.territory ? ` · ${p.territory}` : ""}
+									</p>
+								</div>
+								<div className="hidden md:flex items-center gap-4 flex-shrink-0 text-right">
+									<div>
+										<p className="text-sm font-bold text-emerald-400 tabular-nums">{formatCurrency(p.totalRevenue)}</p>
+										<p className="text-2xs text-storm-subtle">Revenue</p>
+									</div>
+									<div>
+										<p className="text-sm font-medium text-white tabular-nums">{p.totalReferrals}</p>
+										<p className="text-2xs text-storm-subtle">Referrals</p>
+									</div>
+								</div>
+								<div className="flex items-center gap-2 flex-shrink-0">
+									<button
+										type="button"
+										onClick={() => void handleCopy(p.referralCode, p.id)}
+										className="rounded-lg p-2 text-storm-subtle hover:bg-storm-z2 hover:text-white transition-colors"
+										title="Copy referral link"
 									>
-										<td className="px-6 py-3">
-											<div className="font-medium text-white">{p.name}</div>
-											{p.businessName && (
-												<div className="text-xs text-storm-muted">{p.businessName}</div>
-											)}
-										</td>
-										<td className="px-6 py-3 text-storm-muted capitalize">
-											{p.partnerType.replace(/_/g, " ")}
-										</td>
-										<td className="px-6 py-3">
-											<span
-												className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold capitalize ${
-													TIER_COLORS[p.tier] ?? TIER_COLORS.bronze
-												}`}
-											>
-												{p.tier}
-											</span>
-										</td>
-										<td className="px-6 py-3 text-storm-muted">{p.territory ?? "—"}</td>
-										<td className="px-6 py-3">
-											<Badge
-												variant={
-													p.status === "active"
-														? "success"
-														: p.status === "paused"
-															? "warning"
-															: "default"
-												}
-											>
-												{p.status}
-											</Badge>
-										</td>
-										<td className="px-6 py-3 text-white">{p.totalReferrals}</td>
-										<td className="px-6 py-3 text-emerald-400">
-											{formatCurrency(p.totalRevenue)}
-										</td>
-										<td className="px-6 py-3">
-											<div className="flex items-center gap-1">
-												<span className="max-w-[140px] truncate text-storm-muted text-xs">
-													/ref/{companySlug}/{p.referralCode}
-												</span>
-												<button
-													type="button"
-													onClick={() => void handleCopy(p.referralCode, p.id)}
-													className="rounded p-1 text-storm-subtle hover:bg-storm-z2 hover:text-white"
-													title="Copy link"
-												>
-													{copiedId === p.id ? (
-														<Check className="h-3.5 w-3.5 text-emerald-400" />
-													) : (
-														<Copy className="h-3.5 w-3.5" />
-													)}
-												</button>
-											</div>
-										</td>
-										<td className="px-6 py-3">
-											<button
-												type="button"
-												onClick={() => void handleStatusToggle(p)}
-												className="text-xs font-medium text-storm-glow hover:underline"
-											>
-												{p.status === "active"
-													? "Pause"
-													: p.status === "paused"
-														? "Archive"
-														: "Activate"}
-											</button>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
-				</div>
+										{copiedId === p.id ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+									</button>
+									<button
+										type="button"
+										onClick={() => void handleStatusToggle(p)}
+										className="text-2xs font-medium text-storm-glow hover:text-storm-purple transition-colors"
+									>
+										{p.status === "active" ? "Pause" : p.status === "paused" ? "Archive" : "Activate"}
+									</button>
+								</div>
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 		</div>
 	);

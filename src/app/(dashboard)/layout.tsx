@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { getEffectiveTier, type SubscriptionTier } from "@/lib/subscriptions";
+import { getUserSubscription } from "@/lib/subscriptions/access";
 
 export default async function DashboardLayout({
 	children
@@ -17,27 +17,22 @@ export default async function DashboardLayout({
 		redirect("/login");
 	}
 
+	const subscription = await getUserSubscription(user.id);
 	const { data: accountData } = (await supabase
 		.from("users")
-		.select("subscription_status, subscription_tier, trial_end, reports_this_month")
+		.select("subscription_status, trial_end")
 		.eq("id", user.id)
-		.maybeSingle()) as { 
-			data: { 
-				subscription_status: string | null;
-				subscription_tier: SubscriptionTier | null;
-				trial_end: string | null;
-				reports_this_month: number | null;
-			} | null 
+		.maybeSingle()) as {
+			data: { subscription_status: string | null; trial_end: string | null } | null;
 		};
 
 	const subscriptionStatus = accountData?.subscription_status ?? "inactive";
-	const tier = (accountData?.subscription_tier as SubscriptionTier) ?? "free";
-	const effectiveTier = getEffectiveTier(tier, accountData?.trial_end ?? null);
-	const trialEnd = accountData?.trial_end ?? null;
+	const effectiveTier = subscription?.effectiveTier ?? "free";
+	const trialEnd = subscription?.trialEnd ?? accountData?.trial_end ?? null;
 
 	return (
-		<DashboardShell 
-			user={user} 
+		<DashboardShell
+			user={user}
 			subscriptionStatus={subscriptionStatus}
 			tier={effectiveTier}
 			trialEnd={trialEnd}

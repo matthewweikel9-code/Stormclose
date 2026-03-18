@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { errorResponse, successResponse } from "@/utils/api-response";
+import { requirePartnerEngineAuth, requireAdmin } from "@/lib/partner-engine/auth";
 
 const PartnerTypeEnum = z.enum([
 	"realtor",
@@ -90,16 +90,12 @@ function mapPartner(row: Record<string, unknown>) {
 	};
 }
 
-async function getAuth() {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	return { supabase, userId: user?.id ?? null };
-}
-
 export async function GET(request: NextRequest) {
 	try {
-		const { supabase, userId } = await getAuth();
-		if (!userId) return errorResponse("Unauthorized", 401);
+		const result = await requirePartnerEngineAuth();
+		if (!result.ok) return errorResponse(result.error, result.status);
+
+		const { supabase, teamId } = result.auth;
 
 		const url = new URL(request.url);
 		const q = url.searchParams.get("q");
@@ -114,7 +110,7 @@ export async function GET(request: NextRequest) {
 		let query = (supabase as any)
 			.from("partner_engine_partners")
 			.select(selectCols)
-			.eq("user_id", userId)
+			.eq("team_id", teamId)
 			.order("created_at", { ascending: false });
 
 		if (q) {
@@ -135,15 +131,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
 	try {
-		const { supabase, userId } = await getAuth();
-		if (!userId) return errorResponse("Unauthorized", 401);
+		const result = await requirePartnerEngineAuth();
+		if (!result.ok) return errorResponse(result.error, result.status);
 
+		const { supabase, userId, teamId } = result.auth;
 		const body = CreatePartnerSchema.parse(await request.json());
 		const referralCode = generateReferralCode(body.name);
 		const inviteCode = generateInviteCode();
 
 		const insert: Record<string, unknown> = {
 			user_id: userId,
+			team_id: teamId,
 			name: body.name,
 			business_name: body.businessName ?? null,
 			email: body.email ?? null,
@@ -177,9 +175,12 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
 	try {
-		const { supabase, userId } = await getAuth();
-		if (!userId) return errorResponse("Unauthorized", 401);
+		const result = await requirePartnerEngineAuth();
+		if (!result.ok) return errorResponse(result.error, result.status);
+		const adminCheck = requireAdmin(result.auth);
+		if (adminCheck) return errorResponse(adminCheck.error, adminCheck.status);
 
+		const { supabase, teamId } = result.auth;
 		const body = UpdatePartnerSchema.parse(await request.json());
 		const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
@@ -204,7 +205,7 @@ export async function PATCH(request: NextRequest) {
 			.from("partner_engine_partners")
 			.update(patch)
 			.eq("id", body.id)
-			.eq("user_id", userId)
+			.eq("team_id", teamId)
 			.select()
 			.single();
 

@@ -61,16 +61,40 @@ export async function resolveTeamIdForUser(
 	requestedTeamId?: string | null
 ): Promise<string | null> {
 	const memberships = await getUserTeamMemberships(supabase, userId);
-	if (memberships.length === 0) {
-		return null;
-	}
-
-	if (!requestedTeamId) {
+	if (memberships.length > 0 && !requestedTeamId) {
 		return memberships[0].team_id;
 	}
+	if (memberships.length > 0 && requestedTeamId) {
+		const belongs = memberships.some((m) => m.team_id === requestedTeamId);
+		if (belongs) return requestedTeamId;
+	}
 
-	const belongsToRequestedTeam = memberships.some((membership) => membership.team_id === requestedTeamId);
-	return belongsToRequestedTeam ? requestedTeamId : null;
+	const { data: ownedTeam } = await (supabase.from("teams") as any)
+		.select("id")
+		.eq("owner_id", userId)
+		.order("created_at", { ascending: true })
+		.limit(1)
+		.maybeSingle();
+
+	if (ownedTeam?.id) {
+		if (!requestedTeamId || requestedTeamId === ownedTeam.id) return ownedTeam.id;
+	}
+	return null;
+}
+
+/** Resolve primary team for user (first membership or owned team). Used by partner engine, team members, etc. */
+export async function resolvePrimaryTeamId(supabase: any, userId: string): Promise<string | null> {
+	const memberships = await getUserTeamMemberships(supabase, userId);
+	if (memberships.length > 0) return memberships[0].team_id;
+
+	const { data: ownedTeam } = await (supabase.from("teams") as any)
+		.select("id")
+		.eq("owner_id", userId)
+		.order("created_at", { ascending: true })
+		.limit(1)
+		.maybeSingle();
+
+	return ownedTeam?.id ?? null;
 }
 
 export async function resolveWriteTeamIdForUser(
@@ -78,22 +102,22 @@ export async function resolveWriteTeamIdForUser(
 	userId: string,
 	requestedTeamId?: string | null
 ): Promise<string | null> {
-	const memberships = await getUserTeamMemberships(supabase, userId);
+	let memberships = await getUserTeamMemberships(supabase, userId);
 	if (memberships.length === 0) {
-		return null;
+		const { data: ownedTeam } = await (supabase.from("teams") as any)
+			.select("id")
+			.eq("owner_id", userId)
+			.limit(1)
+			.maybeSingle();
+		if (ownedTeam?.id) memberships = [{ team_id: ownedTeam.id, role: "owner" as TeamRole }];
 	}
+	if (memberships.length === 0) return null;
 
 	if (!requestedTeamId) {
-		if (memberships.length === 1) {
-			return memberships[0].team_id;
-		}
+		if (memberships.length === 1) return memberships[0].team_id;
 		throw new Error("teamId is required when writing data across multiple teams");
 	}
 
-	const belongsToRequestedTeam = memberships.some((membership) => membership.team_id === requestedTeamId);
-	if (!belongsToRequestedTeam) {
-		return null;
-	}
-
-	return requestedTeamId;
+	const belongs = memberships.some((m) => m.team_id === requestedTeamId);
+	return belongs ? requestedTeamId : null;
 }

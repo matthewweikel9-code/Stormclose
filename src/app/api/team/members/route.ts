@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getUserRoleForTeam, getUserTeamMemberships, hasMinimumRole } from "@/lib/server/tenant";
+import { getUserRoleForTeam, getUserTeamMemberships, hasMinimumRole, resolvePrimaryTeamId } from "@/lib/server/tenant";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "StormClose <noreply@stormclose.com>";
@@ -21,22 +21,6 @@ function toLegacyRole(role: TeamMemberRow["role"]): "admin" | "manager" | "sales
 	if (role === "owner" || role === "admin") return "admin";
 	if (role === "manager") return "manager";
 	return "sales_rep";
-}
-
-async function resolvePrimaryTeamId(supabase: any, userId: string): Promise<string | null> {
-	const memberships = await getUserTeamMemberships(supabase, userId);
-	if (memberships.length > 0) {
-		return memberships[0].team_id;
-	}
-
-	const { data: ownedTeam } = await (supabase.from("teams") as any)
-		.select("id")
-		.eq("owner_id", userId)
-		.order("created_at", { ascending: true })
-		.limit(1)
-		.maybeSingle();
-
-	return ownedTeam?.id ?? null;
 }
 
 // GET: Fetch team members
@@ -120,7 +104,7 @@ export async function POST(request: NextRequest) {
 
 		const primaryTeamId = await resolvePrimaryTeamId(supabase, user.id);
 		if (!primaryTeamId) {
-			return NextResponse.json({ error: "Create a team before inviting members" }, { status: 400 });
+			return NextResponse.json({ error: "Create a company before inviting employees" }, { status: 400 });
 		}
 
 		const actorRole = await getUserRoleForTeam(supabase, user.id, primaryTeamId);
@@ -149,7 +133,7 @@ export async function POST(request: NextRequest) {
 
 		if (!targetUserId) {
 			return NextResponse.json(
-				{ error: "User not found. Ask them to create an account first." },
+				{ error: "No account found for this email. They need to sign up first, then you can invite them again." },
 				{ status: 404 }
 			);
 		}
@@ -167,7 +151,7 @@ export async function POST(request: NextRequest) {
 
 		if (error) {
 			console.error("Error inviting member:", error);
-			const message = process.env.NODE_ENV === "development" ? (error as Error).message : "Failed to invite team member";
+			const message = process.env.NODE_ENV === "development" ? (error as Error).message : "Failed to invite employee";
 			return NextResponse.json({ error: message }, { status: 500 });
 		}
 
@@ -179,7 +163,7 @@ export async function POST(request: NextRequest) {
 				.maybeSingle();
 			const inviterName = user.user_metadata?.full_name || user.email?.split("@")[0] || "A team admin";
 			const teamName = team?.name || "StormClose";
-			const roleLabel = normalizedRole === "manager" ? "Manager" : "Team Member";
+			const roleLabel = normalizedRole === "manager" ? "Manager" : "Employee";
 
 			const resend = new Resend(RESEND_API_KEY);
 			const { error: emailError } = await resend.emails.send({
@@ -187,11 +171,11 @@ export async function POST(request: NextRequest) {
 				to: email.trim().toLowerCase(),
 				subject: `You've been invited to ${teamName} on StormClose`,
 				html: `
-					<h2>Team Invitation</h2>
+					<h2>Company Invitation</h2>
 					<p><strong>${inviterName}</strong> has invited you to join <strong>${teamName}</strong> as a ${roleLabel} on StormClose.</p>
-					<p>Log in to your account to access the team dashboard:</p>
-					<p><a href="${APP_URL}/dashboard" style="display:inline-block;background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600;">Go to Dashboard</a></p>
-					<p style="color:#64748b;font-size:14px;">If you don't have an account yet, <a href="${APP_URL}/signup">sign up here</a> first.</p>
+					<p>You'll have access to the same features your company pays for. Log in to get started:</p>
+					<p><a href="${APP_URL}/dashboard/team" style="display:inline-block;background:#7c3aed;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:600;">Go to Company Dashboard</a></p>
+					<p style="color:#64748b;font-size:14px;">If you don't have an account yet, <a href="${APP_URL}/signup">sign up here</a> first, then click the link above.</p>
 					<p style="color:#64748b;font-size:12px;margin-top:24px;">— StormClose</p>
 				`,
 			});

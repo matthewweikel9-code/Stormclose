@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
 import { errorResponse, successResponse } from "@/utils/api-response";
+import { requirePartnerEngineAuth, requireManager } from "@/lib/partner-engine/auth";
 
 const ReferralStatusEnum = z.enum([
 	"received",
@@ -74,18 +74,12 @@ function mapReferral(row: Record<string, unknown>, partnerName?: string | null) 
 	};
 }
 
-async function getAuth() {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	return { supabase, userId: user?.id ?? null };
-}
-
-async function getSlaContactBy(supabase: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<Date | null> {
-		const { data } = await (supabase as any)
-			.from("partner_engine_settings")
+async function getSlaContactBy(supabase: any, teamId: string): Promise<Date | null> {
+	const { data } = await (supabase as any)
+		.from("partner_engine_settings")
 		.select("sla_contact_hours")
-		.eq("user_id", userId)
-		.single();
+		.eq("team_id", teamId)
+		.maybeSingle();
 	const hours = data?.sla_contact_hours ?? 24;
 	const deadline = new Date();
 	deadline.setHours(deadline.getHours() + hours);
@@ -94,8 +88,10 @@ async function getSlaContactBy(supabase: Awaited<ReturnType<typeof createClient>
 
 export async function GET(request: NextRequest) {
 	try {
-		const { supabase, userId } = await getAuth();
-		if (!userId) return errorResponse("Unauthorized", 401);
+		const result = await requirePartnerEngineAuth();
+		if (!result.ok) return errorResponse(result.error, result.status);
+
+		const { supabase, teamId } = result.auth;
 
 		const url = new URL(request.url);
 		const status = url.searchParams.get("status");
@@ -108,7 +104,7 @@ export async function GET(request: NextRequest) {
 			.select(
 				"id,partner_id,homeowner_name,homeowner_phone,homeowner_email,property_address,city,state,zip,notes,photo_urls,status,priority,source,lost_reason,job_id,contract_value,sla_contact_by,first_contacted_at,external_crm,external_record_id,last_synced_at,sync_error,created_at,updated_at,partner_engine_partners(name)"
 			)
-			.eq("user_id", userId)
+			.eq("team_id", teamId)
 			.order("created_at", { ascending: false });
 
 		if (status) query = query.eq("status", status);
@@ -134,14 +130,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
 	try {
-		const { supabase, userId } = await getAuth();
-		if (!userId) return errorResponse("Unauthorized", 401);
+		const result = await requirePartnerEngineAuth();
+		if (!result.ok) return errorResponse(result.error, result.status);
+		const managerCheck = requireManager(result.auth);
+		if (managerCheck) return errorResponse(managerCheck.error, managerCheck.status);
 
+		const { supabase, userId, teamId } = result.auth;
 		const body = CreateReferralSchema.parse(await request.json());
-		const slaContactBy = await getSlaContactBy(supabase, userId);
+		const slaContactBy = await getSlaContactBy(supabase, teamId);
 
 		const insert: Record<string, unknown> = {
 			user_id: userId,
+			team_id: teamId,
 			partner_id: body.partnerId ?? null,
 			homeowner_name: body.homeownerName ?? null,
 			homeowner_phone: body.homeownerPhone ?? null,
@@ -175,9 +175,12 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
 	try {
-		const { supabase, userId } = await getAuth();
-		if (!userId) return errorResponse("Unauthorized", 401);
+		const result = await requirePartnerEngineAuth();
+		if (!result.ok) return errorResponse(result.error, result.status);
+		const managerCheck = requireManager(result.auth);
+		if (managerCheck) return errorResponse(managerCheck.error, managerCheck.status);
 
+		const { supabase, userId, teamId } = result.auth;
 		const body = UpdateReferralSchema.parse(await request.json());
 		const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
@@ -192,7 +195,7 @@ export async function PATCH(request: NextRequest) {
 			.from("partner_engine_referrals")
 			.select("id,status,partner_id")
 			.eq("id", body.id)
-			.eq("user_id", userId)
+			.eq("team_id", teamId)
 			.single();
 
 		if (fetchError || !existing) return errorResponse("Referral not found", 404);
@@ -204,7 +207,7 @@ export async function PATCH(request: NextRequest) {
 			.from("partner_engine_referrals")
 			.update(patch)
 			.eq("id", body.id)
-			.eq("user_id", userId)
+			.eq("team_id", teamId)
 			.select("*,partner_engine_partners(name)")
 			.single();
 
@@ -214,8 +217,8 @@ export async function PATCH(request: NextRequest) {
 			const { data: settings } = await (supabase as any)
 				.from("partner_engine_settings")
 				.select("auto_reward_on_install,default_reward_amount,default_reward_type")
-				.eq("user_id", userId)
-				.single();
+				.eq("team_id", teamId)
+				.maybeSingle();
 
 			const autoReward = settings?.auto_reward_on_install ?? true;
 			if (autoReward) {
@@ -223,6 +226,7 @@ export async function PATCH(request: NextRequest) {
 				const partnerId = (existing as Record<string, unknown>).partner_id as string | null;
 				await (supabase as any).from("partner_engine_rewards").insert({
 					user_id: userId,
+					team_id: teamId,
 					partner_id: partnerId,
 					referral_id: body.id,
 					amount,

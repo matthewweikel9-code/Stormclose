@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { TopNav } from "./TopNav";
 import { getDaysRemaining, type SubscriptionTier } from "@/lib/subscriptions/tiers";
@@ -23,16 +24,26 @@ export function DashboardShell({
 	trialEnd,
 }: DashboardShellProps) {
 	const daysUntilTrialEnd = trialEnd ? getDaysRemaining(trialEnd) : null;
+	const searchParams = useSearchParams();
+	const isTvMode = searchParams.get("tv") === "1";
+
+	if (isTvMode) {
+		return (
+			<div className="min-h-screen bg-storm-bg">
+				<main className="min-h-screen animate-fade-in">
+					{children}
+				</main>
+			</div>
+		);
+	}
 
 	return (
 		<div className="min-h-screen bg-storm-bg">
-			{/* Sidebar — 72px collapsed, expands on hover */}
 			<Sidebar 
 				subscriptionTier={tier}
 				daysUntilTrialEnd={daysUntilTrialEnd}
 			/>
 
-			{/* Main content — no sidebar offset on small screens */}
 			<div className="pl-0 md:pl-[4.5rem] transition-all duration-300">
 				<TopNav 
 					user={user} 

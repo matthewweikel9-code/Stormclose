@@ -28,7 +28,7 @@ function maxTier(a: SubscriptionTier, b: SubscriptionTier): SubscriptionTier {
 async function getHighestTeamTier(supabase: any, userId: string): Promise<SubscriptionTier | null> {
 	try {
 		const { data, error } = await (supabase.from("team_members") as any)
-			.select("team:teams(subscription_tier, subscription_status)")
+			.select("team:teams(id, subscription_tier, subscription_status, owner_id)")
 			.eq("user_id", userId);
 
 		if (error || !Array.isArray(data)) {
@@ -36,16 +36,30 @@ async function getHighestTeamTier(supabase: any, userId: string): Promise<Subscr
 		}
 
 		let highestTier: SubscriptionTier | null = null;
-		for (const membership of data as Array<{ team?: { subscription_tier?: unknown; subscription_status?: unknown } }>) {
+		for (const membership of data as Array<{ team?: { id?: string; subscription_tier?: unknown; subscription_status?: unknown; owner_id?: string } }>) {
 			const team = membership.team;
-			const teamTier = team?.subscription_tier as SubscriptionTier | undefined;
-			const teamStatus = typeof team?.subscription_status === "string" ? team.subscription_status : null;
+			if (!team) continue;
+
+			let teamTier = team?.subscription_tier as SubscriptionTier | undefined;
+			let teamStatus = typeof team?.subscription_status === "string" ? team.subscription_status : null;
+
+			// Company tier: prefer team.subscription_tier, but fall back to owner's user subscription
+			// (Stripe updates users table, not teams - so owner's paid tier is the source of truth)
+			if ((!teamTier || teamTier === "free") && team.owner_id) {
+				const { data: ownerUser } = await (supabase.from("users") as any)
+					.select("subscription_tier, subscription_status")
+					.eq("id", team.owner_id)
+					.maybeSingle();
+				if (ownerUser?.subscription_tier && ownerUser.subscription_status === "active") {
+					teamTier = ownerUser.subscription_tier as SubscriptionTier;
+					teamStatus = ownerUser.subscription_status;
+				}
+			}
+
 			const tierIsValid = teamTier && Object.prototype.hasOwnProperty.call(TIER_PRIORITY, teamTier);
 			const statusIsActive = teamStatus === "active" || teamStatus === "trialing";
 
-			if (!tierIsValid || !statusIsActive) {
-				continue;
-			}
+			if (!tierIsValid || !statusIsActive) continue;
 
 			highestTier = highestTier ? maxTier(highestTier, teamTier) : teamTier;
 		}
