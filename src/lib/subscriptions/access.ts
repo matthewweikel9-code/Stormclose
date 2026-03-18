@@ -61,7 +61,7 @@ async function getHighestTeamTier(supabase: any, userId: string): Promise<Subscr
 
 			if (!tierIsValid || !statusIsActive) continue;
 
-			highestTier = highestTier ? maxTier(highestTier, teamTier) : teamTier;
+			highestTier = highestTier ? maxTier(highestTier, teamTier!) : (teamTier ?? null);
 		}
 
 		return highestTier;

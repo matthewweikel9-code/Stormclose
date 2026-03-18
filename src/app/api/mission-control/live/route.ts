@@ -108,9 +108,14 @@ export async function GET(request: NextRequest) {
 					};
 				};
 			};
-			const payload = json.data ?? json;
-			const kpi = payload.kpi;
-			const eq = payload.exportQueueSummary;
+			type PayloadShape = {
+				kpi?: { housesToHitCount?: number; activeMissionCount?: number; repsInFieldCount?: number; exportsTodayCount?: number };
+				exportQueueSummary?: { readyCount?: number; exportedTodayCount?: number; failedCount?: number; successRatePercent?: number };
+				data?: PayloadShape;
+			};
+			const payload = (json.data ?? json) as PayloadShape;
+			const kpi = payload.kpi ?? payload.data?.kpi;
+			const eq = payload.exportQueueSummary ?? payload.data?.exportQueueSummary;
 			if (kpi) {
 				data.kpi = {
 					housesToHit: kpi.housesToHitCount ?? 0,
@@ -195,21 +200,22 @@ export async function GET(request: NextRequest) {
 		}
 
 		if (partnerRes.status === "fulfilled" && partnerRes.value.ok) {
-			const json = (await partnerRes.value.json()) as {
-				data?: {
-					partnersCount?: number;
-					referralsCount?: number;
-					closedCount?: number;
-					totalRevenue?: number;
-				};
+			type PartnerPayload = {
+				partnersCount?: number;
+				referralsCount?: number;
+				closedCount?: number;
+				totalRevenue?: number;
+				data?: PartnerPayload;
 			};
-			const payload = json.data ?? json;
-			if (payload.partnersCount !== undefined || payload.referralsCount !== undefined) {
+			const json = (await partnerRes.value.json()) as { data?: PartnerPayload };
+			const payload = (json.data ?? json) as PartnerPayload;
+			const p = payload.partnersCount !== undefined ? payload : payload.data;
+			if (p && (p.partnersCount !== undefined || p.referralsCount !== undefined)) {
 				data.referralEngine = {
-					partnersCount: payload.partnersCount ?? 0,
-					referralsCount: payload.referralsCount ?? 0,
-					closedCount: payload.closedCount ?? 0,
-					totalRevenue: payload.totalRevenue ?? 0,
+					partnersCount: p.partnersCount ?? 0,
+					referralsCount: p.referralsCount ?? 0,
+					closedCount: p.closedCount ?? 0,
+					totalRevenue: p.totalRevenue ?? 0,
 				};
 			}
 		}

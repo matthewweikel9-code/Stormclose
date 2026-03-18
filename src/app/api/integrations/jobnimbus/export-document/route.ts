@@ -356,7 +356,8 @@ export async function POST(request: NextRequest) {
         const leadAddr = [l.address, l.city, l.state, l.zip].filter(Boolean).join(", ");
         return addressesMatch(leadAddr, propertyAddress);
       });
-      jnContactId = existingLead ? exportByLeadId.get(existingLead.id) ?? null : null;
+      const val = existingLead ? exportByLeadId.get(existingLead.id) : undefined;
+      jnContactId = typeof val === "string" ? val : null;
     }
 
     if (jnContactId) {

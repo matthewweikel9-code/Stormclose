@@ -279,7 +279,7 @@ function PerformancePanel() {
 
   const sorted = [...members].sort((a, b) => b.stats.revenue - a.stats.revenue);
   const topPerformer = sorted[0];
-  const maxRevenue = Math.max(...sorted.map((m) => m.revenue ?? m.stats.revenue), 1);
+  const maxRevenue = Math.max(...sorted.map((m) => m.stats.revenue), 1);
   const topKnocker = sorted.length > 0 ? sorted.reduce((a, b) => a.stats.doorsKnocked >= b.stats.doorsKnocked ? a : b) : null;
   const topCloser = sorted.length > 0 ? sorted.reduce((a, b) => a.stats.dealsClosed >= b.stats.dealsClosed ? a : b) : null;
 
