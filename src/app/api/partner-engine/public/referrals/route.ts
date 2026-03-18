@@ -9,7 +9,14 @@ const PublicReferralSchema = z.object({
 	propertyAddress: z.string().min(3),
 	homeownerName: z.string().optional().nullable(),
 	homeownerPhone: z.string().optional().nullable(),
-	homeownerEmail: z.string().email().optional().nullable(),
+	homeownerEmail: z
+		.string()
+		.optional()
+		.nullable()
+		.transform((v) => {
+			if (v === "" || v === null || v === undefined) return null;
+			return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null;
+		}),
 	city: z.string().optional().nullable(),
 	state: z.string().optional().nullable(),
 	zip: z.string().optional().nullable(),
