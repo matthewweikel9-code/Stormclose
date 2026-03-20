@@ -141,7 +141,19 @@ async function fetchFromXweather(
     ? Math.ceil((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
   const lookbackDays = Math.max(daysAgo + 1, days ?? 30);
-  const historicalReports = await getHailReports(lat, lng, radius, lookbackDays).catch(() => []);
+  let historicalReports = await getHailReports(lat, lng, radius, lookbackDays).catch(() => []);
+  // Fallback 1: if no hail, try all storm types (wind, tornado, etc.)
+  if (historicalReports.length === 0) {
+    historicalReports = await getStormReports(lat, lng, radius, Math.min(lookbackDays, 30)).catch(() => []);
+  }
+  // Fallback 2: retry with 2x radius when still empty (Xweather docs: "try increasing radius")
+  if (historicalReports.length === 0 && radius < 400) {
+    const widerRadius = Math.min(radius * 2, 400);
+    historicalReports = await getHailReports(lat, lng, widerRadius, lookbackDays).catch(() => []);
+    if (historicalReports.length === 0) {
+      historicalReports = await getStormReports(lat, lng, widerRadius, Math.min(lookbackDays, 30)).catch(() => []);
+    }
+  }
   const formatted = formatXweatherReportsToStormEvents(historicalReports);
   // When date is specified (e.g. storms API for a selected day), filter to that date.
   // When date is not specified (e.g. timeline API with days), return all storms in the range.

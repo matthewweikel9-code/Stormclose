@@ -324,7 +324,7 @@ function stormToTimelineEvent(storm: StormEvent): TimelineEvent {
 export default function StormMapPage() {
   const [activeLayer, setActiveLayer] = useState<"hail" | "wind" | "damage" | "radar" | "all">("all");
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
-  const [isLive, setIsLive] = useState(true);
+  const [isLive, setIsLive] = useState(false);
   const [storms, setStorms] = useState<StormEvent[]>([]);
   const [alerts, setAlerts] = useState<FormattedAlert[]>([]);
   const [impactedProperties, setImpactedProperties] = useState<PropertyImpact[]>([]);

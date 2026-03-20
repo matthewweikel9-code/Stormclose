@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { resolveStormProvider } from "@/lib/storm-providers/resolver";
+import { fetchNWSStormEvents } from "@/lib/nws-fallback";
 import type { StormEvent } from "@/lib/storm-providers/types";
 
 /**
@@ -66,6 +67,28 @@ export async function GET(request: NextRequest) {
       providerStorms = resolved.storms;
     } catch (e) {
       console.warn("[Storm Timeline] Resolver failed:", e instanceof Error ? e.message : e);
+    }
+
+    // 2b. NWS fallback: real-time severe alerts when provider returns empty (US only)
+    if (providerStorms.length === 0) {
+      try {
+        const nwsEvents = await fetchNWSStormEvents(lat, lng, radius);
+        providerStorms = nwsEvents.map((e) => ({
+          id: e.id,
+          type: e.type,
+          severity: e.severity,
+          lat: e.lat,
+          lng: e.lng,
+          radius: e.radius,
+          startTime: e.startTime,
+          endTime: e.endTime,
+          damageScore: e.damageScore,
+          location: e.location,
+          isActive: e.isActive,
+        }));
+      } catch (nwsErr) {
+        console.warn("[Storm Timeline] NWS fallback failed:", nwsErr);
+      }
     }
 
     // 3. Build set of already-cached event IDs
