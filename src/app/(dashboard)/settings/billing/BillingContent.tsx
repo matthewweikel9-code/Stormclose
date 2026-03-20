@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
 	TIER_DISPLAY_NAMES,
 	TIER_PRICES,
+	FEATURES_BY_TIER,
 	getDaysRemaining,
 	type SubscriptionTier
 } from "@/lib/subscriptions/tiers";
@@ -22,13 +23,6 @@ interface BillingContentProps {
 	};
 	upgradeTarget?: string | null;
 }
-
-const FEATURES_BY_TIER: Record<SubscriptionTier, string[]> = {
-	free: ["Objection Handler AI", "Basic responses", "Community support"],
-	trial: ["7-day free trial", "All Pro features", "Email support"],
-	pro: ["Objection Handler AI", "AI Negotiation Coach", "Supplement Generator AI", "AI Image Engine", "Carrier Intelligence", "Lead Scoring AI", "Email support"],
-	enterprise: ["Everything in Pro", "Storm Ops command center", "Referral Engine", "Team leaderboards & GPS", "JobNimbus integration", "Dedicated support"],
-};
 
 const TIER_ICON: Record<string, typeof Zap> = {
 	free: Zap, trial: Clock, pro: Zap, enterprise: Crown,

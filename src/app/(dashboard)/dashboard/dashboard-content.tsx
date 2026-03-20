@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { SkeletonDashboard } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { OnboardingChecklist } from '@/components/dashboard/OnboardingChecklist';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -472,6 +473,11 @@ export function DashboardContent({ user }: DashboardContentProps) {
   // ═══════════════════════════════════════════════════════════
   return (
     <div className="space-y-5 pb-8">
+
+      <OnboardingChecklist
+        jobnimbusConnected={jobnimbusConnected}
+        hasDefaultLocation={userLocation !== null}
+      />
 
       {/* ══════════════════════════════════════════════════════
           MODULE 1 — STORM REVENUE RADAR

@@ -2,8 +2,8 @@ import "../styles/globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-	title: "StormClose AI",
-	description: "AI-powered roofing workflow platform",
+	title: "StormClose AI — Storm Ops, AI Supplements & CRM Sync",
+	description: "From live hail tracking to closed deals. AI-powered storm ops, roof damage analysis, supplement generation, and JobNimbus sync for roofing teams.",
 	icons: {
 		icon: "/favicon.svg",
 		shortcut: "/favicon.svg",

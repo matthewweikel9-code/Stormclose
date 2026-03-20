@@ -3,52 +3,34 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { FEATURES_BY_TIER, TIER_PRICES, TRIAL_TERMS } from "@/lib/subscriptions/tiers";
 
 const tiers = [
 	{
 		name: "Free",
 		price: "0",
 		period: "forever",
-		description: "Try StormClose AI",
-		features: [
-			"Objection Handler AI",
-			"Basic responses",
-			"Community support",
-		],
+		description: "Create account and explore",
+		features: FEATURES_BY_TIER.free,
 		tier: null,
 		highlighted: false,
 	},
 	{
 		name: "Pro",
-		price: "399",
+		price: String(TIER_PRICES.pro),
 		period: "month",
-		description: "Essential insurance intelligence",
-		features: [
-			"Everything in Free",
-			"AI Negotiation Coach",
-			"Supplement Generator AI",
-			"AI Image Engine",
-			"Carrier Intelligence Database",
-			"Lead Scoring AI",
-			"Email support",
-		],
+		description: "AI-powered storm ops and supplements",
+		features: FEATURES_BY_TIER.pro,
 		tier: "pro",
 		highlighted: true,
 		badge: "Most Popular",
 	},
 	{
 		name: "Enterprise",
-		price: "799",
+		price: String(TIER_PRICES.enterprise),
 		period: "month",
-		description: "Full platform with Storm Ops & team tools",
-		features: [
-			"Everything in Pro",
-			"Storm Ops command center",
-			"Referral Engine",
-			"Team leaderboards & GPS",
-			"JobNimbus integration",
-			"Dedicated support",
-		],
+		description: "Full platform with team and referral tools",
+		features: FEATURES_BY_TIER.enterprise,
 		tier: "enterprise",
 		highlighted: false,
 		badge: "Full Platform",
@@ -103,7 +85,7 @@ const nextPath = searchParams.get("next") || "/dashboard";
 				<div className="text-center mb-12">
 					<h1 className="text-3xl font-bold text-white sm:text-4xl">Choose Your Plan</h1>
 					<p className="mt-4 text-lg text-slate-400">
-						Start with a free trial, upgrade when you&apos;re ready.
+						{TRIAL_TERMS.summary}
 					</p>
 				</div>
 
@@ -153,8 +135,8 @@ const nextPath = searchParams.get("next") || "/dashboard";
 									{isLoading === tierOption.tier
 										? "Redirecting..."
 										: tierOption.tier
-										? `Get ${tierOption.name}`
-										: "Start Free Trial"}
+										? `Start 7-Day Trial — ${tierOption.name}`
+										: "Create Free Account"}
 								</button>
 
 								<ul className="mt-6 space-y-3">

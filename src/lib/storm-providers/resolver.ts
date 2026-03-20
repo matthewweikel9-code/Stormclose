@@ -137,16 +137,15 @@ async function fetchFromXweather(
     };
   }
 
-  const daysAgo = Math.ceil((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
-  const historicalReports = await getHailReports(
-    lat,
-    lng,
-    radius,
-    Math.max(daysAgo + 1, days ?? 30)
-  ).catch(() => []);
-  const storms = formatXweatherReportsToStormEvents(historicalReports).filter((s) =>
-    s.startTime.startsWith(dateStr)
-  );
+  const daysAgo = date
+    ? Math.ceil((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+  const lookbackDays = Math.max(daysAgo + 1, days ?? 30);
+  const historicalReports = await getHailReports(lat, lng, radius, lookbackDays).catch(() => []);
+  const formatted = formatXweatherReportsToStormEvents(historicalReports);
+  // When date is specified (e.g. storms API for a selected day), filter to that date.
+  // When date is not specified (e.g. timeline API with days), return all storms in the range.
+  const storms = date ? formatted.filter((s) => s.startTime.startsWith(dateStr)) : formatted;
   return {
     storms,
     alerts: [],

@@ -2,43 +2,27 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { FEATURES_BY_TIER, TIER_PRICES, TRIAL_TERMS } from "@/lib/subscriptions/tiers";
 
 const tiers = [
 	{
 		name: "Pro",
-		price: "399",
+		price: String(TIER_PRICES.pro),
 		period: "month",
-		description: "Essential insurance intelligence for growing teams.",
-		features: [
-			"Objection Handler AI",
-			"AI Negotiation Coach",
-			"Supplement Generator AI",
-			"AI Image Engine",
-			"Carrier Intelligence Database",
-			"Storm report generation",
-			"Documents Hub & Revenue Hub",
-			"Email support",
-		],
-		cta: "Get Pro",
+		description: "AI-powered storm ops and supplements for growing teams.",
+		features: FEATURES_BY_TIER.pro,
+		cta: `Start ${TRIAL_TERMS.days}-Day Trial`,
 		href: "/subscribe?tier=pro",
 		highlighted: true,
 		badge: "Most Popular",
 	},
 	{
 		name: "Enterprise",
-		price: "799",
+		price: String(TIER_PRICES.enterprise),
 		period: "month",
 		description: "Full platform with Storm Ops, Referral Engine, and team tools.",
-		features: [
-			"Everything in Pro",
-			"Storm Ops command center",
-			"Live hail & wind monitoring",
-			"Referral Engine",
-			"Team leaderboards & GPS",
-			"JobNimbus integration",
-			"Dedicated support",
-		],
-		cta: "Get Enterprise",
+		features: FEATURES_BY_TIER.enterprise,
+		cta: `Start ${TRIAL_TERMS.days}-Day Trial`,
 		href: "/subscribe?tier=enterprise",
 		highlighted: false,
 		badge: "Full Platform",
@@ -64,13 +48,13 @@ export function Pricing() {
 						Plans that scale with your team
 					</h2>
 					<p className="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
-						Try the full platform risk-free.
+						{TRIAL_TERMS.summary}
 					</p>
 				</motion.div>
 
 				<div className="mb-8 flex justify-center">
 					<div className="rounded-xl border-2 border-storm-glow/40 bg-storm-glow/10 px-6 py-3">
-						<span className="text-sm font-bold uppercase tracking-wider text-storm-glow">7 day demo</span>
+						<span className="text-sm font-bold uppercase tracking-wider text-storm-glow">{TRIAL_TERMS.days}-day free trial</span>
 					</div>
 				</div>
 

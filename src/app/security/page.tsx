@@ -18,7 +18,8 @@ export default function SecurityPage() {
 					<h1 className="text-3xl font-bold text-white">Security</h1>
 				</div>
 				<p className="text-storm-muted text-sm mb-8">
-					We take security seriously. Here&apos;s how we protect your data.
+					We take security seriously. Here&apos;s how we protect your data. For implementation and billing questions, see our{" "}
+					<Link href="/faq" className="text-storm-glow hover:underline">FAQ for Buyers</Link>.
 				</p>
 
 				<div className="prose prose-invert prose-storm max-w-none space-y-8 text-storm-muted">
@@ -79,7 +80,8 @@ export default function SecurityPage() {
 					</section>
 				</div>
 
-				<div className="mt-12 pt-8 border-t border-storm-border flex gap-6">
+				<div className="mt-12 pt-8 border-t border-storm-border flex flex-wrap gap-6">
+					<Link href="/faq" className="text-storm-glow hover:underline text-sm">FAQ for Buyers</Link>
 					<Link href="/privacy" className="text-storm-glow hover:underline text-sm">Privacy Policy</Link>
 					<Link href="/terms" className="text-storm-glow hover:underline text-sm">Terms of Service</Link>
 					<Link href="/" className="text-storm-glow hover:underline text-sm">← Back to Home</Link>

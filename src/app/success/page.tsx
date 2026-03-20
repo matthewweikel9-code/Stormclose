@@ -25,8 +25,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
     .maybeSingle()) as { data: { subscription_status: string | null } | null };
 
   const subscriptionStatus = billingUser?.subscription_status ?? "inactive";
-  const isActive = subscriptionStatus === "active";
-  const sessionId = searchParams?.session_id;
+  const isActive = subscriptionStatus === "active" || subscriptionStatus === "trialing";
 
   return (
     <main className="min-h-screen bg-storm-bg flex items-center justify-center p-4">
@@ -64,10 +63,19 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
           >
             {subscriptionStatus.charAt(0).toUpperCase() + subscriptionStatus.slice(1)}
           </p>
-          {sessionId && (
-            <p className="mt-3 text-xs text-slate-600 truncate">Session: {sessionId}</p>
-          )}
         </div>
+
+        {isActive && (
+          <div className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4 text-left">
+            <p className="text-sm font-medium text-white">What happens next</p>
+            <ul className="mt-2 space-y-1.5 text-sm text-slate-400">
+              <li>• Open Storm Ops to scan for hail and wind events</li>
+              <li>• Use AI Image Engine to analyze roof photos</li>
+              <li>• Connect JobNimbus to sync leads and exports</li>
+              <li>• Questions? Email support@stormclose.com</li>
+            </ul>
+          </div>
+        )}
 
         <div className="mt-6 flex flex-col gap-3">
           <Link 

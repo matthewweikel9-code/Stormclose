@@ -105,16 +105,16 @@ const products = [
 				<div className="space-y-2">
 					<div className="grid grid-cols-3 gap-2">
 						<div className="rounded-lg bg-slate-800/60 p-2 text-center">
-							<div className="text-sm font-bold text-white">24</div>
-							<div className="text-[10px] text-slate-500">Partners</div>
+							<div className="text-sm font-bold text-white">Partners</div>
+							<div className="text-[10px] text-slate-500">Manage network</div>
 						</div>
 						<div className="rounded-lg bg-slate-800/60 p-2 text-center">
-							<div className="text-sm font-bold text-storm-glow">38%</div>
-							<div className="text-[10px] text-slate-500">Close Rate</div>
+							<div className="text-sm font-bold text-storm-glow">Pipeline</div>
+							<div className="text-[10px] text-slate-500">Track referrals</div>
 						</div>
 						<div className="rounded-lg bg-slate-800/60 p-2 text-center">
-							<div className="text-sm font-bold text-emerald-400">$47K</div>
-							<div className="text-[10px] text-slate-500">Revenue</div>
+							<div className="text-sm font-bold text-emerald-400">Revenue</div>
+							<div className="text-[10px] text-slate-500">Attribution</div>
 						</div>
 					</div>
 					{/* Pipeline */}

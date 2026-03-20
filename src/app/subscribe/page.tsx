@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CheckoutButton } from "./checkout-button";
-import { TIER_PRICES, TIER_DISPLAY_NAMES } from "@/lib/subscriptions/tiers";
+import { TIER_PRICES, TIER_DISPLAY_NAMES, TRIAL_TERMS } from "@/lib/subscriptions/tiers";
 
 type SubscribeTier = "pro" | "enterprise";
 
@@ -46,14 +46,14 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
           </div>
           <h1 className="text-2xl font-bold text-white">Activate StormClose AI</h1>
           <p className="mt-2 text-slate-400">
-            Subscribe to the {tierName} plan to unlock AI-powered roofing workflows.
+            Start your {TRIAL_TERMS.days}-day free trial of {tierName}. Full access, no charge until trial ends.
           </p>
         </div>
 
         <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-5 text-center">
           <p className="text-sm text-slate-500">{tierName} Plan</p>
           <p className="mt-2 text-3xl font-bold text-white">${price}<span className="text-lg text-slate-400">/month</span></p>
-          <p className="mt-1 text-sm text-slate-500">Billed monthly • Cancel anytime</p>
+          <p className="mt-1 text-sm text-slate-500">{TRIAL_TERMS.summary}</p>
         </div>
 
         <div className="mt-6">
@@ -65,6 +65,10 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
           <Link href="/" className="font-semibold text-storm-glow hover:text-storm-purple">
             Return home
           </Link>
+          {" · "}
+          <a href="mailto:support@stormclose.com" className="font-semibold text-storm-glow hover:text-storm-purple">
+            Questions?
+          </a>
         </p>
       </section>
     </main>

@@ -62,6 +62,49 @@ export const FEATURE_DISPLAY_NAMES: Record<FeatureKey, string> = {
 	roof_measurement: "Instant Roof Measurement AI"
 };
 
+/** Marketing feature labels per tier — single source of truth for pricing/billing UI */
+export const FEATURES_BY_TIER: Record<SubscriptionTier, string[]> = {
+	free: [
+		"Create account and explore",
+		"View pricing and product overview",
+		"Community support",
+	],
+	trial: [
+		"Objection Response AI",
+		"AI Negotiation Coach",
+		"Supplement Generator AI",
+		"AI Image Engine & Storm Ops",
+		"Lead Generator + Route Planner",
+		"7-day full access, then $399/mo",
+		"Email support",
+	],
+	pro: [
+		"Objection Response AI",
+		"AI Negotiation Coach",
+		"Supplement Generator AI",
+		"AI Image Engine & Storm Ops",
+		"Lead Generator + Route Planner",
+		"Email support",
+	],
+	enterprise: [
+		"Everything in Pro",
+		"Carrier Intelligence Database",
+		"Instant Roof Measurement AI",
+		"Storm Ops command center",
+		"Referral Engine",
+		"Team leaderboards & GPS",
+		"JobNimbus integration",
+		"Dedicated support",
+	],
+};
+
+/** Trial terms — used across pricing, subscribe, and checkout */
+export const TRIAL_TERMS = {
+	days: 7,
+	cardRequired: true,
+	summary: "7-day free trial on Pro or Enterprise. Card required. Cancel anytime before trial ends.",
+} as const;
+
 /** Normalize DB tier (pro_plus legacy) to current SubscriptionTier */
 export function normalizeTier(tier: string | null | undefined): SubscriptionTier {
 	if (!tier) return "free";

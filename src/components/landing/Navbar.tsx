@@ -10,7 +10,7 @@ const navLinks = [
 	{ href: "#products", label: "Products" },
 	{ href: "#features", label: "Features" },
 	{ href: "#how-it-works", label: "How It Works" },
-	{ href: "#pricing", label: "Pricing" },
+	{ href: "/pricing", label: "Pricing" },
 ];
 
 export function Navbar() {
@@ -37,6 +37,12 @@ export function Navbar() {
 				</div>
 
 				<div className="hidden items-center gap-5 md:flex">
+					<Link
+						href="/pricing"
+						className="text-sm font-semibold text-slate-400 transition-colors hover:text-white"
+					>
+						Pricing
+					</Link>
 					<Link
 						href="/login"
 						className="text-sm font-semibold text-slate-400 transition-colors hover:text-white"
@@ -86,6 +92,13 @@ export function Navbar() {
 								</a>
 							))}
 							<div className="mt-6 flex flex-col gap-3 border-t border-slate-800 pt-6">
+								<Link
+									href="/pricing"
+									onClick={() => setIsMobileMenuOpen(false)}
+									className="rounded-xl px-4 py-3 text-center font-semibold text-slate-400 hover:bg-slate-800/50 hover:text-white"
+								>
+									Pricing
+								</Link>
 								<Link
 									href="/login"
 									onClick={() => setIsMobileMenuOpen(false)}

@@ -29,10 +29,10 @@ const features = [
 ];
 
 const metrics = [
-	{ label: "Avg. close rate from referrals", value: "38%" },
-	{ label: "Revenue per qualified referral", value: "$12,400" },
-	{ label: "Avg. time from referral to install", value: "18 days" },
-	{ label: "Partner retention after 6 months", value: "91%" },
+	{ label: "Track close rate by partner", value: "Attribution" },
+	{ label: "Revenue per referral", value: "Full visibility" },
+	{ label: "Referral to install", value: "Pipeline view" },
+	{ label: "Partner performance", value: "Retention data" },
 ];
 
 export default function ReferralEnginePage() {
@@ -83,12 +83,12 @@ export default function ReferralEnginePage() {
 				</div>
 			</section>
 
-			{/* Metrics strip */}
+			{/* Capabilities strip */}
 			<section className="px-4 sm:px-6 lg:px-8 pb-12">
 				<div className="mx-auto max-w-6xl grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 					{metrics.map((m) => (
 						<div key={m.label} className="rounded-xl border border-storm-border bg-storm-z0 p-5 text-center">
-							<div className="text-2xl font-bold text-storm-glow">{m.value}</div>
+							<div className="text-lg font-bold text-storm-glow">{m.value}</div>
 							<div className="mt-1 text-xs text-storm-subtle">{m.label}</div>
 						</div>
 					))}
