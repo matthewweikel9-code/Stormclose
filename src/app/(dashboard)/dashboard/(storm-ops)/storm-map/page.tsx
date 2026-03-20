@@ -416,11 +416,11 @@ export default function StormMapPage() {
 
   const [timelineError, setTimelineError] = useState<string | null>(null);
 
-  const fetchTimeline = useCallback(async (lat: number, lng: number, days: number) => {
+  const fetchTimeline = useCallback(async (lat: number, lng: number, days: number, radiusMiles = 150) => {
     setTimelineLoading(true);
     setTimelineError(null);
     try {
-      const res = await fetch(`/api/storms/timeline?lat=${lat}&lng=${lng}&days=${days}&radius=150`);
+      const res = await fetch(`/api/storms/timeline?lat=${lat}&lng=${lng}&days=${days}&radius=${radiusMiles}`);
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
         setTimeline([]);
@@ -1212,7 +1212,28 @@ export default function StormMapPage() {
                 <div className="w-5 h-5 border-2 border-storm-purple border-t-transparent rounded-full animate-spin" />
               </div>
             ) : timelineForDisplay.length === 0 ? (
-              <div className="px-3 py-4 text-center text-xs text-storm-subtle">No storm events</div>
+              <div className="px-3 py-4 space-y-3">
+                <p className="text-xs text-storm-subtle text-center">No storm events in this area</p>
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    onClick={() => {
+                      setTimelineDays(90);
+                      const lat = latitude || 35.0;
+                      const lng = longitude || -98.0;
+                      void fetchTimeline(lat, lng, 90, 300);
+                    }}
+                    className="text-[10px] px-2 py-1.5 rounded-lg border border-storm-purple/40 bg-storm-purple/10 text-storm-glow hover:bg-storm-purple/20 transition-colors"
+                  >
+                    Try 90 days, wider area
+                  </button>
+                  <Link
+                    href="/dashboard/settings"
+                    className="text-[10px] text-storm-muted hover:text-storm-glow text-center"
+                  >
+                    Set default location in Settings
+                  </Link>
+                </div>
+              </div>
             ) : (
               <div className="space-y-0.5 p-2">
                 {timelineForDisplay.slice(0, 25).map((event) => {
@@ -1272,7 +1293,9 @@ export default function StormMapPage() {
               </button>
             </div>
             {missions.length === 0 ? (
-              <div className="text-xs text-storm-subtle py-2">No missions</div>
+              <div className="text-xs text-storm-subtle py-2">
+                No missions. Create one from a storm event above.
+              </div>
             ) : (
               <div className="space-y-0.5 max-h-32 overflow-y-auto">
                 {missions.slice(0, 10).map((mission) => (
