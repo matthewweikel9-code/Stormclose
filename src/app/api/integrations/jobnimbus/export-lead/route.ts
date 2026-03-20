@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createJobNimbusClient, JNContact } from '@/lib/jobnimbus';
 import { decryptJobNimbusApiKey } from '@/lib/jobnimbus/security';
+import { resolveJobNimbusCredentials } from '@/lib/jobnimbus/resolve-integration';
 import { fetchRoofDataForNotes, formatRoofDataForNotes } from '@/lib/solar/solarApi';
 
 interface ExportLeadRequest {
@@ -12,11 +13,6 @@ interface ExportLeadRequest {
   phone?: string;
   email?: string;
   notes?: string;
-}
-
-// Type for integration row
-interface JobNimbusIntegration {
-  api_key_encrypted?: string | null;
 }
 
 // Type for lead export
@@ -56,16 +52,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Get user's JobNimbus API key from unified integrations table
-    const { data: integration } = await (supabase
-      .from('jobnimbus_integrations') as any)
-      .select('api_key_encrypted')
-      .eq('user_id', user.id)
-      .maybeSingle() as { data: JobNimbusIntegration | null };
-    
+    const integration = await resolveJobNimbusCredentials(supabase, user.id);
+
     if (!integration?.api_key_encrypted) {
       return NextResponse.json(
-        { error: 'JobNimbus not connected. Please connect your account in Settings.' },
+        { error: 'JobNimbus not connected. Connect in Settings or use your team’s JobNimbus connection.' },
         { status: 400 }
       );
     }
@@ -176,12 +167,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Also try adding as activity (for Activity tab)
+    // Note type surfaces in JobNimbus Notes timeline
     if (contactId && fullNotes) {
       const noteResult = await jnClient.createActivity({
         contact_id: contactId,
-        type: 'activity',
-        title: 'StormClose Import',
+        type: 'note',
+        title: `StormClose Import — ${new Date().toLocaleString()}`,
         note: fullNotes,
       });
       if (!noteResult.success) {

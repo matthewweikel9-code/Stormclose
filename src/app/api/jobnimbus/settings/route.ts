@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { resolveJobNimbusIntegrationRow } from '@/lib/jobnimbus/resolve-integration';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,13 +16,18 @@ export async function PUT(request: NextRequest) {
 
     const settings = await request.json();
 
+    const integration = await resolveJobNimbusIntegrationRow(supabase, user.id);
+    if (!integration?.id) {
+      return NextResponse.json({ error: 'Not connected to JobNimbus' }, { status: 400 });
+    }
+
     const { error } = await (supabase as any)
       .from('jobnimbus_integrations')
       .update({
         settings,
         updated_at: new Date().toISOString(),
       })
-      .eq('user_id', user.id);
+      .eq('id', integration.id as string);
 
     if (error) {
       console.error('Settings update error:', error);
@@ -45,13 +51,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: integration } = await (supabase as any)
-      .from('jobnimbus_integrations')
-      .select('settings')
-      .eq('user_id', user.id)
-      .single();
+    const integration = await resolveJobNimbusIntegrationRow(supabase, user.id);
 
-    return NextResponse.json({ settings: integration?.settings || {} });
+    return NextResponse.json({ settings: (integration?.settings as object) || {} });
   } catch (error) {
     console.error('Settings fetch error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

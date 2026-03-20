@@ -8,11 +8,10 @@ type Rule = {
 const ALL_ROLES: UserRole[] = ["owner", "manager", "rep", "office_admin"];
 
 export const PAGE_ROLE_RULES: Rule[] = [
-	{ prefix: "/dashboard/storms", roles: ["owner", "manager"] },
 	{ prefix: "/dashboard/missions", roles: ["owner", "manager", "rep"] },
 	{ prefix: "/dashboard/team", roles: ["owner", "manager"] },
 	{ prefix: "/dashboard/mission-control", roles: ["owner", "manager", "office_admin"] },
-	{ prefix: "/dashboard/ai-studio", roles: ["owner", "manager", "rep", "office_admin"] },
+	{ prefix: "/dashboard/ai-image-engine", roles: ["owner", "manager", "rep", "office_admin"] },
 	{ prefix: "/dashboard/documents", roles: ["owner", "manager", "office_admin"] },
 	{ prefix: "/dashboard/exports", roles: ["owner", "manager", "office_admin"] },
 	{ prefix: "/dashboard", roles: ALL_ROLES },
@@ -42,6 +41,12 @@ export const PUBLIC_API_PREFIXES = [
 	"/api/auth/callback",
 	"/api/stripe/webhook",
 	"/api/cron/",
+	"/api/hail-import",
+	"/api/storm-alerts/monitor",
+	"/api/debug-supabase",
+	"/api/demo-request",
+	"/api/partner-engine/public/",
+	"/api/jobnimbus/webhook",
 ] as const;
 
 export function getAllowedRoles(pathname: string, rules: Rule[]): UserRole[] | null {

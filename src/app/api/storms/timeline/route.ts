@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getHailReports, getStormReports } from "@/lib/xweather";
+import { resolveStormProvider } from "@/lib/storm-providers/resolver";
+import type { StormEvent } from "@/lib/storm-providers/types";
 
 /**
  * GET /api/storms/timeline
- * 
+ *
  * Returns storm event timeline for the user's territory.
- * Combines cached events from DB with fresh XWeather data.
- * 
+ * Uses provider resolver (HailTrace / Hail Recon / Xweather); combines with cached events.
+ *
  * Query params:
  *   - lat, lng: center point (required)
  *   - days: how far back (default 30)
@@ -51,111 +52,72 @@ export async function GET(request: NextRequest) {
       console.warn("[Storm Timeline] get_storm_timeline failed:", rpcErr);
     }
 
-    // 2. Fetch fresh reports from XWeather to fill gaps
-    const [hailReports, stormReports] = await Promise.all([
-      getHailReports(lat, lng, radius, days).catch((e) => {
-        console.warn("[Storm Timeline] getHailReports failed:", e instanceof Error ? e.message : e);
-        return [];
-      }),
-      getStormReports(lat, lng, radius, Math.min(days, 7)).catch((e) => {
-        console.warn("[Storm Timeline] getStormReports failed:", e instanceof Error ? e.message : e);
-        return [];
-      }),
-    ]);
+    // 2. Fetch fresh data via provider resolver (HailTrace / Hail Recon / Xweather)
+    let providerStorms: StormEvent[] = [];
+    try {
+      const resolved = await resolveStormProvider(supabase, {
+        userId: user.id,
+        lat,
+        lng,
+        radius,
+        live: false,
+        days,
+      });
+      providerStorms = resolved.storms;
+    } catch (e) {
+      console.warn("[Storm Timeline] Resolver failed:", e instanceof Error ? e.message : e);
+    }
 
-    // 3. Build set of already-cached xweather IDs
+    // 3. Build set of already-cached event IDs
     const cachedIds = new Set(
       cachedEvents
         .filter((e) => e.event_id)
         .map((e) => String(e.event_id))
     );
 
-    // 4. Merge XWeather reports that aren't cached yet
+    // 4. Map provider storms to NewStormEvent (for cache) and filter out already cached
     const newEvents: NewStormEvent[] = [];
+    for (const storm of providerStorms) {
+      if (cachedIds.has(storm.id)) continue;
 
-    for (const report of hailReports) {
-      if (cachedIds.has(report.id)) continue;
-
-      const hailSize = report.report.detail.hailIN || 0;
-      const severity = hailSize >= 2.5 ? "extreme" : hailSize >= 1.75 ? "severe" : hailSize >= 1.0 ? "moderate" : "minor";
-      const damageScore = Math.min(100, Math.round(hailSize * 35));
-
-      // Estimate affected properties based on hail size
-      const impactRadiusMiles = hailSize >= 2 ? 8 : hailSize >= 1 ? 5 : 3;
-      const estimatedProperties = Math.round(impactRadiusMiles * impactRadiusMiles * Math.PI * 120); // ~120 homes/sq mi in suburbs
-      const avgClaimValue = 12000 + hailSize * 3000;
+      const hailSize = storm.hailSize ?? 0;
+      const windSpeed = storm.windSpeed ?? 0;
+      const impactRadiusMiles =
+        storm.type === "tornado" ? 2 : storm.type === "hail" ? (hailSize >= 2 ? 8 : hailSize >= 1 ? 5 : 3) : 5;
+      const estimatedProperties =
+        storm.type === "tornado"
+          ? 500
+          : storm.type === "wind" || storm.type === "severe_thunderstorm"
+            ? windSpeed >= 75
+              ? 2000
+              : 800
+            : Math.round(impactRadiusMiles * impactRadiusMiles * Math.PI * 120);
+      const avgClaimValue =
+        storm.type === "tornado" ? 25000 : storm.type === "hail" ? 12000 + hailSize * 3000 : 8000;
       const estimatedOpportunity = estimatedProperties * avgClaimValue;
 
       newEvents.push({
-        xweather_id: report.id,
-        event_type: "hail",
-        severity,
-        hail_size_inches: hailSize,
-        wind_speed_mph: null,
-        damage_score: damageScore,
-        latitude: report.loc.lat,
-        longitude: report.loc.long,
-        location_name: buildTimelineLocation({
-          locationName: report.place.name,
-          county: report.place.county,
-          state: report.place.state,
-          lat: report.loc.lat,
-          lng: report.loc.long,
-        }),
-        county: report.place.county || null,
-        state: report.place.state || null,
+        xweather_id: storm.id,
+        event_type: storm.type,
+        severity: storm.severity,
+        hail_size_inches: hailSize || null,
+        wind_speed_mph: windSpeed || null,
+        damage_score: storm.damageScore,
+        latitude: storm.lat,
+        longitude: storm.lng,
+        location_name: storm.location || buildTimelineLocation({ lat: storm.lat, lng: storm.lng }),
+        county: storm.county || null,
+        state: storm.state || null,
         impact_radius_miles: impactRadiusMiles,
         estimated_properties: estimatedProperties,
         estimated_opportunity: estimatedOpportunity,
-        event_occurred_at: report.report.dateTimeISO,
-        comments: report.report.comments || null,
+        event_occurred_at: storm.startTime,
+        comments: storm.comments || null,
         user_id: user.id,
       });
     }
 
-    for (const report of stormReports) {
-      if (cachedIds.has(report.id)) continue;
-      if (hailReports.some((h) => h.id === report.id)) continue; // Skip duplicates
-
-      const windSpeed = report.report.detail.windSpeedMPH || 0;
-      const isWind = report.report.cat === "wind" || windSpeed > 0;
-      const isTornado = report.report.cat === "tornado";
-      const eventType = isTornado ? "tornado" : isWind ? "wind" : "severe_thunderstorm";
-      const severity = isTornado ? "extreme" : windSpeed >= 75 ? "severe" : windSpeed >= 58 ? "moderate" : "minor";
-      const damageScore = isTornado ? 95 : Math.min(100, Math.round(windSpeed * 1.2));
-
-      const estimatedProperties = isTornado ? 500 : windSpeed >= 75 ? 2000 : 800;
-      const avgClaimValue = isTornado ? 25000 : 8000;
-      const estimatedOpportunity = estimatedProperties * avgClaimValue;
-
-      newEvents.push({
-        xweather_id: report.id,
-        event_type: eventType,
-        severity,
-        hail_size_inches: report.report.detail.hailIN || null,
-        wind_speed_mph: windSpeed || null,
-        damage_score: damageScore,
-        latitude: report.loc.lat,
-        longitude: report.loc.long,
-        location_name: buildTimelineLocation({
-          locationName: report.place.name,
-          county: report.place.county,
-          state: report.place.state,
-          lat: report.loc.lat,
-          lng: report.loc.long,
-        }),
-        county: report.place.county || null,
-        state: report.place.state || null,
-        impact_radius_miles: isTornado ? 2 : 5,
-        estimated_properties: estimatedProperties,
-        estimated_opportunity: estimatedOpportunity,
-        event_occurred_at: report.report.dateTimeISO,
-        comments: report.report.comments || null,
-        user_id: user.id,
-      });
-    }
-
-    // 5. Cache new events in DB (best-effort, don't fail if table doesn't exist)
+    // 5. Cache new events in DB (best-effort)
     if (newEvents.length > 0) {
       try {
         await (supabase.from("storm_events_cache") as any).upsert(

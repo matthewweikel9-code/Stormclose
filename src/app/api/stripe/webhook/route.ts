@@ -52,11 +52,10 @@ function metadataUserId(metadata: Record<string, string> | null | undefined) {
   return metadata?.user_id ?? metadata?.userId ?? null;
 }
 
-function metadataTier(metadata: Record<string, string> | null | undefined): "free" | "pro" | "pro_plus" | "enterprise" {
+function metadataTier(metadata: Record<string, string> | null | undefined): "free" | "pro" | "enterprise" {
   const tier = metadata?.tier ?? metadata?.subscription_tier ?? "pro";
   if (tier === "enterprise") return "enterprise";
-  if (tier === "pro_plus" || tier === "pro+") return "pro_plus";
-  if (tier === "pro") return "pro";
+  if (tier === "pro_plus" || tier === "pro+" || tier === "pro") return "pro";
   return "free";
 }
 
@@ -69,7 +68,7 @@ function calculateTrialEnd(trialDays: number = 7): string {
 async function upsertUserById(input: {
   userId: string;
   status: "active" | "inactive";
-  tier?: "free" | "pro" | "pro_plus" | "enterprise";
+  tier?: "free" | "pro" | "enterprise";
   trialEnd?: string | null;
   customerId?: string | null;
   subscriptionId?: string | null;
@@ -100,7 +99,7 @@ async function upsertUserById(input: {
 async function updateUserByCustomerId(input: {
   customerId: string;
   status: "active" | "inactive";
-  tier?: "free" | "pro" | "pro_plus" | "enterprise";
+  tier?: "free" | "pro" | "enterprise";
   subscriptionId?: string | null;
 }) {
   console.log("[WEBHOOK] updateUserByCustomerId called:", JSON.stringify(input));

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkFeatureAccess } from '@/lib/subscriptions/access';
 
 // GET /api/xactimate - Fetch all estimates for the user
 export async function GET(request: NextRequest) {
@@ -9,6 +10,14 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const access = await checkFeatureAccess(user.id, 'supplement_generator');
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.reason ?? 'Supplement Generator requires a higher subscription tier.' },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -57,6 +66,14 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const access = await checkFeatureAccess(user.id, 'supplement_generator');
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.reason ?? 'Supplement Generator requires a higher subscription tier.' },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

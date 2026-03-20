@@ -81,8 +81,6 @@ export async function middleware(request: NextRequest) {
 	const isDashboardRoute = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
 	const isSettingsRoute = pathname === "/settings" || pathname.startsWith("/settings/");
 	const isProtectedPageRoute = isDashboardRoute || isSettingsRoute;
-	const isReportGenerationRoute =
-		pathname === "/dashboard/report" || pathname.startsWith("/dashboard/report/");
 	const isDeprecatedStormOpsRoute =
 		pathname === "/dashboard/command-center" ||
 		pathname.startsWith("/dashboard/command-center/") ||
@@ -159,23 +157,6 @@ export async function middleware(request: NextRequest) {
 		const redirectUrl = request.nextUrl.clone();
 		redirectUrl.pathname = "/dashboard";
 		redirectUrl.searchParams.set("error", "forbidden");
-		return NextResponse.redirect(redirectUrl);
-	}
-
-	if (!isReportGenerationRoute) {
-		return response;
-	}
-
-	const { data: billingUser } = (await supabase
-		.from("users")
-		.select("subscription_status")
-		.eq("id", user.id)
-		.maybeSingle()) as { data: { subscription_status: string | null } | null };
-
-	if (billingUser?.subscription_status !== "active") {
-		const redirectUrl = request.nextUrl.clone();
-		redirectUrl.pathname = "/pricing";
-		redirectUrl.searchParams.set("next", pathWithQuery);
 		return NextResponse.redirect(redirectUrl);
 	}
 

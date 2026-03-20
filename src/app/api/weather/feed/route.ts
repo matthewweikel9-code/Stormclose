@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { 
-  getStormFeed, 
-  getActiveAlerts, 
-  getHailReports,
-  getStormCells,
-  XweatherAlert,
-  XweatherStormReport,
-  XweatherStormCell
-} from "@/lib/xweather";
+import { resolveStormProvider } from "@/lib/storm-providers/resolver";
 
 export const dynamic = 'force-dynamic';
 
@@ -62,53 +54,61 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Weather Feed] Fetching for ${centerLat}, ${centerLng}`);
 
-    // Fetch comprehensive storm data from Xweather
-    const stormFeed = await getStormFeed(centerLat!, centerLng!);
+    // Fetch storm data via provider resolver (HailTrace / Hail Recon / Xweather)
+    const resolved = await resolveStormProvider(supabase, {
+      userId: user.id,
+      lat: centerLat!,
+      lng: centerLng!,
+      radius: 150,
+      live: true,
+    });
 
-    // Transform Xweather alerts to match our existing format
-    const transformedAlerts = stormFeed.alerts.map((alert: XweatherAlert) => ({
+    // Transform resolved alerts to match our existing format
+    const transformedAlerts = resolved.alerts.map((alert) => ({
       id: alert.id,
-      alert_type: mapXweatherAlertType(alert.details.type),
-      severity: alert.details.emergency ? "extreme" : mapSeverity(alert.details.type),
-      headline: alert.details.name,
-      description: alert.details.body,
-      affected_areas: [alert.place.name, alert.place.state].filter(Boolean),
-      onset_at: alert.timestamps.beginsISO,
-      expires_at: alert.timestamps.expiresISO,
-      issued_at: alert.timestamps.issuedISO,
-      affects_user: true, // They're fetching for their area
-      source: "xweather"
+      alert_type: mapXweatherAlertType(alert.type),
+      severity: alert.emergency ? "extreme" : mapSeverity(alert.type),
+      headline: alert.name,
+      description: alert.body,
+      affected_areas: [alert.location].filter(Boolean),
+      onset_at: alert.issuedAt,
+      expires_at: alert.expiresAt,
+      issued_at: alert.issuedAt,
+      affects_user: true,
+      source: resolved.source,
     }));
 
-    // Transform hail reports to match expected format
-    const transformedHailReports = stormFeed.recentHail.map((report: XweatherStormReport) => ({
-      id: report.id,
-      type: "hail_report",
-      location: `${report.place.name}, ${report.place.state}`,
-      lat: report.loc.lat,
-      lng: report.loc.long,
-      hail_size_inches: report.report.detail.hailIN,
-      timestamp: report.report.dateTimeISO,
-      comments: report.report.comments,
-      source: "xweather"
-    }));
+    // Transform resolved storms (hail events) to hail report format
+    const transformedHailReports = resolved.storms
+      .filter((s) => s.type === "hail")
+      .map((storm) => ({
+        id: storm.id,
+        type: "hail_report",
+        location: storm.location || `${storm.lat}, ${storm.lng}`,
+        lat: storm.lat,
+        lng: storm.lng,
+        hail_size_inches: storm.hailSize,
+        timestamp: storm.startTime,
+        comments: storm.comments,
+        source: resolved.source,
+      }));
 
     // Transform storm cells
-    const transformedStormCells = stormFeed.stormCells.map((cell: XweatherStormCell) => ({
+    const transformedStormCells = resolved.stormCells.map((cell) => ({
       id: cell.id,
       type: "storm_cell",
-      location: `${cell.place.name}, ${cell.place.state}`,
-      lat: cell.loc.lat,
-      lng: cell.loc.long,
-      hail_probability: cell.hail.prob,
-      hail_size_max: cell.hail.maxSizeIN,
-      tornado_probability: cell.tornado.prob,
-      is_severe: cell.traits.severe,
-      is_rotating: cell.traits.rotating,
-      speed_mph: cell.track.speedMPH,
-      direction: cell.track.directionDEG,
-      timestamp: cell.ob.dateTimeISO,
-      source: "xweather"
+      location: cell.location,
+      lat: cell.lat,
+      lng: cell.lng,
+      hail_probability: cell.hailProb,
+      hail_size_max: cell.maxHailSize,
+      tornado_probability: cell.tornadoProb,
+      is_severe: cell.isSevere,
+      is_rotating: cell.isRotating,
+      speed_mph: cell.speedMph,
+      direction: cell.direction,
+      timestamp: new Date().toISOString(),
+      source: resolved.source,
     }));
 
     // Combine all alerts - Xweather alerts + hail reports treated as alerts
@@ -132,14 +132,21 @@ export async function GET(request: NextRequest) {
         }))
     ].sort((a, b) => new Date(b.onset_at || '').getTime() - new Date(a.onset_at || '').getTime());
 
+    const summary = {
+      activeAlerts: transformedAlerts.length,
+      hailReportsLast7Days: transformedHailReports.length,
+      activeStormCells: transformedStormCells.length,
+      severeStormCells: transformedStormCells.filter((c) => c.is_severe).length,
+    };
+
     return NextResponse.json({
       success: true,
-      source: "xweather",
+      source: resolved.source,
       location: { lat: centerLat, lng: centerLng },
       alerts: combinedAlerts,
       hailReports: transformedHailReports,
       stormCells: transformedStormCells,
-      summary: stormFeed.summary,
+      summary,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

@@ -14,7 +14,7 @@ export default async function ObjectionPage() {
 		redirect("/login");
 	}
 
-	// Check if user has access to objection handler (Pro+ only)
+	// Check if user has access to objection handler (Pro only)
 	const access = await checkFeatureAccess(user.id, "objection_handler");
 
 	if (!access.allowed) {
@@ -37,18 +37,18 @@ export default async function ObjectionPage() {
 						</svg>
 					</div>
 					<h1 className="mb-4 text-2xl font-bold text-white">
-						Objection Handler is a Pro+ Feature
+						Objection Handler is a Pro Feature
 					</h1>
 					<p className="mb-8 text-slate-400">
 						Build confident, professional responses to homeowner objections with AI assistance.
-						Upgrade to Pro+ to unlock this powerful sales tool.
+						Upgrade to Pro to unlock this powerful sales tool.
 					</p>
 					<div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
 						<Link
 							href="/settings/billing"
 							className="inline-flex items-center justify-center rounded-xl bg-storm-purple px-6 py-3 font-semibold text-white transition-all hover:bg-[#5B4DE0]"
 						>
-							Upgrade to Pro+
+							Upgrade to Pro
 						</Link>
 						<Link
 							href="/dashboard"

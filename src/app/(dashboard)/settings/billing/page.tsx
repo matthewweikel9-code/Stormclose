@@ -2,9 +2,16 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeTier } from "@/lib/subscriptions/tiers";
 import { BillingContent } from "./BillingContent";
 
-export default async function BillingPage() {
+export default async function BillingPage({
+	searchParams,
+}: {
+	searchParams: Promise<{ upgrade?: string }>;
+}) {
+	const params = await searchParams;
+	const upgradeTarget = params.upgrade ?? null;
 	const supabase = await createClient();
 	const {
 		data: { user }
@@ -27,12 +34,13 @@ export default async function BillingPage() {
 		<BillingContent
 			user={{ id: user.id, email: user.email }}
 			subscriptionData={{
-				tier: userData?.subscription_tier || "free",
+				tier: normalizeTier(userData?.subscription_tier),
 				status: userData?.subscription_status || "inactive",
 				trialEnd: userData?.trial_end,
 				hasStripeCustomer: !!userData?.stripe_customer_id,
 				hasSubscription: !!userData?.stripe_subscription_id
 			}}
+			upgradeTarget={upgradeTarget}
 		/>
 	);
 }

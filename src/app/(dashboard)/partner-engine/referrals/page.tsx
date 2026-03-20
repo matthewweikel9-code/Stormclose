@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Loader2, RefreshCw, FlaskConical, ArrowRight } from "lucide-react";
+import { Plus, Loader2, RefreshCw, FlaskConical, ArrowRight, Upload, Download, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { UploadCard } from "@/components/dashboard/UploadCard";
+import {
+	parseReferralsFile,
+	readFileAsText,
+	readFileAsArrayBuffer,
+	getReferralsTemplateCSV,
+} from "@/lib/partner-engine/import-parser";
 
 type ApiEnvelope<T> = { data: T | null; error: string | null; meta: Record<string, unknown> };
 
@@ -104,6 +111,13 @@ export default function ReferralsPage() {
 	const [submitting, setSubmitting] = useState(false);
 	const [formError, setFormError] = useState<string | null>(null);
 
+	const [showImport, setShowImport] = useState(false);
+	const [importRows, setImportRows] = useState<{ propertyAddress: string; partnerName: string | null; homeownerName: string | null }[]>([]);
+	const [importParseErrors, setImportParseErrors] = useState<string[]>([]);
+	const [importParseWarnings, setImportParseWarnings] = useState<string[]>([]);
+	const [importing, setImporting] = useState(false);
+	const [importResult, setImportResult] = useState<{ imported: number; unmatchedPartners: string[]; errors: string[] } | null>(null);
+
 	const fetchReferrals = useCallback(async () => {
 		const params = new URLSearchParams();
 		if (statusFilter) params.set("status", statusFilter);
@@ -192,6 +206,57 @@ export default function ReferralsPage() {
 		} finally { setSeeding(false); }
 	};
 
+	const handleImportFileSelect = async (file: File) => {
+		setImportResult(null);
+		setImportParseErrors([]);
+		setImportParseWarnings([]);
+		try {
+			const isExcel = file.name.toLowerCase().endsWith(".xlsx");
+			const content = isExcel ? await readFileAsArrayBuffer(file) : await readFileAsText(file);
+			const result = parseReferralsFile(content, isExcel);
+			setImportParseErrors(result.errors);
+			setImportParseWarnings(result.warnings);
+			setImportRows(result.rows);
+		} catch (e) {
+			setImportParseErrors([e instanceof Error ? e.message : "Failed to parse file"]);
+			setImportRows([]);
+		}
+	};
+
+	const handleImport = async () => {
+		if (importRows.length === 0) return;
+		setImporting(true);
+		setImportResult(null);
+		try {
+			const res = await fetch("/api/partner-engine/referrals/import", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ rows: importRows }),
+			});
+			const json = (await res.json()) as ApiEnvelope<{ imported: number; unmatchedPartners: string[]; errors: string[] }>;
+			if (json.error) throw new Error(json.error);
+			setImportResult(json.data ?? { imported: 0, unmatchedPartners: [], errors: [] });
+			if (json.data?.imported) {
+				void fetchReferrals();
+			}
+		} catch (e) {
+			setImportResult({ imported: 0, unmatchedPartners: [], errors: [e instanceof Error ? e.message : "Import failed"] });
+		} finally {
+			setImporting(false);
+		}
+	};
+
+	const handleDownloadTemplate = () => {
+		const csv = getReferralsTemplateCSV();
+		const blob = new Blob([csv], { type: "text/csv" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = "referrals-template.csv";
+		a.click();
+		URL.revokeObjectURL(url);
+	};
+
 	if (loading && referrals.length === 0) {
 		return (
 			<div className="space-y-5 animate-fade-in">
@@ -210,6 +275,10 @@ export default function ReferralsPage() {
 					{referrals.length > 0 && <Badge variant="default">{referrals.length}</Badge>}
 				</div>
 				<div className="flex flex-wrap gap-2">
+					<button type="button" onClick={() => setShowImport(true)} className="button-secondary flex items-center gap-2 text-sm">
+						<Upload className="h-4 w-4" />
+						Import
+					</button>
 					<button type="button" onClick={() => void handleSeedMock()} disabled={seeding} className="button-secondary flex items-center gap-2 text-sm" title="Create a test referral and sync it to JobNimbus">
 						{seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
 						Test Referral & Sync
@@ -220,6 +289,62 @@ export default function ReferralsPage() {
 					</button>
 				</div>
 			</div>
+
+			{/* Import Modal */}
+			{showImport && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowImport(false)}>
+					<div className="storm-card max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+						<div className="flex items-center justify-between mb-4">
+							<h3 className="text-lg font-semibold text-white">Import Referrals</h3>
+							<button type="button" onClick={() => setShowImport(false)} className="p-2 text-storm-subtle hover:text-white rounded-lg hover:bg-storm-z2">
+								<X className="h-5 w-5" />
+							</button>
+						</div>
+						<p className="text-sm text-storm-muted mb-4">Upload a CSV or Excel file. Required: Property Address. Optional: Partner Name (matches existing partners), Homeowner Name, Phone, Email, City, State, ZIP, Notes.</p>
+						<button type="button" onClick={handleDownloadTemplate} className="button-secondary flex items-center gap-2 text-sm mb-4">
+							<Download className="h-4 w-4" />
+							Download template
+						</button>
+						<UploadCard onFileSelect={handleImportFileSelect} accept=".csv,.xlsx" maxSize={5} isLoading={importing} />
+						{importParseErrors.length > 0 && (
+							<div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+								{importParseErrors.map((e, i) => <p key={i}>{e}</p>)}
+							</div>
+						)}
+						{importParseWarnings.length > 0 && (
+							<div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
+								{importParseWarnings.map((w, i) => <p key={i}>{w}</p>)}
+							</div>
+						)}
+						{importRows.length > 0 && importParseErrors.length === 0 && (
+							<div className="mt-4">
+								<p className="text-sm text-storm-muted mb-2">Preview ({importRows.length} referrals):</p>
+								<div className="rounded-xl bg-storm-z1 border border-storm-border max-h-40 overflow-y-auto">
+									{importRows.slice(0, 10).map((r, i) => (
+										<div key={i} className="px-3 py-2 border-b border-storm-border/50 last:border-b-0 text-sm text-storm-muted">
+											{r.propertyAddress} · {r.partnerName ?? "—"} · {r.homeownerName ?? "—"}
+										</div>
+									))}
+									{importRows.length > 10 && <div className="px-3 py-2 text-2xs text-storm-subtle">... and {importRows.length - 10} more</div>}
+								</div>
+								<button type="button" onClick={() => void handleImport()} disabled={importing} className="button-primary mt-4 flex items-center gap-2 text-sm">
+									{importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+									Import {importRows.length} referrals
+								</button>
+							</div>
+						)}
+						{importResult && (
+							<div className={`mt-4 rounded-xl border p-4 ${importResult.errors.length > 0 ? "border-amber-500/30 bg-amber-500/10 text-amber-400" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"}`}>
+								<p className="text-sm font-medium">Imported {importResult.imported} referrals.</p>
+								{importResult.unmatchedPartners.length > 0 && (
+									<p className="text-sm mt-1">Unmatched partners (referrals added without partner link): {importResult.unmatchedPartners.join(", ")}</p>
+								)}
+								{importResult.errors.length > 0 && <p className="text-sm mt-1">{importResult.errors.join(" ")}</p>}
+							</div>
+						)}
+					</div>
+				</div>
+			)}
 
 			{seedResult && (
 				<div className={`rounded-xl border p-4 ${seedResult.synced ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-400"}`}>

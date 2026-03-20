@@ -5,29 +5,16 @@ import Link from "next/link";
 
 const tiers = [
 	{
-		name: "Free",
-		price: "0",
-		period: "forever",
-		description: "Get started with core objection handling.",
-		features: [
-			"Objection Handler AI",
-			"30+ proven scripts",
-			"AI-generated rebuttals",
-			"Community support",
-		],
-		cta: "Start Free",
-		href: "/signup",
-		highlighted: false,
-	},
-	{
 		name: "Pro",
 		price: "399",
 		period: "month",
 		description: "Essential insurance intelligence for growing teams.",
 		features: [
-			"Everything in Free",
+			"Objection Handler AI",
+			"AI Negotiation Coach",
+			"Supplement Generator AI",
+			"AI Image Engine",
 			"Carrier Intelligence Database",
-			"AI Assistant (GPT-4o)",
 			"Storm report generation",
 			"Documents Hub & Revenue Hub",
 			"Email support",
@@ -77,11 +64,17 @@ export function Pricing() {
 						Plans that scale with your team
 					</h2>
 					<p className="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
-						Start free. Upgrade when you need more power.
+						Try the full platform risk-free.
 					</p>
 				</motion.div>
 
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+				<div className="mb-8 flex justify-center">
+					<div className="rounded-xl border-2 border-storm-glow/40 bg-storm-glow/10 px-6 py-3">
+						<span className="text-sm font-bold uppercase tracking-wider text-storm-glow">7 day demo</span>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-3xl mx-auto">
 					{tiers.map((tier, index) => (
 						<motion.div
 							key={tier.name}

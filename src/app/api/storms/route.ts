@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import {
-  getStormReports,
-  getActiveAlerts,
-  getStormCells,
-  getHailReports,
-  XweatherStormReport,
-  XweatherAlert,
-  XweatherStormCell,
-} from "@/lib/xweather";
+import { resolveStormProvider } from "@/lib/storm-providers/resolver";
 
-// Storm data API - fetches live and historical storm data from Xweather
+// Storm data API - fetches via provider resolver (HailTrace / Hail Recon / Xweather)
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -30,122 +22,84 @@ export async function GET(request: NextRequest) {
     let storms: StormEvent[] = [];
     let alerts: FormattedAlert[] = [];
     let stormCells: FormattedStormCell[] = [];
-    let source = "xweather";
+    let source: string = "xweather";
 
-    if (live) {
-      // Fetch LIVE data from Xweather
-      const [xweatherAlerts, xweatherCells, recentReports] = await Promise.all([
-        getActiveAlerts(lat, lng).catch(() => []),
-        getStormCells(lat, lng, radius).catch(() => []),
-        getStormReports(lat, lng, radius, 1).catch(() => []), // Last 24 hours
-      ]);
-
-      // Format alerts
-      alerts = formatXweatherAlerts(xweatherAlerts);
-
-      // Format active storm cells
-      stormCells = formatStormCells(xweatherCells);
-
-      // Convert reports to storm events
-      storms = formatStormReports(recentReports);
-
-      // Add storm cells as events too
-      xweatherCells.forEach((cell, i) => {
-        storms.push({
-          id: cell.id || `cell-${i}`,
-          type: cell.traits.tornadic ? "tornado" : cell.traits.hail ? "hail" : "severe_thunderstorm",
-          severity: getSeverityFromCell(cell),
-          hailSize: cell.hail?.maxSizeIN || undefined,
-          windSpeed: cell.track?.speedMPH || undefined,
-          lat: cell.loc.lat,
-          lng: cell.loc.long,
-          radius: 10,
-          startTime: cell.ob.dateTimeISO,
-          damageScore: calculateCellDamageScore(cell),
-          path: cell.track?.points?.map(p => ({ lat: p.lat, lng: p.long })) || undefined,
-          location: buildLocationLabel({
-            locationName: cell.place.name,
-            county: cell.place.county,
-            state: cell.place.state,
-            lat: cell.loc.lat,
-            lng: cell.loc.long,
-          }),
-          county: cell.place.county || undefined,
-          state: cell.place.state || undefined,
-          isActive: true,
-        });
+    try {
+      const resolved = await resolveStormProvider(supabase, {
+        userId: user.id,
+        lat,
+        lng,
+        radius,
+        live,
+        date,
+        days: 30,
       });
+      storms = resolved.storms;
+      alerts = resolved.alerts;
+      stormCells = resolved.stormCells;
+      source = resolved.source;
+    } catch (resolverErr) {
+      console.warn("[Storms API] Resolver failed, using NWS fallback:", resolverErr);
+    }
 
-      // If Xweather is rate-limited and no events are returned, fall back to NWS.
-      if (storms.length === 0) {
-        const nwsFallback = await fetchNWSFallback(lat, lng, radius).catch(() => []);
-        if (nwsFallback.length > 0) {
-          storms = nwsFallback;
-          source = "nws-fallback-live";
-        }
+    // If provider returned empty, fall back to NWS
+    if (storms.length === 0) {
+      const nwsFallback = await fetchNWSFallback(lat, lng, radius).catch(() => []);
+      if (nwsFallback.length > 0) {
+        storms = nwsFallback;
+        source = live ? "nws-fallback-live" : "nws-fallback";
       }
+    }
 
-      // Last-resort fallback: reuse cached user storm events.
-      if (storms.length === 0) {
-        try {
-          const { data: cachedRows } = await (supabase.from("storm_events_cache") as any)
-            .select(
-              "xweather_id,event_type,severity,hail_size_inches,wind_speed_mph,latitude,longitude,impact_radius_miles,event_occurred_at,location_name,county,state,damage_score,comments"
-            )
-            .eq("user_id", user.id)
-            .order("event_occurred_at", { ascending: false })
-            .limit(25);
+    // Last-resort fallback: reuse cached user storm events
+    if (storms.length === 0) {
+      try {
+        const { data: cachedRows } = await (supabase.from("storm_events_cache") as any)
+          .select(
+            "xweather_id,event_type,severity,hail_size_inches,wind_speed_mph,latitude,longitude,impact_radius_miles,event_occurred_at,location_name,county,state,damage_score,comments"
+          )
+          .eq("user_id", user.id)
+          .order("event_occurred_at", { ascending: false })
+          .limit(25);
 
-          if (Array.isArray(cachedRows) && cachedRows.length > 0) {
-            const nearbyCachedRows = cachedRows.filter((row) => {
-              const rowLat = typeof row.latitude === "number" ? row.latitude : Number(row.latitude);
-              const rowLng = typeof row.longitude === "number" ? row.longitude : Number(row.longitude);
-              if (!Number.isFinite(rowLat) || !Number.isFinite(rowLng)) return false;
-              return calculateDistanceMiles(lat, lng, rowLat, rowLng) <= radius;
-            });
+        if (Array.isArray(cachedRows) && cachedRows.length > 0) {
+          const nearbyCachedRows = cachedRows.filter((row) => {
+            const rowLat = typeof row.latitude === "number" ? row.latitude : Number(row.latitude);
+            const rowLng = typeof row.longitude === "number" ? row.longitude : Number(row.longitude);
+            if (!Number.isFinite(rowLat) || !Number.isFinite(rowLng)) return false;
+            return calculateDistanceMiles(lat, lng, rowLat, rowLng) <= radius;
+          });
 
-            storms = nearbyCachedRows.map((row, index) => ({
-              id: row.xweather_id || `cached-${index}`,
-              type: mapCachedEventType(row.event_type),
-              severity: mapCachedSeverity(row.severity),
-              hailSize: row.hail_size_inches || undefined,
-              windSpeed: row.wind_speed_mph || undefined,
+          storms = nearbyCachedRows.map((row, index) => ({
+            id: row.xweather_id || `cached-${index}`,
+            type: mapCachedEventType(row.event_type),
+            severity: mapCachedSeverity(row.severity),
+            hailSize: row.hail_size_inches || undefined,
+            windSpeed: row.wind_speed_mph || undefined,
+            lat: row.latitude,
+            lng: row.longitude,
+            radius: row.impact_radius_miles || 10,
+            startTime: row.event_occurred_at,
+            damageScore: row.damage_score || 55,
+            location: buildLocationLabel({
+              locationName: row.location_name,
+              county: row.county,
+              state: row.state,
               lat: row.latitude,
               lng: row.longitude,
-              radius: row.impact_radius_miles || 10,
-              startTime: row.event_occurred_at,
-              damageScore: row.damage_score || 55,
-              location: buildLocationLabel({
-                locationName: row.location_name,
-                county: row.county,
-                state: row.state,
-                lat: row.latitude,
-                lng: row.longitude,
-              }),
-              county: row.county || undefined,
-              state: row.state || undefined,
-              comments: row.comments || undefined,
-              isActive: false,
-            }));
-            if (storms.length > 0) {
-              source = "storm-cache";
-            }
+            }),
+            county: row.county || undefined,
+            state: row.state || undefined,
+            comments: row.comments || undefined,
+            isActive: false,
+          }));
+          if (storms.length > 0) {
+            source = "storm-cache";
           }
-        } catch {
-          // Cache table may be unavailable in some environments.
         }
+      } catch {
+        // Cache table may be unavailable in some environments.
       }
-
-    } else {
-      // Fetch HISTORICAL data from Xweather
-      const daysAgo = Math.ceil((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
-      
-      const historicalReports = await getHailReports(lat, lng, radius, Math.max(daysAgo + 1, 30)).catch(() => []);
-      
-      // Filter to selected date
-      storms = formatStormReports(historicalReports).filter(storm => {
-        return storm.startTime.startsWith(date);
-      });
     }
 
     // Generate impacted properties.
@@ -369,92 +323,6 @@ function calculateDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: 
   return earthRadiusMiles * c;
 }
 
-// Format Xweather alerts
-function formatXweatherAlerts(alerts: XweatherAlert[]): FormattedAlert[] {
-  return alerts.map(alert => ({
-    id: alert.id,
-    type: alert.details.type,
-    name: alert.details.name,
-    severity: alert.details.cat,
-    color: alert.details.color,
-    body: alert.details.body,
-    issuedAt: alert.timestamps.issuedISO,
-    expiresAt: alert.timestamps.expiresISO,
-    location: buildLocationLabel({
-      locationName: alert.place.name,
-      county: alert.includes?.counties?.[0] || null,
-      state: alert.place.state,
-      lat: alert.loc.lat,
-      lng: alert.loc.long,
-    }),
-    emergency: alert.details.emergency,
-  }));
-}
-
-// Format storm cells
-function formatStormCells(cells: XweatherStormCell[]): FormattedStormCell[] {
-  return cells.map(cell => ({
-    id: cell.id,
-    lat: cell.loc.lat,
-    lng: cell.loc.long,
-    hailProb: cell.hail?.prob || 0,
-    hailProbSevere: cell.hail?.probSevere || 0,
-    maxHailSize: cell.hail?.maxSizeIN || 0,
-    tornadoProb: cell.tornado?.prob || 0,
-    isRotating: cell.traits?.rotating || false,
-    isSevere: cell.traits?.severe || false,
-    speedMph: cell.track?.speedMPH || 0,
-    direction: cell.track?.directionDEG || 0,
-    location: buildLocationLabel({
-      locationName: cell.place.name,
-      county: cell.place.county,
-      state: cell.place.state,
-      lat: cell.loc.lat,
-      lng: cell.loc.long,
-    }),
-  }));
-}
-
-// Convert Xweather storm reports to our format
-function formatStormReports(reports: XweatherStormReport[]): StormEvent[] {
-  return reports.map((report, i) => {
-    const type = mapReportType(report.report.cat);
-    const severity = calculateReportSeverity(report);
-    
-    return {
-      id: report.id || `report-${i}`,
-      type,
-      severity,
-      hailSize: report.report.detail.hailIN || undefined,
-      windSpeed: report.report.detail.windSpeedMPH || undefined,
-      lat: report.loc.lat,
-      lng: report.loc.long,
-      radius: type === "tornado" ? 5 : type === "hail" ? 15 : 20,
-      startTime: report.report.dateTimeISO,
-      damageScore: calculateReportDamageScore(report),
-      location: buildLocationLabel({
-        locationName: report.place.name,
-        county: report.place.county,
-        state: report.place.state,
-        lat: report.loc.lat,
-        lng: report.loc.long,
-      }),
-      county: report.place.county,
-      state: report.place.state,
-      comments: report.report.comments,
-    };
-  });
-}
-
-function mapReportType(cat: string): StormEvent["type"] {
-  switch (cat?.toLowerCase()) {
-    case "hail": return "hail";
-    case "tornado": return "tornado";
-    case "wind": return "wind";
-    default: return "severe_thunderstorm";
-  }
-}
-
 function mapCachedEventType(value: string): StormEvent["type"] {
   const normalized = (value || "").toLowerCase();
   if (normalized === "hail") return "hail";
@@ -471,64 +339,7 @@ function mapCachedSeverity(value: string): StormEvent["severity"] {
   return "minor";
 }
 
-function calculateReportSeverity(report: XweatherStormReport): StormEvent["severity"] {
-  const hail = report.report.detail.hailIN || 0;
-  const wind = report.report.detail.windSpeedMPH || 0;
-  
-  if (report.report.cat === "tornado" || hail >= 2.0 || wind >= 80) return "extreme";
-  if (hail >= 1.0 || wind >= 60) return "severe";
-  if (hail >= 0.5 || wind >= 40) return "moderate";
-  return "minor";
-}
-
-function calculateReportDamageScore(report: XweatherStormReport): number {
-  let score = 50;
-  
-  const hail = report.report.detail.hailIN || 0;
-  const wind = report.report.detail.windSpeedMPH || 0;
-  
-  if (report.report.cat === "tornado") score += 30;
-  
-  if (hail >= 2.5) score += 35;
-  else if (hail >= 2.0) score += 25;
-  else if (hail >= 1.5) score += 18;
-  else if (hail >= 1.0) score += 12;
-  else if (hail >= 0.5) score += 5;
-  
-  if (wind >= 100) score += 25;
-  else if (wind >= 80) score += 18;
-  else if (wind >= 60) score += 10;
-  else if (wind >= 40) score += 5;
-  
-  return Math.min(100, Math.round(score));
-}
-
-function getSeverityFromCell(cell: XweatherStormCell): StormEvent["severity"] {
-  if (cell.traits.tornadic) return "extreme";
-  if (cell.traits.severe && (cell.hail?.maxSizeIN || 0) >= 1.5) return "extreme";
-  if (cell.traits.severe) return "severe";
-  if (cell.traits.hail) return "moderate";
-  return "minor";
-}
-
-function calculateCellDamageScore(cell: XweatherStormCell): number {
-  let score = 40;
-  
-  if (cell.traits.tornadic) score += 40;
-  else if (cell.traits.severe) score += 25;
-  else if (cell.traits.hail) score += 15;
-  
-  const maxHail = cell.hail?.maxSizeIN || 0;
-  if (maxHail >= 2.0) score += 20;
-  else if (maxHail >= 1.0) score += 12;
-  else if (maxHail >= 0.5) score += 5;
-  
-  if (cell.tornado?.prob && cell.tornado.prob > 50) score += 15;
-  
-  return Math.min(100, Math.round(score));
-}
-
-// Fallback to NWS if Xweather fails
+// Fallback to NWS if provider fails
 async function fetchNWSFallback(centerLat: number, centerLng: number, radiusMiles: number): Promise<StormEvent[]> {
   const response = await fetch(
     "https://api.weather.gov/alerts/active?event=Severe%20Thunderstorm%20Warning,Tornado%20Warning",

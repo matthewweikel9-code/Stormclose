@@ -22,7 +22,7 @@ const CreateMissionSchema = z.object({
 
 const UpdateMissionSchema = z.object({
 	missionId: z.string().min(1),
-	action: z.enum(["start", "complete", "cancel", "update_stop"]),
+	action: z.enum(["start", "complete", "cancel", "update_stop", "add_stop"]),
 	stopId: z.string().optional(),
 	outcome: z
 		.enum([
@@ -39,6 +39,13 @@ const UpdateMissionSchema = z.object({
 	notes: z.string().optional(),
 	homeownerName: z.string().optional(),
 	homeownerPhone: z.string().optional(),
+	// add_stop
+	address: z.string().optional(),
+	city: z.string().optional(),
+	state: z.string().optional(),
+	zip: z.string().optional(),
+	lat: z.number().optional(),
+	lng: z.number().optional(),
 });
 
 /**

@@ -3,6 +3,8 @@
  * Used by roof-measurement API and JobNimbus export to enrich lead notes.
  */
 
+import { calculateEstimate, type RoofMeasurements } from "@/lib/estimate-engine";
+
 interface SolarApiResponse {
 	solarPotential?: {
 		wholeRoofStats?: {
@@ -33,13 +35,6 @@ function metersToSqFt(meters2: number): number {
 
 function metersToSquares(meters2: number): number {
 	return metersToSqFt(meters2) / 100;
-}
-
-function getPitchMultiplier(degrees: number): number {
-	if (degrees < 15) return 1.0;
-	if (degrees < 25) return 1.1;
-	if (degrees < 35) return 1.25;
-	return 1.4;
 }
 
 /**
@@ -112,14 +107,25 @@ function processSolarResponse(solarData: SolarApiResponse): RoofDataSummary | nu
 
 	const totalAreaSqFt = metersToSqFt(roofStats.areaMeters2);
 	const totalSquares = metersToSquares(roofStats.areaMeters2);
+	const groundAreaSqFt = metersToSqFt(roofStats.groundAreaMeters2 || roofStats.areaMeters2);
 	const avgPitch =
 		segments.length > 0
 			? segments.reduce((sum, s) => sum + s.pitchDegrees, 0) / segments.length
 			: 0;
-	const pitchMultiplier = getPitchMultiplier(avgPitch);
-	const basePricePerSquare = 350;
-	const estimatedCostLow = Math.round(totalSquares * basePricePerSquare * pitchMultiplier * 0.8);
-	const estimatedCostHigh = Math.round(totalSquares * basePricePerSquare * pitchMultiplier * 1.2);
+
+	const measurements: RoofMeasurements = {
+		totalAreaSqFt,
+		totalSquares,
+		groundAreaSqFt,
+		avgPitchDegrees: avgPitch,
+		facetCount: segments.length,
+		segments: segments.map((s) => ({
+			areaSqFt: metersToSqFt(s.stats.areaMeters2),
+			pitchDegrees: s.pitchDegrees,
+			azimuthDegrees: s.azimuthDegrees,
+		})),
+	};
+	const estimate = calculateEstimate(measurements);
 
 	const imageryDate = solarData.imageryDate
 		? `${solarData.imageryDate.month}/${solarData.imageryDate.day}/${solarData.imageryDate.year}`
@@ -130,7 +136,7 @@ function processSolarResponse(solarData: SolarApiResponse): RoofDataSummary | nu
 		totalSquares: Math.round(totalSquares * 10) / 10,
 		avgPitchDegrees: Math.round(avgPitch * 10) / 10,
 		facetCount: segments.length,
-		costRange: { low: estimatedCostLow, high: estimatedCostHigh },
+		costRange: estimate.costRange,
 		imageryDate,
 	};
 }

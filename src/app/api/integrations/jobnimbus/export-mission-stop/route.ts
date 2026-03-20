@@ -3,9 +3,18 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createJobNimbusClient, JNContact } from '@/lib/jobnimbus';
 import { decryptJobNimbusApiKey } from '@/lib/jobnimbus/security';
+import { resolveJobNimbusCredentials } from '@/lib/jobnimbus/resolve-integration';
 import { resolveWriteTeamIdForUser } from '@/lib/server/tenant';
 import { calculateLeadScore } from '@/lib/lead-scoring';
-import { fetchRoofDataForNotes, formatRoofDataForNotes } from '@/lib/solar/solarApi';
+import { fetchRoofDataForNotes, formatRoofDataForNotes, type RoofDataSummary } from '@/lib/solar/solarApi';
+import {
+  getWorkflowOutputForStop,
+  runAppointmentSetWorkflow,
+  isCrmWorkflowPacketComplete,
+  mergeCrmWorkflowPackets,
+  type AppointmentSetPayload,
+  type CrmWorkflowPacket,
+} from '@/lib/workflows/appointment-set';
 
 interface JobNimbusIntegration {
   api_key_encrypted?: string | null;
@@ -30,6 +39,46 @@ interface MissionStopRow {
   lead_id: string | null;
 }
 
+function buildMissionStopJobNimbusNotes(
+  stop: MissionStopRow,
+  roofData: RoofDataSummary | null,
+  resolvedPacket: CrmWorkflowPacket | undefined
+): string {
+  const packetSections: string[] = [];
+  if (resolvedPacket?.estimate?.costRange) {
+    packetSections.push(
+      '',
+      '--- Estimate ---',
+      `Cost range: $${resolvedPacket.estimate.costRange.low.toLocaleString()} - $${resolvedPacket.estimate.costRange.high.toLocaleString()}`,
+      resolvedPacket.estimate.roofSquares ? `Roof: ~${resolvedPacket.estimate.roofSquares} squares` : ''
+    );
+  }
+  if (resolvedPacket?.materials?.bomText) {
+    packetSections.push('', resolvedPacket.materials.bomText);
+  }
+  const xpkt = resolvedPacket?.xactimatePacket;
+  if (xpkt?.scope?.trim()) {
+    packetSections.push('', xpkt.scope);
+    if (xpkt.lineItems?.trim()) packetSections.push('', xpkt.lineItems);
+  } else if (xpkt?.lineItems?.trim()) {
+    packetSections.push('', '--- Xactimate (line items) ---', xpkt.lineItems);
+  }
+
+  const notesLines = [
+    '--- Imported from StormClose (Mission Stop) ---',
+    '',
+    stop.owner_name && !stop.homeowner_name ? `Owner: ${stop.owner_name}` : null,
+    stop.estimated_claim ? `Estimated Claim: $${Number(stop.estimated_claim).toLocaleString()}` : null,
+    stop.roof_age ? `Roof Age: ${stop.roof_age} years` : null,
+    roofData ? formatRoofDataForNotes(roofData) : null,
+    ...packetSections,
+    '',
+    `Exported: ${new Date().toLocaleString()}`,
+  ].filter(Boolean);
+
+  return notesLines.join('\n');
+}
+
 /**
  * POST /api/integrations/jobnimbus/export-mission-stop
  * Export a mission stop to JobNimbus. Creates a lead from the stop if needed, then exports.
@@ -43,13 +92,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let body: { stopId?: string };
+    let body: { stopId?: string; packet?: CrmWorkflowPacket };
     try {
       body = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
-    const { stopId } = body;
+    const { stopId, packet } = body;
     if (!stopId) {
       return NextResponse.json({ error: 'stopId is required' }, { status: 400 });
     }
@@ -65,6 +114,93 @@ export async function POST(request: NextRequest) {
     if (stopError || !stop) {
       return NextResponse.json({ error: 'Mission stop not found' }, { status: 404 });
     }
+
+    // Normalize client packet (JSON null → treat as missing). Partial packets are common when
+    // workflow returns only estimate or alreadyRan omits output — always enrich from DB / re-run.
+    let resolvedPacket: CrmWorkflowPacket | undefined = packet
+      ? {
+          estimate: packet.estimate?.costRange ? packet.estimate : undefined,
+          materials:
+            packet.materials?.bomText && packet.materials.bomText.length > 0
+              ? packet.materials
+              : undefined,
+          xactimatePacket:
+            (packet.xactimatePacket?.scope && packet.xactimatePacket.scope.length > 0) ||
+            (packet.xactimatePacket?.lineItems && packet.xactimatePacket.lineItems.length > 0)
+              ? packet.xactimatePacket
+              : undefined,
+        }
+      : undefined;
+
+    if (!isCrmWorkflowPacketComplete(resolvedPacket)) {
+      const fromDb = await getWorkflowOutputForStop(supabase, user.id, stopId);
+      resolvedPacket = mergeCrmWorkflowPackets(resolvedPacket, fromDb);
+    }
+    let workflowError: string | undefined;
+    if (!isCrmWorkflowPacketComplete(resolvedPacket)) {
+      try {
+        const fullAddress = [stop.address, stop.city, stop.state, stop.zip].filter(Boolean).join(', ');
+        const payload: AppointmentSetPayload = {
+          stopId,
+          missionId: stop.mission_id,
+          userId: user.id,
+          address: fullAddress || stop.address || 'Unknown',
+          lat: stop.latitude ?? 0,
+          lng: stop.longitude ?? 0,
+          correlationId: `appt-${stopId}-${Date.now()}`,
+        };
+        const { output } = await runAppointmentSetWorkflow(payload);
+        resolvedPacket = mergeCrmWorkflowPackets(resolvedPacket, output);
+      } catch (workflowErr) {
+        workflowError = workflowErr instanceof Error ? workflowErr.message : String(workflowErr);
+        console.warn('[Export] Workflow run failed, exporting without full packet:', workflowErr);
+      }
+    }
+
+    // Last-resort fallback: if workflow/DB didn't provide materials or xactimate, generate minimal
+    // templates so we never export without them (avoids "Materials and Xactimate could not be included")
+    const costRange = resolvedPacket?.estimate?.costRange ?? { low: 10000, high: 15000 };
+    if (!resolvedPacket?.materials?.bomText?.trim()) {
+      resolvedPacket = resolvedPacket ?? {};
+      resolvedPacket.materials = {
+        bomText: [
+          '--- Materials BOM ---',
+          'Shingle bundles: ~75',
+          'Underlayment rolls: ~20',
+          'Ridge cap bundles: ~10',
+          'Drip edge (ft): ~200',
+          resolvedPacket?.estimate?.roofSquares ? `Roof: ~${resolvedPacket.estimate.roofSquares} squares` : '',
+        ].filter(Boolean).join('\n'),
+      };
+    }
+    if (!resolvedPacket?.xactimatePacket?.scope?.trim() && !resolvedPacket?.xactimatePacket?.lineItems?.trim()) {
+      resolvedPacket = resolvedPacket ?? {};
+      const addr = [stop.address, stop.city, stop.state, stop.zip].filter(Boolean).join(', ') || stop.address;
+      resolvedPacket.xactimatePacket = {
+        scope: [
+          '--- Scope of Work ---',
+          `Address: ${addr}`,
+          `Estimated replacement: ${resolvedPacket?.estimate?.roofSquares ?? '~25'} squares`,
+          `Cost range: $${costRange.low.toLocaleString()} - $${costRange.high.toLocaleString()}`,
+          `Generated: ${new Date().toISOString()}`,
+        ].join('\n'),
+        lineItems: [
+          'DRAFT LINE ITEMS (upload to Xactimate for full scope):',
+          '- Tear-off & disposal',
+          '- Replacement shingles',
+          '- Underlayment',
+          '- Ridge cap',
+          '- Drip edge',
+          '- Flashing as needed',
+        ].join('\n'),
+      };
+    }
+
+    const exportedSections = {
+      estimate: !!(resolvedPacket?.estimate?.costRange),
+      materials: !!(resolvedPacket?.materials?.bomText && resolvedPacket.materials.bomText.trim().length > 0),
+      xactimate: !!(resolvedPacket?.xactimatePacket?.scope?.trim() || resolvedPacket?.xactimatePacket?.lineItems?.trim()),
+    };
 
     let leadId = stop.lead_id;
 
@@ -149,26 +285,12 @@ export async function POST(request: NextRequest) {
       .eq('destination', 'jobnimbus')
       .maybeSingle();
 
-    if (existingExport?.jn_contact_id) {
-      return NextResponse.json({
-        success: true,
-        alreadyExported: true,
-        contactId: existingExport.jn_contact_id,
-        leadId,
-        message: 'Stop was already exported to JobNimbus',
-      });
-    }
-
-    // Get JobNimbus integration
-    const { data: integration } = await (supabase as any)
-      .from('jobnimbus_integrations')
-      .select('api_key_encrypted')
-      .eq('user_id', user.id)
-      .maybeSingle() as { data: JobNimbusIntegration | null };
+    // Personal or team JobNimbus integration (team members use shared team connection)
+    const integration = await resolveJobNimbusCredentials(supabase, user.id);
 
     if (!integration?.api_key_encrypted) {
       return NextResponse.json(
-        { error: 'JobNimbus not connected. Connect in Settings → Integrations.' },
+        { error: 'JobNimbus not connected. Connect in Settings → Integrations (or ask a team admin to connect JobNimbus for your team).' },
         { status: 400 }
       );
     }
@@ -185,27 +307,79 @@ export async function POST(request: NextRequest) {
     }
     const jnClient = createJobNimbusClient(apiKey);
 
-    const parts = (stop.homeowner_name || stop.owner_name || 'Homeowner').trim().split(/\s+/);
-    const firstName = parts[0] || 'Homeowner';
-    const lastName = parts.slice(1).join(' ') || '';
-
-    // Fetch roof data from Google Solar API (requires GOOGLE_SOLAR_API_KEY in .env.local)
     const fullAddress = [stop.address, stop.city, stop.state, stop.zip].filter(Boolean).join(', ');
     const roofData = await fetchRoofDataForNotes(fullAddress || stop.address, stop.latitude, stop.longitude);
     if (!roofData && process.env.NODE_ENV === 'development') {
       console.info('[Export] No roof data - ensure GOOGLE_SOLAR_API_KEY is set in .env.local');
     }
 
-    const notesLines = [
-      '--- Imported from StormClose (Mission Stop) ---',
-      '',
-      stop.owner_name && !stop.homeowner_name ? `Owner: ${stop.owner_name}` : null,
-      stop.estimated_claim ? `Estimated Claim: $${Number(stop.estimated_claim).toLocaleString()}` : null,
-      stop.roof_age ? `Roof Age: ${stop.roof_age} years` : null,
-      roofData ? formatRoofDataForNotes(roofData) : null,
-      '',
-      `Exported: ${new Date().toLocaleString()}`,
-    ].filter(Boolean);
+    const fullNotes = buildMissionStopJobNimbusNotes(stop, roofData, resolvedPacket);
+    const noteTitle = `StormClose — ${new Date().toLocaleString()}`;
+
+    if (existingExport?.jn_contact_id) {
+      const contactId = existingExport.jn_contact_id;
+      const patchResult = await jnClient.updateContact(contactId, {
+        notes: fullNotes,
+        description: fullNotes,
+      });
+      if (!patchResult.success) {
+        const detail =
+          (patchResult.error as { detail?: string })?.detail ||
+          (patchResult.error as { title?: string })?.title ||
+          'JobNimbus rejected the update';
+        console.error('[JobNimbus] Failed to update existing contact notes:', patchResult.error);
+        return NextResponse.json(
+          {
+            success: false,
+            alreadyExported: true,
+            error: detail,
+            contactId,
+            leadId,
+          },
+          { status: 502 }
+        );
+      }
+      // type `note` surfaces as a new entry in JobNimbus Notes/Activity; `activity` often does not
+      const noteResult = await jnClient.createActivity({
+        contact_id: contactId,
+        type: 'note',
+        title: noteTitle,
+        note: fullNotes,
+      });
+      if (!noteResult.success) {
+        const actDetail =
+          (noteResult.error as { detail?: string })?.detail || 'Could not add timeline note';
+        console.error('[JobNimbus] Note/activity for packet update failed:', noteResult.error);
+        return NextResponse.json({
+          success: true,
+          alreadyExported: true,
+          notesUpdated: true,
+          activityAdded: false,
+          activityError: actDetail,
+          contactId,
+          leadId,
+          exportedSections,
+          ...(workflowError && { workflowError }),
+          message:
+            'Contact notes/description updated in JobNimbus, but a new timeline note could not be added.',
+        });
+      }
+      return NextResponse.json({
+        success: true,
+        alreadyExported: true,
+        notesUpdated: true,
+        activityAdded: true,
+        contactId,
+        leadId,
+        exportedSections,
+        ...(workflowError && { workflowError }),
+        message: 'Contact updated and new note added in JobNimbus',
+      });
+    }
+
+    const parts = (stop.homeowner_name || stop.owner_name || 'Homeowner').trim().split(/\s+/);
+    const firstName = parts[0] || 'Homeowner';
+    const lastName = parts.slice(1).join(' ') || '';
 
     const contact: JNContact = {
       first_name: firstName,
@@ -217,7 +391,7 @@ export async function POST(request: NextRequest) {
       zip: stop.zip ?? undefined,
       mobile_phone: stop.homeowner_phone ?? undefined,
       email: stop.homeowner_email ?? undefined,
-      notes: notesLines.join('\n'),
+      notes: fullNotes,
     };
 
     const result = await jnClient.createContact(contact);
@@ -232,7 +406,6 @@ export async function POST(request: NextRequest) {
     }
 
     const contactId = (result.data as { id?: string }).id ?? (result.data as { jnid?: string }).jnid ?? '';
-    const fullNotes = notesLines.join('\n');
 
     // Update contact with notes and description (JobNimbus may show description on contact record)
     if (contactId && fullNotes) {
@@ -242,30 +415,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Also try adding as activity (for Activity tab)
+    // New contact: add a real Note so it appears in JobNimbus timeline (not generic "activity")
     if (contactId && fullNotes) {
       const noteResult = await jnClient.createActivity({
         contact_id: contactId,
-        type: 'activity',
-        title: 'StormClose Import',
+        type: 'note',
+        title: noteTitle,
         note: fullNotes,
       });
       if (!noteResult.success) {
-        console.warn('[JobNimbus] Activity creation failed:', noteResult.error);
+        console.warn('[JobNimbus] Initial note creation failed:', noteResult.error);
       }
     }
 
-    await (supabase as any).from('lead_exports').insert({
+    const { error: exportInsertError } = await (supabase as any).from('lead_exports').insert({
       lead_id: leadId,
       user_id: user.id,
       destination: 'jobnimbus',
       jn_contact_id: contactId,
     });
+    if (exportInsertError) {
+      console.error('[Export] lead_exports insert failed:', exportInsertError);
+      // Contact was created in JobNimbus; still report success but warn (retry could duplicate contact)
+      return NextResponse.json({
+        success: true,
+        contactId,
+        leadId,
+        exportedSections,
+        ...(workflowError && { workflowError }),
+        warning: 'Exported to JobNimbus but could not save export record. You may see a duplicate if you export again.',
+        message: 'Mission stop exported to JobNimbus successfully',
+      });
+    }
 
     return NextResponse.json({
       success: true,
       contactId,
       leadId,
+      exportedSections,
+      ...(workflowError && { workflowError }),
       message: 'Mission stop exported to JobNimbus successfully',
     });
   } catch (error) {

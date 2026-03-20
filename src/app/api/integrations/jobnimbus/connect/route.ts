@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { encryptJobNimbusApiKey } from '@/lib/jobnimbus/security';
+import { resolveJobNimbusIntegrationRow } from '@/lib/jobnimbus/resolve-integration';
 
 /**
  * POST /api/integrations/jobnimbus/connect
@@ -100,15 +101,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { data: integration } = await (supabase as any)
-      .from('jobnimbus_integrations')
-      .select('id, created_at, updated_at')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    
+    const integration = await resolveJobNimbusIntegrationRow(supabase, user.id);
+
     return NextResponse.json({
       connected: !!integration,
-      connectedAt: integration?.updated_at || integration?.created_at || null,
+      connectedAt:
+        (integration?.updated_at as string | undefined) ||
+        (integration?.created_at as string | undefined) ||
+        null,
     });
   } catch (error) {
     console.error('JobNimbus status check error:', error);

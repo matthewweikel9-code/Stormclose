@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkFeatureAccess } from "@/lib/subscriptions/access";
 import { generateInsuranceReport } from "@/lib/ai";
 
 /**
@@ -14,6 +15,14 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const access = await checkFeatureAccess(user.id, "supplement_generator");
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.reason ?? "Supplement Generator requires a higher subscription tier." },
+        { status: 403 }
+      );
     }
 
     const body = await request.json().catch(() => ({}));

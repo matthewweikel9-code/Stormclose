@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserRoleForTeam } from "@/lib/server/tenant";
+import { checkFeatureAccess } from "@/lib/subscriptions/access";
 import OpenAI from "openai";
 
 const supabaseAdmin = createAdminClient() as any;
@@ -72,6 +73,14 @@ export async function GET(request: NextRequest) {
 
 	if (!user) {
 		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	}
+
+	const access = await checkFeatureAccess(user.id, "lead_generator");
+	if (!access.allowed) {
+		return NextResponse.json(
+			{ error: access.reason ?? "Lead Generator requires a higher subscription tier." },
+			{ status: 403 }
+		);
 	}
 
 	const searchParams = request.nextUrl.searchParams;
@@ -254,6 +263,14 @@ export async function POST(request: NextRequest) {
 
 	if (!user) {
 		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+	}
+
+	const access = await checkFeatureAccess(user.id, "lead_generator");
+	if (!access.allowed) {
+		return NextResponse.json(
+			{ error: access.reason ?? "Lead Generator requires a higher subscription tier." },
+			{ status: 403 }
+		);
 	}
 
 	try {

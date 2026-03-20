@@ -36,14 +36,14 @@ function isValidPayload(body: unknown): body is GenerateObjectionRequest {
 }
 
 async function enforceAccess(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-  // Objection handler is Pro+ only
+  // Objection handler is Pro only
   const access = await checkFeatureAccess(userId, "objection_handler");
   
   if (!access.allowed) {
     return {
       ok: false as const,
       status: 403,
-      error: access.reason || "Objection Handler requires Pro+ subscription."
+      error: access.reason || "Objection Handler requires Pro subscription."
     };
   }
 

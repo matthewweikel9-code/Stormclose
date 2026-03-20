@@ -25,12 +25,19 @@ type MissionFilters = {
 
 type MissionUpdateInput = {
 	missionId: string;
-	action: "start" | "complete" | "cancel" | "update_stop";
+	action: "start" | "complete" | "cancel" | "update_stop" | "add_stop";
 	stopId?: string;
 	outcome?: MissionOutcome;
 	notes?: string;
 	homeownerName?: string;
 	homeownerPhone?: string;
+	// add_stop
+	address?: string;
+	city?: string;
+	state?: string;
+	zip?: string;
+	lat?: number;
+	lng?: number;
 };
 
 type MemoryMissionRow = Record<string, unknown>;
@@ -183,6 +190,9 @@ function normalizeMissionStop(row: Record<string, unknown>) {
 		id: String(row.id ?? ""),
 		stopOrder: toNumber(row.stop_order, 0),
 		address: typeof row.address === "string" ? row.address : "Unknown stop",
+		city: typeof row.city === "string" ? row.city : null,
+		state: typeof row.state === "string" ? row.state : null,
+		zip: typeof row.zip === "string" ? row.zip : null,
 		lat: toNumber(row.latitude, 0),
 		lng: toNumber(row.longitude, 0),
 		ownerName: typeof row.owner_name === "string" ? row.owner_name : null,
@@ -443,6 +453,36 @@ function updateMissionInMemory(userId: string, input: MissionUpdateInput) {
 				missionRow.started_at = now;
 			}
 		}
+	} else if (input.action === "add_stop") {
+		const address =
+			typeof input.address === "string" && input.address.trim().length > 0
+				? input.address.trim()
+				: null;
+		if (!address) {
+			throw new Error("address is required for add_stop");
+		}
+		const lat = typeof input.lat === "number" && Number.isFinite(input.lat) ? input.lat : 0;
+		const lng = typeof input.lng === "number" && Number.isFinite(input.lng) ? input.lng : 0;
+		const maxOrder = stopRows.reduce(
+			(max, r) => Math.max(max, toNumber(r.stop_order, 0)),
+			0
+		);
+		const newStop: MemoryStopRow = {
+			id: generateLocalId("stop"),
+			mission_id: input.missionId,
+			user_id: userId,
+			stop_order: maxOrder + 1,
+			address,
+			city: typeof input.city === "string" ? input.city : null,
+			state: typeof input.state === "string" ? input.state : null,
+			zip: typeof input.zip === "string" ? input.zip : null,
+			latitude: lat,
+			longitude: lng,
+			outcome: "pending",
+			created_at: now,
+			updated_at: now,
+		};
+		stopRows.push(newStop);
 	}
 
 	recalculateMemoryMissionStats(missionRow, stopRows);
@@ -537,7 +577,7 @@ async function getMissionWithStops(supabase: any, userId: string, missionId: str
 
 	const { data: stopRows, error: stopError } = await (supabase.from("mission_stops") as any)
 		.select(
-			"id, stop_order, address, latitude, longitude, owner_name, roof_age, estimated_claim, outcome, outcome_notes, homeowner_name, homeowner_phone"
+			"id, stop_order, address, city, state, zip, latitude, longitude, owner_name, roof_age, estimated_claim, outcome, outcome_notes, homeowner_name, homeowner_phone"
 		)
 		.eq("mission_id", missionId)
 		.eq("user_id", userId)
@@ -774,6 +814,42 @@ export const missionsService = {
 					if (promoteError) {
 						throw new Error(dbErrorMessage(promoteError, "Failed to update mission status"));
 					}
+				}
+			} else if (input.action === "add_stop") {
+				const address =
+					typeof input.address === "string" && input.address.trim().length > 0
+						? input.address.trim()
+						: null;
+				if (!address) {
+					throw new Error("address is required for add_stop");
+				}
+				const lat = typeof input.lat === "number" && Number.isFinite(input.lat) ? input.lat : 0;
+				const lng = typeof input.lng === "number" && Number.isFinite(input.lng) ? input.lng : 0;
+
+				const { data: maxRows } = await (supabase.from("mission_stops") as any)
+					.select("stop_order")
+					.eq("mission_id", input.missionId)
+					.order("stop_order", { ascending: false })
+					.limit(1);
+
+				const maxOrder = Array.isArray(maxRows) && maxRows[0] ? maxRows[0].stop_order : 0;
+				const nextOrder = (typeof maxOrder === "number" ? maxOrder : 0) + 1;
+				const newStop = {
+					mission_id: input.missionId,
+					user_id: userId,
+					stop_order: nextOrder,
+					address,
+					city: typeof input.city === "string" ? input.city : null,
+					state: typeof input.state === "string" ? input.state : null,
+					zip: typeof input.zip === "string" ? input.zip : null,
+					latitude: lat,
+					longitude: lng,
+					outcome: "pending",
+				};
+
+				const { error: insertError } = await (supabase.from("mission_stops") as any).insert(newStop);
+				if (insertError) {
+					throw new Error(dbErrorMessage(insertError, "Failed to add mission stop"));
 				}
 			}
 

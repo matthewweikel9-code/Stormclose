@@ -51,39 +51,34 @@ const products = [
 	},
 	{
 		tag: "AI-Powered",
-		title: "AI Assistant",
+		title: "AI Image Engine",
 		description:
-			"GPT-4o sales assistant trained on roofing insurance. Generate storm reports, look up properties, analyze roofs, draft supplements, and handle objections in one chat.",
+			"Upload a photo of a roof or property. AI detects storm damage—hail bruising, granule loss, cracked shingles—and generates a damage report with cost estimate.",
 		bullets: [
-			"Storm report generation from live data",
-			"Property lookup with owner name and roof details",
-			"Satellite roof analysis and measurements",
-			"Insurance supplement drafting",
-			"Objection handling with proven scripts",
+			"Photo-based damage analysis",
+			"Hail, wind, and wear detection",
+			"Structured damage report with severity",
+			"Cost estimate from estimate engine",
+			"Add to route or create lead",
 		],
 		mockup: (
 			<div className="rounded-xl bg-storm-z0 p-4">
 				<div className="mb-3 flex items-center gap-2">
 					<div className="h-2 w-2 rounded-full bg-storm-purple animate-pulse" />
-					<span className="text-xs font-semibold text-storm-glow">AI</span>
-					<span className="text-xs text-slate-500">Assistant</span>
+					<span className="text-xs font-semibold text-storm-glow">AI Image</span>
+					<span className="text-xs text-slate-500">Engine</span>
 				</div>
-				<div className="space-y-3">
-					<div className="flex justify-end">
-						<div className="max-w-[80%] rounded-xl rounded-br-sm bg-storm-purple/20 px-3 py-2 text-xs text-slate-300">
-							Pull a storm report for Dallas, TX this week
-						</div>
+				<div className="space-y-2">
+					<div className="rounded-lg border border-slate-800 bg-slate-800/40 px-2 py-1.5 text-[11px]">
+						<span className="text-slate-500">Severity:</span> High
 					</div>
-					<div className="flex justify-start">
-						<div className="max-w-[85%] rounded-xl rounded-bl-sm border border-slate-800 bg-slate-800/40 px-3 py-2 text-xs text-slate-300">
-							<div className="mb-1 font-semibold text-storm-glow">Storm Report: Dallas, TX</div>
-							<div className="text-[11px] text-slate-400">3 severe events detected in the last 7 days. 2.5&quot; hail reported near Garland. 847 properties in impact zone...</div>
-						</div>
+					<div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5">
+						<span className="text-[11px] text-slate-300">Hail bruising</span>
+						<span className="rounded bg-emerald-500/20 px-1 text-[10px] text-emerald-400">Found</span>
 					</div>
-					<div className="flex justify-end">
-						<div className="max-w-[70%] rounded-xl rounded-br-sm bg-storm-purple/20 px-3 py-2 text-xs text-slate-300">
-							Show me properties with roof age &gt; 15 years
-						</div>
+					<div className="flex items-center justify-between rounded-lg border border-slate-800 px-2 py-1.5">
+						<span className="text-[11px] text-slate-400">Est. $12K–$18K</span>
+						<span className="text-[10px] text-slate-500">Full replacement</span>
 					</div>
 				</div>
 			</div>

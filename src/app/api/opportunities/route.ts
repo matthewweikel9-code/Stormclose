@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getHailReports, getStormReports, getActiveAlerts } from "@/lib/xweather";
+import { checkFeatureAccess } from "@/lib/subscriptions/access";
+import { resolveStormProvider } from "@/lib/storm-providers/resolver";
 import { searchPropertiesInArea, calculateRoofAge, estimateClaimValue, CoreLogicProperty } from "@/lib/corelogic";
 
 export async function GET(request: NextRequest) {
@@ -9,6 +10,14 @@ export async function GET(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const access = await checkFeatureAccess(user.id, "lead_generator");
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.reason ?? "Lead Generator requires a higher subscription tier." },
+      { status: 403 }
+    );
   }
 
   const { searchParams } = new URL(request.url);
@@ -46,52 +55,56 @@ export async function GET(request: NextRequest) {
   const days = timeframe === "24h" ? 1 : timeframe === "7d" ? 7 : 30;
 
   try {
-    // Fetch real storm data from Xweather
-    const [hailReports, stormReports, alerts] = await Promise.all([
-      getHailReports(lat, lng, 100, days).catch(() => []),
-      getStormReports(lat, lng, 100, days).catch(() => []),
-      getActiveAlerts(lat, lng).catch(() => []),
-    ]);
+    // Fetch storm data via provider resolver (HailTrace / Hail Recon / Xweather)
+    let resolvedStorms: { id: string; type: string; severity: string; hailSize?: number; windSpeed?: number; lat: number; lng: number; startTime: string; location?: string; county?: string; state?: string }[] = [];
+    let resolvedAlerts: { id: string; name?: string; issuedAt?: string; emergency?: boolean }[] = [];
+    try {
+      const resolved = await resolveStormProvider(supabase, {
+        userId: user.id,
+        lat,
+        lng,
+        radius: 100,
+        live: false,
+        days,
+      });
+      resolvedStorms = resolved.storms;
+      resolvedAlerts = resolved.alerts as any;
+    } catch (e) {
+      console.warn("Storm resolver failed for opportunities:", e);
+    }
 
-    // Build storm opportunities from real reports
+    // Build storm opportunities from resolved storm events
     const stormMap = new Map<string, any>();
-
-    // Group storm reports by location/city
-    [...hailReports, ...stormReports].forEach((report) => {
-      const city = report.place?.name || "Unknown";
-      const state = report.place?.state || "";
+    resolvedStorms.forEach((event) => {
+      const city = event.location?.split(",")[0] || event.county || "Unknown";
+      const state = event.state || "";
       const key = `${city}-${state}`;
 
       if (!stormMap.has(key)) {
         const daysAgo = Math.ceil(
-          (Date.now() - new Date(report.report.dateTimeISO).getTime()) / (1000 * 60 * 60 * 24)
+          (Date.now() - new Date(event.startTime).getTime()) / (1000 * 60 * 60 * 24)
         );
         stormMap.set(key, {
           id: key,
-          name: `${city} ${report.report.cat === "hail" ? "Hail" : "Storm"} Event`,
-          date: report.report.dateTimeISO.split("T")[0],
+          name: `${city} ${event.type === "hail" ? "Hail" : "Storm"} Event`,
+          date: event.startTime.split("T")[0],
           location: `${city}, ${state}`,
-          coordinates: { lat: report.loc.lat, lng: report.loc.long },
-          severity: (report.report.detail.hailIN || 0) >= 2 ? "major" :
-                    (report.report.detail.hailIN || 0) >= 1 ? "moderate" : "minor",
-          hailSize: report.report.detail.hailIN || 0,
-          windSpeed: report.report.detail.windSpeedMPH || 0,
+          coordinates: { lat: event.lat, lng: event.lng },
+          severity: (event.hailSize || 0) >= 2 ? "major" : (event.hailSize || 0) >= 1 ? "moderate" : "minor",
+          hailSize: event.hailSize || 0,
+          windSpeed: event.windSpeed || 0,
           affectedProperties: 0,
           estimatedDamage: 0,
           daysAgo,
           opportunityScore: 0,
-          reports: [] as any[],
+          reportCount: 0,
         });
       }
 
       const storm = stormMap.get(key)!;
-      storm.reports.push(report);
-      if ((report.report.detail.hailIN || 0) > storm.hailSize) {
-        storm.hailSize = report.report.detail.hailIN;
-      }
-      if ((report.report.detail.windSpeedMPH || 0) > storm.windSpeed) {
-        storm.windSpeed = report.report.detail.windSpeedMPH;
-      }
+      storm.reportCount = (storm.reportCount || 0) + 1;
+      if ((event.hailSize || 0) > storm.hailSize) storm.hailSize = event.hailSize;
+      if ((event.windSpeed || 0) > storm.windSpeed) storm.windSpeed = event.windSpeed;
     });
 
     // Calculate opportunity scores and estimated damage
@@ -113,10 +126,11 @@ export async function GET(request: NextRequest) {
       else if (storm.daysAgo <= 14) score += 10;
 
       storm.opportunityScore = Math.min(100, score);
-      storm.estimatedDamage = Math.round(storm.reports.length * 15000 * (storm.hailSize || 1));
-      storm.affectedProperties = storm.reports.length * 50; // Rough estimate
+      const reportCount = storm.reportCount || 1;
+      storm.estimatedDamage = Math.round(reportCount * 15000 * (storm.hailSize || 1));
+      storm.affectedProperties = reportCount * 50; // Rough estimate
 
-      delete storm.reports; // Don't send raw reports to client
+      delete storm.reportCount;
       return storm;
     });
 
@@ -189,13 +203,13 @@ export async function GET(request: NextRequest) {
       competitorActivity: "low",
     }));
 
-    // Build forecast from Xweather alerts
-    const forecast = alerts.slice(0, 5).map((alert: any) => ({
-      date: new Date(alert.timestamps?.beginsISO || Date.now()).toLocaleDateString("en-US", { weekday: "short" }),
-      condition: alert.details?.name || "Storm Watch",
+    // Build forecast from resolved alerts
+    const forecast = resolvedAlerts.slice(0, 5).map((alert: any) => ({
+      date: new Date(alert.issuedAt || Date.now()).toLocaleDateString("en-US", { weekday: "short" }),
+      condition: alert.name || "Storm Watch",
       high: 0,
       low: 0,
-      stormChance: alert.details?.emergency ? 90 : 60,
+      stormChance: alert.emergency ? 90 : 60,
       icon: "storm" as const,
     }));
 
@@ -206,7 +220,7 @@ export async function GET(request: NextRequest) {
       neighborhoods,
       largeRoofs: [], // Would need commercial property search
       forecast,
-      source: "xweather",
+      source: "storm-provider",
       generated_at: new Date().toISOString(),
     });
   } catch (error) {

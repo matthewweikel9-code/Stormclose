@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/(auth)/actions";
+import { normalizeTier } from "@/lib/subscriptions/tiers";
 import { DashboardContent } from "./dashboard-content";
 
 export default async function DashboardPage() {
@@ -21,7 +22,7 @@ export default async function DashboardPage() {
 		.maybeSingle()) as { data: { subscription_status: string | null; subscription_tier: string | null } | null };
 
 	const subscriptionStatus = accountData?.subscription_status ?? "inactive";
-	const subscriptionTier = (accountData?.subscription_tier as "free" | "pro" | "pro_plus") ?? "free";
+	const subscriptionTier = normalizeTier(accountData?.subscription_tier);
 
 	return (
 		<DashboardContent

@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 interface CheckoutButtonProps {
-  tier?: "pro" | "pro_plus" | "enterprise";
+  tier?: "pro" | "enterprise";
 }
 
 export function CheckoutButton({ tier = "pro" }: CheckoutButtonProps) {

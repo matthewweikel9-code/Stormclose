@@ -1,4 +1,4 @@
-export type SubscriptionTier = "free" | "pro" | "pro_plus" | "trial";
+export type SubscriptionTier = "free" | "pro" | "enterprise" | "trial";
 
 export type Database = {
 	public: {

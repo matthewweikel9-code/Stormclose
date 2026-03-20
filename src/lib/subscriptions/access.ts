@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { SubscriptionTier, FeatureKey } from "./tiers";
-import { hasFeature, getEffectiveTier, getDaysRemaining } from "./tiers";
+import { hasFeature, getEffectiveTier, getDaysRemaining, normalizeTier } from "./tiers";
 
 export interface UserSubscription {
 	tier: SubscriptionTier;
@@ -17,7 +17,6 @@ const TIER_PRIORITY: Record<SubscriptionTier, number> = {
 	free: 0,
 	trial: 1,
 	pro: 2,
-	pro_plus: 3,
 	enterprise: 4,
 };
 
@@ -119,7 +118,7 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
 		};
 	}
 
-	const tier = (data.subscription_tier as SubscriptionTier) || "free";
+	const tier = normalizeTier(data.subscription_tier);
 	const trialEnd = data.trial_end || null;
 	const userEffectiveTier = getEffectiveTier(tier, trialEnd);
 	const effectiveTier = highestTeamTier ? maxTier(userEffectiveTier, highestTeamTier) : userEffectiveTier;

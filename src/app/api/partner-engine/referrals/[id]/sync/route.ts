@@ -3,6 +3,7 @@ import { createJobNimbusClient } from "@/lib/jobnimbus/client";
 import { decryptJobNimbusApiKey } from "@/lib/jobnimbus/security";
 import { errorResponse, successResponse } from "@/utils/api-response";
 import { requirePartnerEngineAuth, requireManager } from "@/lib/partner-engine/auth";
+import { fetchRoofDataForNotes, formatRoofDataForNotes } from "@/lib/solar/solarApi";
 
 function splitName(fullName: string | null | undefined) {
 	if (!fullName) return { first: "Homeowner", last: "Referral" };
@@ -45,6 +46,26 @@ export async function POST(
 		const apiKey = decryptJobNimbusApiKey(String(integration.api_key_encrypted));
 		const client = createJobNimbusClient(apiKey);
 
+		// Fetch roof data from Google Solar API (same flow as Appointment Set)
+		const fullAddress = [ref.property_address, ref.city, ref.state, ref.zip]
+			.filter(Boolean)
+			.join(", ");
+		const roofData = await fetchRoofDataForNotes(
+			fullAddress || String(ref.property_address ?? ""),
+			0,
+			0
+		);
+
+		const notesLines = [
+			"--- Referral from StormClose Partner Engine ---",
+			"",
+			(ref.notes as string | null) || "Referral submitted via StormClose Partner Engine",
+			roofData ? formatRoofDataForNotes(roofData) : null,
+			"",
+			`Synced: ${new Date().toLocaleString()}`,
+		].filter(Boolean);
+		const notes = notesLines.join("\n");
+
 		const names = splitName(ref.homeowner_name as string | null);
 		const createContact = await client.createContact({
 			first_name: names.first,
@@ -55,7 +76,7 @@ export async function POST(
 			city: (ref.city as string | null) ?? undefined,
 			state_text: (ref.state as string | null) ?? undefined,
 			zip: (ref.zip as string | null) ?? undefined,
-			notes: (ref.notes as string | null) ?? "Referral submitted via StormClose Partner Engine",
+			notes,
 		});
 
 		if (!createContact.success || !createContact.data) {

@@ -424,17 +424,28 @@ export async function searchPropertiesInArea(
       return [];
     }
 
-    // Filter to residential types
-    const residentialTypes = new Set(["SFR", "MFR", "CON", "TH", "MOB"]);
+    // Filter to residential types; fall back to all parcels if none match (e.g. CoreLogic uses different typeCodes)
+    const residentialTypes = new Set(["SFR", "MFR", "CON", "TH", "MOB", "R", "RES", "RESD"]);
     let filtered = result.parcels.filter(p => {
       // Type filter
       if (filters?.propertyType) {
-        return p.typeCode === filters.propertyType || 
+        return p.typeCode === filters.propertyType ||
                decodePropertyType(p.typeCode).toLowerCase().includes(filters.propertyType.toLowerCase());
       }
       if (!p.typeCode) return true;
       return residentialTypes.has(p.typeCode);
     });
+
+    // Fall back to all parcels with valid address when residential filter yields nothing
+    if (filtered.length === 0) {
+      filtered = result.parcels.filter(p => {
+        const addr = p.stdAddr || p.addr;
+        return addr && addr.trim().length > 0;
+      });
+      if (filtered.length > 0) {
+        console.log(`[CoreLogic] No residential types found; using all ${filtered.length} parcels with addresses`);
+      }
+    }
 
     // Year built filters (if data available)
     if (filters?.minYearBuilt) {

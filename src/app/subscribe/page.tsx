@@ -4,10 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { CheckoutButton } from "./checkout-button";
 import { TIER_PRICES, TIER_DISPLAY_NAMES } from "@/lib/subscriptions/tiers";
 
-type SubscribeTier = "pro" | "pro_plus" | "enterprise";
+type SubscribeTier = "pro" | "enterprise";
 
 function isValidTier(tier: string): tier is SubscribeTier {
-  return tier === "pro" || tier === "pro_plus" || tier === "enterprise";
+  return tier === "pro" || tier === "enterprise";
 }
 
 export default async function SubscribePage({ searchParams }: { searchParams: Promise<{ tier?: string }> }) {

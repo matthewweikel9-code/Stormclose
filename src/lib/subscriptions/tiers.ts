@@ -1,6 +1,6 @@
 // Subscription tier types and configuration
 
-export type SubscriptionTier = "free" | "pro" | "pro_plus" | "enterprise" | "trial";
+export type SubscriptionTier = "free" | "pro" | "enterprise" | "trial";
 
 export type FeatureKey =
 	| "objection_handler"
@@ -19,16 +19,14 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
 		features: []
 	},
 	trial: {
-		features: ["objection_handler"]
+		features: ["objection_handler", "supplement_generator", "negotiation_coach"]
 	},
 	pro: {
-		features: ["objection_handler"]
-	},
-	pro_plus: {
 		features: [
 			"objection_handler",
 			"supplement_generator",
-			"negotiation_coach"
+			"negotiation_coach",
+			"lead_generator"
 		]
 	},
 	enterprise: {
@@ -46,15 +44,13 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
 export const TIER_DISPLAY_NAMES: Record<SubscriptionTier, string> = {
 	free: "Free",
 	pro: "Pro",
-	pro_plus: "Pro+",
 	enterprise: "Enterprise",
 	trial: "Trial"
 };
 
 export const TIER_PRICES: Record<Exclude<SubscriptionTier, "free" | "trial">, number> = {
-	pro: 99,
-	pro_plus: 249,
-	enterprise: 499
+	pro: 399,
+	enterprise: 799
 };
 
 export const FEATURE_DISPLAY_NAMES: Record<FeatureKey, string> = {
@@ -66,8 +62,17 @@ export const FEATURE_DISPLAY_NAMES: Record<FeatureKey, string> = {
 	roof_measurement: "Instant Roof Measurement AI"
 };
 
-export function hasFeature(tier: SubscriptionTier, feature: FeatureKey): boolean {
-	return TIER_CONFIG[tier]?.features.includes(feature) ?? false;
+/** Normalize DB tier (pro_plus legacy) to current SubscriptionTier */
+export function normalizeTier(tier: string | null | undefined): SubscriptionTier {
+	if (!tier) return "free";
+	if (tier === "pro_plus" || tier === "pro+") return "pro";
+	if (["enterprise", "pro", "trial", "free"].includes(tier)) return tier as SubscriptionTier;
+	return "free";
+}
+
+export function hasFeature(tier: SubscriptionTier | string, feature: FeatureKey): boolean {
+	const normalized = normalizeTier(tier);
+	return TIER_CONFIG[normalized]?.features.includes(feature) ?? false;
 }
 
 export function isTrialExpired(trialEnd: string | Date | null): boolean {

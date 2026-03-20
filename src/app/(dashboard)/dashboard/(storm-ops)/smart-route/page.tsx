@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface RouteStop {
   id: string;
@@ -33,6 +34,7 @@ interface WeatherCondition {
 }
 
 export default function SmartRoutePlannerPage() {
+  const searchParams = useSearchParams();
   const [stops, setStops] = useState<RouteStop[]>([]);
   const [route, setRoute] = useState<RouteData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,6 +45,14 @@ export default function SmartRoutePlannerPage() {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [addressInput, setAddressInput] = useState("");
   const draggedItem = useRef<number | null>(null);
+
+  // Pre-fill address from query (e.g. from Neighborhood Engine "Push to Storm Ops")
+  useEffect(() => {
+    const addr = searchParams.get("address");
+    if (addr && typeof addr === "string") {
+      setAddressInput(decodeURIComponent(addr));
+    }
+  }, [searchParams]);
 
   // Fetch weather
   useEffect(() => {

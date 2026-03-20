@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createJobNimbusClient, JNContact } from "@/lib/jobnimbus";
 import { decryptJobNimbusApiKey } from "@/lib/jobnimbus/security";
-
-interface JobNimbusIntegration {
-  api_key_encrypted?: string | null;
-}
+import { resolveJobNimbusCredentials } from "@/lib/jobnimbus/resolve-integration";
 
 /**
  * Parse address string into components (simple fallback when no structured fields)
@@ -162,15 +159,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: integration } = await (supabase as any)
-      .from("jobnimbus_integrations")
-      .select("api_key_encrypted")
-      .eq("user_id", user.id)
-      .maybeSingle() as { data: JobNimbusIntegration | null };
+    const integration = await resolveJobNimbusCredentials(supabase, user.id);
 
     if (!integration?.api_key_encrypted) {
       return NextResponse.json(
-        { error: "JobNimbus not connected. Connect your account in Settings." },
+        { error: "JobNimbus not connected. Connect in Settings or use your team’s JobNimbus connection." },
         { status: 400 }
       );
     }

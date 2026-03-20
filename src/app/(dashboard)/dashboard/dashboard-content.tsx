@@ -207,6 +207,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const [jobnimbusConnected, setJobnimbusConnected] = useState(false);
   const [exportingLeadIds, setExportingLeadIds] = useState<Set<string>>(new Set());
   const [exportedLeadIds, setExportedLeadIds] = useState<Set<string>>(new Set());
+  const [dataError, setDataError] = useState<string | null>(null);
 
   // ─── Data Fetching ─────────────────────────────────────────
   useEffect(() => {
@@ -221,13 +222,18 @@ export function DashboardContent({ user }: DashboardContentProps) {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setDataError(null);
       const res = await fetch('/api/dashboard/revenue-hub');
       if (res.ok) {
         const data = await res.json();
         setStats(data);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setDataError((err as { error?: string })?.error || 'Failed to load dashboard data');
       }
     } catch (error) {
       console.error('Error fetching revenue hub data:', error);
+      setDataError('Failed to load dashboard data. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -427,6 +433,24 @@ export function DashboardContent({ user }: DashboardContentProps) {
     return <SkeletonDashboard />;
   }
 
+  if (dataError) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-8">
+        <div className="max-w-md rounded-xl border border-amber-500/30 bg-amber-500/10 p-8 text-center">
+          <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white">Could not load dashboard</h2>
+          <p className="mt-2 text-storm-muted text-sm">{dataError}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="mt-6 px-6 py-2.5 bg-storm-purple text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ─── Derived Data ──────────────────────────────────────────
   const kpis = stats?.data?.kpis;
   const goals = stats?.data?.goals;
@@ -533,8 +557,8 @@ export function DashboardContent({ user }: DashboardContentProps) {
           <Link href="/dashboard/storm-map" className="button-primary flex items-center gap-2 text-sm">
             <Cloud className="w-4 h-4" /> Storm Ops
           </Link>
-          <Link href="/dashboard/ai-tools" className="button-secondary flex items-center gap-2 text-sm">
-            <Brain className="w-4 h-4" /> AI Assistant
+          <Link href="/dashboard/ai-image-engine" className="button-secondary flex items-center gap-2 text-sm">
+            <Brain className="w-4 h-4" /> AI Image Engine
           </Link>
         </div>
       </div>
@@ -888,7 +912,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                       </div>
                       {/* Inline Actions */}
                       <div className="flex gap-1.5 flex-shrink-0 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link href="/dashboard/ai-tools" className="px-2 py-1.5 bg-gradient-to-r from-storm-purple to-storm-glow text-white rounded-lg text-2xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1 shadow-depth-1">
+                        <Link href="/dashboard/ai-image-engine" className="px-2 py-1.5 bg-gradient-to-r from-storm-purple to-storm-glow text-white rounded-lg text-2xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1 shadow-depth-1">
                           <Brain className="w-3 h-3" /> AI Prep
                         </Link>
                         {jobnimbusConnected && (
@@ -1165,7 +1189,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                     {lead.distance_miles} mi
                   </span>
                   <div className="flex gap-1.5">
-                    <Link href="/dashboard/ai-tools" className="px-2 py-1 bg-gradient-to-r from-storm-purple to-storm-glow text-white rounded-lg text-2xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1">
+                    <Link href="/dashboard/ai-image-engine" className="px-2 py-1 bg-gradient-to-r from-storm-purple to-storm-glow text-white rounded-lg text-2xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1">
                       <Brain className="w-3 h-3" /> Prep
                     </Link>
                     <a

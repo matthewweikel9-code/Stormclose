@@ -16,7 +16,6 @@ const TIER_PRIORITY: Record<string, number> = {
 	free: 0,
 	trial: 1,
 	pro: 2,
-	pro_plus: 3,
 	enterprise: 4,
 };
 
@@ -41,7 +40,7 @@ export async function POST(request: Request) {
   let teamId: string | null = null;
   try {
     const body = await request.json();
-    if (body.tier === "pro" || body.tier === "pro_plus" || body.tier === "enterprise") {
+    if (body.tier === "pro" || body.tier === "enterprise") {
       tier = body.tier;
     }
     if (typeof body.teamId === "string" && body.teamId.trim().length > 0) {

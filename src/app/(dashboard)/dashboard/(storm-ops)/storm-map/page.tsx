@@ -346,6 +346,25 @@ export default function StormMapPage() {
   // JobNimbus export
   const [jobnimbusConnected, setJobnimbusConnected] = useState(false);
   const [exportedStopIds, setExportedStopIds] = useState<Set<string>>(new Set());
+
+  // Nearby houses (Neighborhood Engine) - shown when Knocked/Appt clicked
+  interface NearbyOpportunity {
+    address: string;
+    city: string;
+    state: string;
+    zip: string;
+    coordinates: { lat: number; lng: number };
+    opportunityScore: number;
+    actionLabel: string;
+    recommendedScript: string;
+    anchorDistanceMiles: number;
+    estimatedValueRange: { low: number; high: number } | null;
+  }
+  const [nearbyOpportunities, setNearbyOpportunities] = useState<NearbyOpportunity[]>([]);
+  const [nearbyAnchorStop, setNearbyAnchorStop] = useState<MissionStop | null>(null);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [nearbyError, setNearbyError] = useState<string | null>(null);
+  const [nearbySource, setNearbySource] = useState<"corelogic" | "openstreetmap" | null>(null);
   
   // Geolocation hook - auto-fetch on mount
   const { 
@@ -748,6 +767,53 @@ export default function StormMapPage() {
     }
   }, [fetchMissions, impactedProperties, optimizeMissionRoute]);
 
+  const fetchNearbyOpportunities = useCallback(async (stop: MissionStop) => {
+    const hasCoords = Number.isFinite(stop.lat) && Number.isFinite(stop.lng) && stop.lat !== 0 && stop.lng !== 0;
+    const fullAddress = [stop.address, (stop as { city?: string }).city, (stop as { state?: string }).state, (stop as { zip?: string }).zip]
+      .filter(Boolean)
+      .join(", ")
+      .trim() || stop.address?.trim();
+    if (!hasCoords && !fullAddress) return;
+    setNearbyLoading(true);
+    setNearbyError(null);
+    setNearbyAnchorStop(stop);
+    try {
+      const params = new URLSearchParams({ radius: "1", limit: "20" });
+      if (hasCoords) {
+        params.set("lat", String(stop.lat));
+        params.set("lng", String(stop.lng));
+      } else {
+        params.set("address", fullAddress);
+      }
+      const res = await fetch(`/api/neighborhood-engine/opportunities?${params.toString()}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 403) {
+          setNearbyError("Upgrade to Pro to see nearby houses");
+          setNearbyOpportunities([]);
+        } else {
+          setNearbyError(json.error || "Failed to load nearby houses");
+          setNearbyOpportunities([]);
+        }
+        return;
+      }
+      const data = json.data ?? json;
+      setNearbyOpportunities(Array.isArray(data.opportunities) ? data.opportunities : []);
+      setNearbySource(data.source === "openstreetmap" ? "openstreetmap" : data.source === "corelogic" ? "corelogic" : null);
+      const hint = data.hint;
+      setNearbyError(
+        Array.isArray(data.opportunities) && data.opportunities.length === 0 && hint
+          ? hint
+          : null
+      );
+    } catch (e) {
+      setNearbyError(e instanceof Error ? e.message : "Failed to load nearby houses");
+      setNearbyOpportunities([]);
+    } finally {
+      setNearbyLoading(false);
+    }
+  }, []);
+
   const updateMissionStatus = useCallback(
     async (action: "start" | "complete" | "cancel") => {
       if (!activeMission) return;
@@ -810,18 +876,49 @@ export default function StormMapPage() {
         const updatedStops = Array.isArray(missionData.stops) ? missionData.stops : [];
         setMissionStops(updatedStops);
 
-        // Auto-export to JobNimbus when user sets appointment
+        // Fetch nearby houses when Knocked or Appt
+        if (outcome === "knocked" || outcome === "appointment_set") {
+          const stop = missionStops.find((s) => s.id === stopId);
+          if (stop) void fetchNearbyOpportunities(stop);
+        }
+
+        // Appointment set: run workflow (estimate, materials, xactimate) then CRM export with packet
         if (outcome === "appointment_set") {
+          let workflowOutput: { estimate?: { costRange?: { low: number; high: number }; roofSquares?: number }; materials?: { bomText?: string }; xactimatePacket?: { scope?: string; lineItems?: string } } | undefined;
+          try {
+            const workflowRes = await fetch("/api/workflows/appointment-set", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ stopId }),
+            });
+            const workflowData = await workflowRes.json();
+            if (workflowRes.ok && workflowData.output) {
+              workflowOutput = workflowData.output;
+            } else if (!workflowData.alreadyRan) {
+              console.warn("Appointment workflow:", workflowData.error);
+            }
+          } catch (err) {
+            console.warn("Appointment workflow error:", err);
+          }
           if (jobnimbusConnected) {
             try {
               const exportRes = await fetch("/api/integrations/jobnimbus/export-mission-stop", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ stopId }),
+                body: JSON.stringify({ stopId, packet: workflowOutput }),
               });
               const exportData = await exportRes.json();
               if (exportRes.ok && (exportData.success || exportData.alreadyExported)) {
                 setExportedStopIds((prev) => new Set(prev).add(stopId));
+                const sections = exportData.exportedSections;
+                if (sections && (!sections.materials || !sections.xactimate)) {
+                  const missing = [];
+                  if (!sections.materials) missing.push("Materials");
+                  if (!sections.xactimate) missing.push("Xactimate");
+                  setMissionError(
+                    `Synced to JobNimbus, but ${missing.join(" and ")} could not be included. Try setting the appointment again or re-export.`
+                  );
+                }
               } else {
                 setMissionError(exportData.error || "Failed to sync to JobNimbus");
               }
@@ -841,7 +938,7 @@ export default function StormMapPage() {
         setMissionLoading(false);
       }
     },
-    [activeMission, jobnimbusConnected]
+    [activeMission, jobnimbusConnected, missionStops, fetchNearbyOpportunities]
   );
 
   const exportMissionRoute = useCallback(() => {
@@ -1478,6 +1575,13 @@ export default function StormMapPage() {
                               <button onClick={() => void updateStopOutcome(stop.id, "not_interested")} disabled={missionLoading} className="text-[9px] bg-red-500/10 text-red-300 border border-red-500/20 rounded-md py-0.5 hover:bg-red-500/20 disabled:opacity-40 transition-colors">No</button>
                             </div>
                           )}
+                          <button
+                            onClick={() => void fetchNearbyOpportunities(stop)}
+                            disabled={nearbyLoading}
+                            className="mt-1 w-full text-[8px] text-storm-glow hover:text-storm-purple disabled:opacity-40 transition-colors"
+                          >
+                            Find nearby
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -1490,6 +1594,117 @@ export default function StormMapPage() {
                     </button>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Nearby Houses - shown when Knocked/Appt clicked */}
+            {activeMission && nearbyAnchorStop && (
+              <div className="p-3 border-b border-storm-border/30">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h3 className="text-2xs font-semibold uppercase tracking-wider text-storm-subtle">Nearby Houses</h3>
+                  {nearbySource === "openstreetmap" && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-storm-z2 text-storm-muted border border-storm-border/30">
+                      OSM data
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-storm-muted mb-2 truncate">From {resolveStopAddress(nearbyAnchorStop)}</p>
+                {nearbyError && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200 mb-2">
+                    {nearbyError}
+                    {nearbyError.includes("Upgrade") && (
+                      <Link href="/settings/billing?upgrade=pro" className="block mt-1 text-storm-glow hover:underline">
+                        Upgrade to Pro →
+                      </Link>
+                    )}
+                  </div>
+                )}
+                {nearbyLoading && (
+                  <div className="flex items-center gap-2 py-4 text-storm-muted text-xs">
+                    <span className="h-3 w-3 border-2 border-storm-purple border-t-transparent rounded-full animate-spin" />
+                    Loading nearby houses...
+                  </div>
+                )}
+                {!nearbyLoading && !nearbyError && nearbyOpportunities.length === 0 && (
+                  <p className="text-xs text-storm-subtle py-2">No nearby opportunities found.</p>
+                )}
+                {!nearbyLoading && !nearbyError && nearbyOpportunities.length > 0 && (
+                  <div className="space-y-1 max-h-[220px] overflow-y-auto">
+                    {nearbyOpportunities.map((opp, i) => {
+                      const fullAddr = [opp.address, opp.city, opp.state, opp.zip].filter(Boolean).join(", ") || opp.address;
+                      const actionColor =
+                        opp.actionLabel === "Hit Now"
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+                          : opp.actionLabel === "Hit Today"
+                            ? "bg-amber-500/20 text-amber-400 border-amber-500/40"
+                            : "bg-blue-500/20 text-blue-400 border-blue-500/40";
+                      const showScoreEstimate = nearbySource !== "openstreetmap";
+                      return (
+                        <div key={i} className="p-2 rounded-xl border border-storm-border/20 bg-storm-z1/50">
+                          <div className="flex items-center justify-between gap-1 mb-0.5">
+                            <span className="text-[10px] truncate text-white">{opp.address}</span>
+                            {showScoreEstimate && (
+                              <span className={`text-[8px] px-1 py-0.5 rounded font-bold shrink-0 ${actionColor}`}>
+                                {opp.actionLabel}
+                              </span>
+                            )}
+                          </div>
+                          {showScoreEstimate && (
+                            <div className="flex items-center justify-between text-[9px] text-storm-subtle">
+                              <span>Score {opp.opportunityScore}</span>
+                              {opp.estimatedValueRange && (
+                                <span>
+                                  ${opp.estimatedValueRange.low.toLocaleString()}–${opp.estimatedValueRange.high.toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {nearbySource === "openstreetmap" && (
+                            <div className="text-[9px] text-storm-muted mb-1">Address only · no property data</div>
+                          )}
+                          <button
+                            onClick={async () => {
+                              if (!activeMission) {
+                                setNearbyError("Select a mission first to add stops.");
+                                return;
+                              }
+                              try {
+                                const res = await fetch("/api/missions", {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    missionId: activeMission.id,
+                                    action: "add_stop",
+                                    address: opp.address,
+                                    city: opp.city || undefined,
+                                    state: opp.state || undefined,
+                                    zip: opp.zip || undefined,
+                                    lat: opp.coordinates?.lat,
+                                    lng: opp.coordinates?.lng,
+                                  }),
+                                });
+                                const payload = await res.json().catch(() => null);
+                                const missionData = payload?.data ?? payload;
+                                if (!res.ok || !missionData?.mission) {
+                                  throw new Error((payload as { error?: string })?.error || "Failed to add stop");
+                                }
+                                setActiveMission(missionData.mission);
+                                setMissionStops(Array.isArray(missionData.stops) ? missionData.stops : []);
+                                await fetchMissions();
+                                setNearbyError(null);
+                              } catch (e) {
+                                setNearbyError(e instanceof Error ? e.message : "Failed to add to route");
+                              }
+                            }}
+                            className="mt-1 w-full text-[9px] rounded-md py-0.5 bg-storm-purple/15 text-storm-glow border border-storm-purple/30 hover:bg-storm-purple/25 transition-colors"
+                          >
+                            Add to Route
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 

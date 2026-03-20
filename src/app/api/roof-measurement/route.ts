@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkFeatureAccess } from "@/lib/subscriptions";
+import { calculateEstimate, type RoofMeasurements } from "@/lib/estimate-engine";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -216,16 +217,20 @@ function processAndReturnData(solarData: SolarApiResponse, formattedAddress: str
 		? segments.reduce((sum, seg) => sum + seg.pitchDegrees, 0) / segments.length
 		: 0;
 
-	// Estimate materials (rough calculation)
-	const wasteFactor = 1.15; // 15% waste
-	const bundlesPerSquare = 3;
-	const estimatedBundles = Math.ceil(totalSquares * wasteFactor * bundlesPerSquare);
-	
-	// Pricing estimates (based on typical ranges)
-	const basePricePerSquare = 350; // Average installed price
-	const pitchMultiplier = getPitchMultiplier(avgPitch);
-	const estimatedCostLow = Math.round(totalSquares * basePricePerSquare * pitchMultiplier * 0.8);
-	const estimatedCostHigh = Math.round(totalSquares * basePricePerSquare * pitchMultiplier * 1.2);
+	// Use estimate engine for cost and materials
+	const measurements: RoofMeasurements = {
+		totalAreaSqFt,
+		totalSquares,
+		groundAreaSqFt,
+		avgPitchDegrees: avgPitch,
+		facetCount: segments.length,
+		segments: segments.map((s) => ({
+			areaSqFt: metersToSqFt(s.stats.areaMeters2),
+			pitchDegrees: s.pitchDegrees,
+			azimuthDegrees: s.azimuthDegrees,
+		})),
+	};
+	const estimate = calculateEstimate(measurements);
 
 	// Imagery date
 	const imageryDate = solarData.imageryDate
@@ -246,14 +251,11 @@ function processAndReturnData(solarData: SolarApiResponse, formattedAddress: str
 		},
 		segments: roofSegments,
 		estimates: {
-			shingleBundles: estimatedBundles,
-			underlaymentRolls: Math.ceil(totalSquares / 4),
-			ridgeCapBundles: Math.ceil(segments.length / 2),
-			dripEdgeFeet: Math.round(Math.sqrt(groundAreaSqFt) * 4),
-			costRange: {
-				low: estimatedCostLow,
-				high: estimatedCostHigh,
-			},
+			shingleBundles: estimate.materials.shingleBundles,
+			underlaymentRolls: estimate.materials.underlaymentRolls,
+			ridgeCapBundles: estimate.materials.ridgeCapBundles,
+			dripEdgeFeet: estimate.materials.dripEdgeFeet,
+			costRange: estimate.costRange,
 		},
 		imageryDate,
 		dataQuality: "HIGH",

@@ -282,13 +282,38 @@ export class JobNimbusClient {
   /**
    * Create an activity (note, call log, etc.)
    * Tries app.jobnimbus.com/api1 first; JobNimbus may use different API for activities.
+   * Note: JobNimbus shows "Notes" in the UI for type `note`. Type `activity` is often rejected
+   * or not surfaced as a new note — we normalize `activity` → `note`.
    */
   async createActivity(activity: JNActivity): Promise<JNApiResponse<JNActivity>> {
-    let result = await this.request<JNActivity>('POST', '/activities', activity, JN_APP_BASE);
+    const apiType: JNActivity['type'] =
+      activity.type === 'activity' ? 'note' : activity.type;
+    const baseBody: Record<string, unknown> = {
+      contact_id: activity.contact_id,
+      job_id: activity.job_id,
+      type: apiType,
+      title: activity.title,
+      note: activity.note,
+    };
+    // Omit undefined keys (some JN endpoints reject null/undefined extras)
+    const body: Record<string, unknown> = Object.fromEntries(
+      Object.entries(baseBody).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    );
+
+    let result = await this.request<JNActivity>('POST', '/activities', body, JN_APP_BASE);
     if (!result.success) {
       console.warn('[JobNimbus] createActivity failed:', result.error?.status, result.error?.detail);
       if (result.error?.status === 404) {
-        result = await this.request<JNActivity>('POST', '/activities', activity, JN_API_BASE);
+        result = await this.request<JNActivity>('POST', '/activities', body, JN_API_BASE);
+      }
+    }
+    // Some API builds expect note text under `text` instead of `note`
+    if (!result.success && activity.note && result.error?.status === 400) {
+      const alt: Record<string, unknown> = { ...body, text: activity.note };
+      delete alt.note;
+      result = await this.request<JNActivity>('POST', '/activities', alt, JN_APP_BASE);
+      if (!result.success && result.error?.status === 404) {
+        result = await this.request<JNActivity>('POST', '/activities', alt, JN_API_BASE);
       }
     }
     return result;

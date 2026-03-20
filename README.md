@@ -77,7 +77,7 @@ In Supabase project:
 
 ### 1.4 Run database migrations
 
-From your project root (`/Users/matthewweikel/projects/StormAI`):
+From your project root:
 
 ```bash
 supabase login
@@ -85,25 +85,35 @@ supabase link --project-ref <YOUR_SUPABASE_PROJECT_REF>
 supabase db push
 ```
 
-If CLI feels hard, you can also run SQL files manually in **Supabase SQL Editor**.
-Use chronological order by filename. Core files include:
+`supabase db push` runs all migrations in chronological order. If you run SQL manually in **Supabase SQL Editor**, use this order:
 
-1. `supabase/migrations/00004_create_reports_table.sql`
-2. `supabase/migrations/00005_create_followups_table.sql`
-3. `supabase/migrations/00006_create_objections_table.sql`
-4. `supabase/migrations/00007_create_users_billing_table.sql`
-5. `supabase/migrations/00008_add_stripe_subscription_id_to_users.sql`
-6. `supabase/migrations/00009_add_subscription_tiers.sql`
-7. `supabase/migrations/00011_add_enterprise_tier.sql`
-8. `supabase/migrations/20260309_command_center.sql`
-9. `supabase/migrations/20260310_add_ai_lead_columns.sql`
-10. `supabase/migrations/20260310_enterprise_features.sql`
-11. `supabase/migrations/20260310_jobnimbus_integration.sql`
-12. `supabase/migrations/20260311_storm_alerts_upgrade.sql`
-13. `supabase/migrations/20260312_create_door_knocks.sql`
-14. `supabase/migrations/20260312_jobnimbus_integration.sql`
-15. `supabase/migrations/20260312_revenue_hub.sql`
-16. `supabase/migrations/20260313_storm_command_center_v2.sql`
+1. `00004_create_reports_table.sql`
+2. `00005_create_followups_table.sql`
+3. `00006_create_objections_table.sql`
+4. `00007_create_users_billing_table.sql`
+5. `00008_add_stripe_subscription_id_to_users.sql`
+6. `00009_add_subscription_tiers.sql`
+7. `00011_add_enterprise_tier.sql`
+8. `20260309_command_center.sql`
+9. `20260310_add_ai_lead_columns.sql`
+10. `20260310_enterprise_features.sql`
+11. `20260310_jobnimbus_integration.sql`
+12. `20260311_storm_alerts_upgrade.sql`
+13. `20260312_create_door_knocks.sql`
+14. `20260312_jobnimbus_integration.sql`
+15. `20260312_revenue_hub.sql`
+16. `20260313_storm_command_center_v2.sql`
+17. `20260316_partner_engine_v1.sql`
+18. `20260317_jobnimbus_integrations_standalone.sql`
+19. `20260318_demo_requests.sql`
+20. `20260321_teams_and_team_members.sql`
+21. `20260322_fix_team_members_rls_recursion.sql`
+22. `20260323_team_notes.sql`
+23. `20260324_document_exports.sql`
+24. `20260325_partner_engine_team_scope.sql`
+25. `20260326_jobnimbus_team_level.sql`
+26. `20260327_storm_provider_integrations.sql`
+27. `20260327_workflow_runs.sql`
 
 ### 1.5 Quick Supabase checks
 
@@ -132,7 +142,6 @@ And confirm **RLS is enabled** for tenant-sensitive tables (at minimum: `teams`,
 3. Go to **Product catalog → Add product**
 4. Create or verify 3 recurring monthly prices:
   - `Pro` → `STRIPE_PRICE_ID_PRO`
-  - `Pro Plus` → `STRIPE_PRICE_ID_PRO_PLUS`
   - `Enterprise` → `STRIPE_PRICE_ID_ENTERPRISE`
 5. Save products/prices.
 6. Copy each **Price ID** (looks like `price_...`) into the matching env var.
@@ -219,7 +228,6 @@ Open `.env.local` and fill all values:
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `STRIPE_PRICE_ID_PRO`
-- `STRIPE_PRICE_ID_PRO_PLUS`
 - `STRIPE_PRICE_ID_ENTERPRISE`
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (optional, defaults to `gpt-4o-mini`)
@@ -232,7 +240,12 @@ Open `.env.local` and fill all values:
 - `GOOGLE_SOLAR_API_KEY`
 - `NEXT_PUBLIC_MAPBOX_TOKEN`
 - `CRON_SECRET`
+- `JOBNIMBUS_ENCRYPTION_KEY` (32-char hex for API key encryption)
 - `JOBNIMBUS_WEBHOOK_SECRET`
+- `RESEND_API_KEY` (for demo requests and team invites)
+- `RESEND_FROM_EMAIL` (e.g. `StormClose <noreply@stormclose.com>`)
+- `DEMO_REQUEST_EMAIL` (where demo requests are sent)
+- `STORM_PROVIDER_ENCRYPTION_KEY` (if using HailTrace/HailRecon)
 
 Run app locally:
 
@@ -284,7 +297,6 @@ Add exactly:
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `STRIPE_PRICE_ID_PRO`
-- `STRIPE_PRICE_ID_PRO_PLUS`
 - `STRIPE_PRICE_ID_ENTERPRISE`
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
@@ -297,7 +309,12 @@ Add exactly:
 - `GOOGLE_SOLAR_API_KEY`
 - `NEXT_PUBLIC_MAPBOX_TOKEN`
 - `CRON_SECRET`
+- `JOBNIMBUS_ENCRYPTION_KEY`
 - `JOBNIMBUS_WEBHOOK_SECRET`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `DEMO_REQUEST_EMAIL`
+- `STORM_PROVIDER_ENCRYPTION_KEY` (if using storm provider integrations)
 
 ### 6.3 Deploy
 
@@ -348,6 +365,11 @@ Do this after deployment:
 
 ## 9) Production safety checklist
 
+- [ ] Legal pages live: `/privacy`, `/terms`, `/security`
+- [ ] All env vars set in Vercel (see `.env.example` for full list)
+- [ ] Stripe webhook URL points to production
+- [ ] JobNimbus webhook URL configured if using CRM sync
+- [ ] Supabase Auth redirect URLs include production domain
 - Never expose `SUPABASE_SERVICE_ROLE_KEY` in frontend code
 - Never expose `STRIPE_SECRET_KEY` in frontend code
 - Never expose `OPENAI_API_KEY` in frontend code

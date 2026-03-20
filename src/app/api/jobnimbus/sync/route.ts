@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { decryptJobNimbusApiKey } from '@/lib/jobnimbus/security';
+import { resolveJobNimbusIntegrationRow } from '@/lib/jobnimbus/resolve-integration';
 
 // POST /api/jobnimbus/sync - Trigger sync with JobNimbus
 export async function POST(request: NextRequest) {
@@ -14,20 +15,15 @@ export async function POST(request: NextRequest) {
 
     const { full = false } = await request.json().catch(() => ({}));
 
-    // Get integration
-    const { data: integration } = await (supabase as any)
-      .from('jobnimbus_integrations')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+    const integration = await resolveJobNimbusIntegrationRow(supabase, user.id);
 
-    if (!integration) {
+    if (!integration?.api_key_encrypted) {
       return NextResponse.json({ error: 'Not connected to JobNimbus' }, { status: 400 });
     }
 
     let apiKey: string;
     try {
-      apiKey = decryptJobNimbusApiKey(integration.api_key_encrypted);
+      apiKey = decryptJobNimbusApiKey(integration.api_key_encrypted as string);
     } catch (decryptError) {
       console.error('Failed to decrypt JobNimbus API key:', decryptError);
       return NextResponse.json(
@@ -42,17 +38,20 @@ export async function POST(request: NextRequest) {
     // Sync jobs
     const jobsResult = await syncJobs(supabase, user.id, apiKey, full);
 
-    // Update integration stats
-    await (supabase as any)
-      .from('jobnimbus_integrations')
-      .update({
-        last_sync_at: new Date().toISOString(),
-        contacts_count: contactsResult.count,
-        jobs_count: jobsResult.count,
-        pending_changes: 0,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', user.id);
+    // Update integration stats (row may be personal or team-level)
+    const integrationId = integration.id as string | undefined;
+    if (integrationId) {
+      await (supabase as any)
+        .from('jobnimbus_integrations')
+        .update({
+          last_sync_at: new Date().toISOString(),
+          contacts_count: contactsResult.count,
+          jobs_count: jobsResult.count,
+          pending_changes: 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', integrationId);
+    }
 
     // Log sync
     await (supabase as any)

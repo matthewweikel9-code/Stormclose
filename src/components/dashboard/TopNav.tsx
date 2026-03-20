@@ -17,15 +17,21 @@ interface TopNavProps {
 const breadcrumbLabels: Record<string, string> = {
 	"/dashboard": "Dashboard",
 	"/dashboard/storm-map": "Storm Ops",
+	"/dashboard/knock-list": "Storm Ops",
+	"/dashboard/smart-route": "Storm Ops",
+	"/dashboard/opportunities": "Storm Ops",
+	"/dashboard/missions": "Missions",
 	"/dashboard/command-center": "Storm Ops",
 	"/dashboard/leads": "Storm Ops",
-	"/dashboard/ai-tools": "AI Tools",
+	"/dashboard/ai-tools": "AI Image Engine",
+	"/dashboard/neighborhood-engine": "AI Image Engine",
+	"/dashboard/ai-image-engine": "AI Image Engine",
 	"/partner-engine": "Referral Engine",
 	"/partner-engine/partners": "Referral Engine",
 	"/partner-engine/referrals": "Referral Engine",
 	"/partner-engine/rewards": "Referral Engine",
 	"/partner-engine/settings": "Referral Engine",
-	"/dashboard/documents": "Documents",
+	"/partner-engine/trust-graph": "Referral Engine",
 	"/dashboard/team": "Company",
 	"/dashboard/mission-control": "Mission Control",
 	"/settings/billing": "Settings",
@@ -94,7 +100,6 @@ export function TopNav({ user, subscriptionStatus, tier = "free", trialEnd }: To
 				<Badge
 					variant={
 						tier === "enterprise" ? "success" :
-						tier === "pro_plus" ? "warning" :
 						tier === "pro" || tier === "trial" ? "purple" :
 						"default"
 					}
@@ -104,12 +109,12 @@ export function TopNav({ user, subscriptionStatus, tier = "free", trialEnd }: To
 				</Badge>
 
 				{/* Upgrade button */}
-				{tier !== "pro_plus" && tier !== "enterprise" && (
+				{tier !== "enterprise" && (
 					<Link
 						href="/settings/billing"
 						className="hidden sm:inline-flex items-center rounded-xl bg-storm-purple px-3.5 py-1.5 text-xs font-semibold text-white transition-all duration-200 hover:bg-storm-purple-hover hover:shadow-glow-sm"
 					>
-						{tier === "free" ? "Upgrade" : "Go Pro+"}
+						{tier === "free" || tier === "trial" ? "Upgrade" : "Go Enterprise"}
 					</Link>
 				)}
 

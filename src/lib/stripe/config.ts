@@ -11,22 +11,19 @@ export const stripeConfig = {
 	webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
 	// Legacy monthly price - kept for backward compatibility with older environments.
 	monthlyPriceId: process.env.STRIPE_PRICE_ID_MONTHLY ?? "",
-	// Tier-specific price IDs
+	// Tier-specific price IDs (Pro $399, Enterprise $799)
 	proPriceId: process.env.STRIPE_PRICE_ID_PRO ?? process.env.STRIPE_PRICE_ID_MONTHLY ?? "",
-	proPlusPriceId: process.env.STRIPE_PRICE_ID_PRO_PLUS ?? "",
 	enterprisePriceId: process.env.STRIPE_PRICE_ID_ENTERPRISE ?? "",
 	appUrl,
 	stripeAppUrl
 };
 
-export type SubscriptionPriceTier = "pro" | "pro_plus" | "enterprise";
+export type SubscriptionPriceTier = "pro" | "enterprise";
 
 export function getPriceIdForTier(tier: SubscriptionPriceTier): string {
 	switch (tier) {
 		case "pro":
 			return stripeConfig.proPriceId;
-		case "pro_plus":
-			return stripeConfig.proPlusPriceId;
 		case "enterprise":
 			return stripeConfig.enterprisePriceId;
 		default:
@@ -36,7 +33,6 @@ export function getPriceIdForTier(tier: SubscriptionPriceTier): string {
 
 const STRIPE_PRICE_ENV_BY_TIER: Record<SubscriptionPriceTier, string> = {
 	pro: "STRIPE_PRICE_ID_PRO",
-	pro_plus: "STRIPE_PRICE_ID_PRO_PLUS",
 	enterprise: "STRIPE_PRICE_ID_ENTERPRISE"
 };
 

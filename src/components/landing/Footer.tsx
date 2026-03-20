@@ -30,7 +30,7 @@ export function Footer() {
 						<h3 className="text-sm font-bold uppercase tracking-wider text-white">Product</h3>
 						<ul className="mt-6 space-y-4">
 							<li><a href="#products" className="text-slate-400 hover:text-white">Storm Ops</a></li>
-							<li><a href="#products" className="text-slate-400 hover:text-white">AI Assistant</a></li>
+							<li><a href="#products" className="text-slate-400 hover:text-white">AI Image Engine</a></li>
 							<li><a href="#products" className="text-slate-400 hover:text-white">Referral Engine</a></li>
 							<li><a href="#pricing" className="text-slate-400 hover:text-white">Pricing</a></li>
 							<li><button onClick={openDemoModal} className="text-slate-400 hover:text-white">Request Demo</button></li>
@@ -50,9 +50,9 @@ export function Footer() {
 					<div>
 						<h3 className="text-sm font-bold uppercase tracking-wider text-white">Legal</h3>
 						<ul className="mt-6 space-y-4">
-							<li><Link href="#" className="text-slate-400 hover:text-white">Privacy</Link></li>
-							<li><Link href="#" className="text-slate-400 hover:text-white">Terms</Link></li>
-							<li><Link href="#" className="text-slate-400 hover:text-white">Security</Link></li>
+							<li><Link href="/privacy" className="text-slate-400 hover:text-white">Privacy</Link></li>
+							<li><Link href="/terms" className="text-slate-400 hover:text-white">Terms</Link></li>
+							<li><Link href="/security" className="text-slate-400 hover:text-white">Security</Link></li>
 						</ul>
 						<div className="mt-8">
 							<h3 className="text-sm font-bold uppercase tracking-wider text-white">Contact</h3>

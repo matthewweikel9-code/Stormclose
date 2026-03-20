@@ -192,7 +192,7 @@ function ActiveMissionRepView({ mission, onRefresh }: { mission: MissionDetail; 
 									stopId: currentStop.id,
 									houseId: currentStop.houseId ?? currentStop.id,
 								});
-								window.location.href = `/dashboard/ai-studio?${query.toString()}`;
+								window.location.href = `/dashboard/ai-image-engine?${query.toString()}`;
 							}}
 						>
 							<Bot className="mr-1 h-3.5 w-3.5" />
@@ -480,7 +480,7 @@ export function MissionsHub({ metadataRole }: MissionsHubProps) {
 														stopId: stop.id,
 														houseId: stop.houseId ?? stop.id,
 													});
-													window.location.href = `/dashboard/ai-studio?${query.toString()}`;
+													window.location.href = `/dashboard/ai-image-engine?${query.toString()}`;
 												}}
 											>
 												<Bot className="h-3.5 w-3.5" />

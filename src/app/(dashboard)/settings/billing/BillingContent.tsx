@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CreditCard, Clock, CheckCircle, Zap, Crown, Loader2, ArrowLeft, Sparkles } from "lucide-react";
+import { CreditCard, Clock, CheckCircle, Zap, Crown, Loader2, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
 	TIER_DISPLAY_NAMES,
@@ -20,28 +20,28 @@ interface BillingContentProps {
 		hasStripeCustomer: boolean;
 		hasSubscription: boolean;
 	};
+	upgradeTarget?: string | null;
 }
 
 const FEATURES_BY_TIER: Record<SubscriptionTier, string[]> = {
 	free: ["Objection Handler AI", "Basic responses", "Community support"],
-	trial: ["7-day free trial", "All Pro+ features", "Email support"],
-	pro: ["Objection Handler AI", "Carrier Intelligence Database", "Lead Scoring AI", "Email support"],
-	pro_plus: ["Everything in Pro", "AI Negotiation Coach", "SMS AI Responder", "Priority support"],
-	enterprise: ["Everything in Pro+", "Supplement Generator AI", "Unlimited supplements", "Custom integrations", "Dedicated support"],
+	trial: ["7-day free trial", "All Pro features", "Email support"],
+	pro: ["Objection Handler AI", "AI Negotiation Coach", "Supplement Generator AI", "AI Image Engine", "Carrier Intelligence", "Lead Scoring AI", "Email support"],
+	enterprise: ["Everything in Pro", "Storm Ops command center", "Referral Engine", "Team leaderboards & GPS", "JobNimbus integration", "Dedicated support"],
 };
 
 const TIER_ICON: Record<string, typeof Zap> = {
-	free: Zap, trial: Clock, pro: Zap, pro_plus: Sparkles, enterprise: Crown,
+	free: Zap, trial: Clock, pro: Zap, enterprise: Crown,
 };
 
-export function BillingContent({ user, subscriptionData }: BillingContentProps) {
+export function BillingContent({ user, subscriptionData, upgradeTarget }: BillingContentProps) {
 	const [isLoading, setIsLoading] = useState<string | null>(null);
 	const { tier, status, trialEnd, hasSubscription } = subscriptionData;
 
 	const daysRemaining = trialEnd ? getDaysRemaining(trialEnd) : 0;
 	const isOnTrial = tier === "trial" || (daysRemaining > 0 && status !== "active");
 
-	const handleUpgrade = async (targetTier: "pro" | "pro_plus" | "enterprise") => {
+	const handleUpgrade = async (targetTier: "pro" | "enterprise") => {
 		setIsLoading(targetTier);
 		try {
 			const res = await fetch("/api/stripe/checkout", {
@@ -71,6 +71,18 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 
 	return (
 		<div className="max-w-3xl space-y-5">
+			{/* Upgrade prompt when redirected from gated feature */}
+			{upgradeTarget && (
+				<div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+					<p className="text-sm text-amber-200">
+						{upgradeTarget === "enterprise"
+							? "Referral Engine, Company, and Mission Control require an Enterprise plan."
+							: "Upgrade to access this feature."}
+					</p>
+					<p className="text-xs text-amber-200/80 mt-1">Choose a plan below to get started.</p>
+				</div>
+			)}
+
 			{/* Header */}
 			<div>
 				<h1 className="text-lg font-bold text-white">Billing & Subscription</h1>
@@ -90,7 +102,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 								<div>
 									<h2 className="text-sm font-semibold text-white">Current Plan</h2>
 									<div className="flex items-center gap-2 mt-0.5">
-										<Badge variant={tier === "enterprise" ? "warning" : tier === "pro_plus" || tier === "pro" ? "purple" : "default"}>
+										<Badge variant={tier === "enterprise" ? "warning" : tier === "pro" ? "purple" : "default"}>
 											{TIER_DISPLAY_NAMES[tier]}
 										</Badge>
 										{isOnTrial && (
@@ -154,10 +166,11 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 					<h2 className="text-sm font-semibold text-white mb-3">
 						{tier === "free" || tier === "trial" ? "Choose Your Plan" : "Upgrade Your Plan"}
 					</h2>
-					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					<div className="grid gap-4 sm:grid-cols-2">
 						{/* Pro Plan */}
-						{tier !== "pro" && tier !== "pro_plus" && (
-							<div className="storm-card p-5">
+						{tier !== "pro" && (
+							<div className="storm-card-glow relative overflow-hidden border-storm-purple/30 p-5">
+								<div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-storm-purple/40 to-transparent" />
 								<div className="flex items-center justify-between mb-3">
 									<div>
 										<h3 className="text-sm font-semibold text-white">Pro</h3>
@@ -165,9 +178,7 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 											<span className="text-xl font-bold text-white">${TIER_PRICES.pro}</span>/mo
 										</p>
 									</div>
-									<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-storm-purple/15">
-										<Zap className="h-4 w-4 text-storm-glow" />
-									</div>
+									<Badge variant="purple">Popular</Badge>
 								</div>
 								<ul className="space-y-1.5 mb-4">
 									{FEATURES_BY_TIER.pro.map((feature) => (
@@ -180,34 +191,6 @@ export function BillingContent({ user, subscriptionData }: BillingContentProps) 
 								<button onClick={() => handleUpgrade("pro")} disabled={isLoading === "pro"} className="button-primary w-full text-sm flex items-center justify-center gap-2">
 									{isLoading === "pro" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
 									{isLoading === "pro" ? "Loading..." : "Upgrade to Pro"}
-								</button>
-							</div>
-						)}
-
-						{/* Pro+ Plan */}
-						{tier !== "pro_plus" && (
-							<div className="storm-card-glow relative overflow-hidden border-storm-purple/30 p-5">
-								<div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-storm-purple/40 to-transparent" />
-								<div className="flex items-center justify-between mb-3">
-									<div>
-										<h3 className="text-sm font-semibold text-white">Pro+</h3>
-										<p className="text-storm-muted text-xs">
-											<span className="text-xl font-bold text-white">${TIER_PRICES.pro_plus}</span>/mo
-										</p>
-									</div>
-									<Badge variant="purple">Popular</Badge>
-								</div>
-								<ul className="space-y-1.5 mb-4">
-									{FEATURES_BY_TIER.pro_plus.map((feature) => (
-										<li key={feature} className="flex items-center gap-2 text-xs text-storm-muted">
-											<CheckCircle className="h-3.5 w-3.5 text-storm-glow flex-shrink-0" />
-											{feature}
-										</li>
-									))}
-								</ul>
-								<button onClick={() => handleUpgrade("pro_plus")} disabled={isLoading === "pro_plus"} className="button-primary w-full text-sm flex items-center justify-center gap-2">
-									{isLoading === "pro_plus" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-									{isLoading === "pro_plus" ? "Loading..." : "Upgrade to Pro+"}
 								</button>
 							</div>
 						)}
