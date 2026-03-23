@@ -360,45 +360,56 @@ ALTER TABLE mission_stops ENABLE ROW LEVEL SECURITY;
 ALTER TABLE storm_alert_thresholds ENABLE ROW LEVEL SECURITY;
 
 -- Storm events cache: users see their own cached events
+DROP POLICY IF EXISTS "Users manage own storm events" ON storm_events_cache;
 CREATE POLICY "Users manage own storm events" ON storm_events_cache
     FOR ALL USING (auth.uid() = user_id);
 
 -- Canvass missions: users see own + team missions
+DROP POLICY IF EXISTS "Users view own missions" ON canvass_missions;
 CREATE POLICY "Users view own missions" ON canvass_missions
     FOR SELECT USING (
         user_id = auth.uid() OR
         team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
     );
+DROP POLICY IF EXISTS "Users create own missions" ON canvass_missions;
 CREATE POLICY "Users create own missions" ON canvass_missions
     FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users update own missions" ON canvass_missions;
 CREATE POLICY "Users update own missions" ON canvass_missions
     FOR UPDATE USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users delete own missions" ON canvass_missions;
 CREATE POLICY "Users delete own missions" ON canvass_missions
     FOR DELETE USING (user_id = auth.uid());
 
 -- Mission stops: users manage stops in their missions
+DROP POLICY IF EXISTS "Users manage own mission stops" ON mission_stops;
 CREATE POLICY "Users manage own mission stops" ON mission_stops
     FOR ALL USING (user_id = auth.uid());
 
 -- Alert thresholds: users manage their own
+DROP POLICY IF EXISTS "Users manage own alert thresholds" ON storm_alert_thresholds;
 CREATE POLICY "Users manage own alert thresholds" ON storm_alert_thresholds
     FOR ALL USING (auth.uid() = user_id);
 
 -- ============================================================================
 -- TRIGGERS
 -- ============================================================================
+DROP TRIGGER IF EXISTS storm_events_cache_updated_at ON storm_events_cache;
 CREATE TRIGGER storm_events_cache_updated_at 
     BEFORE UPDATE ON storm_events_cache 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS canvass_missions_updated_at ON canvass_missions;
 CREATE TRIGGER canvass_missions_updated_at 
     BEFORE UPDATE ON canvass_missions 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS mission_stops_updated_at ON mission_stops;
 CREATE TRIGGER mission_stops_updated_at 
     BEFORE UPDATE ON mission_stops 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS storm_alert_thresholds_updated_at ON storm_alert_thresholds;
 CREATE TRIGGER storm_alert_thresholds_updated_at 
     BEFORE UPDATE ON storm_alert_thresholds 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();

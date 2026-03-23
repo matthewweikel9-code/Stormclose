@@ -246,21 +246,25 @@ CREATE INDEX IF NOT EXISTS idx_leads_claimed_by ON leads(claimed_by);
 -- Territories RLS
 ALTER TABLE territories ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own territories" ON territories;
 CREATE POLICY "Users can view own territories"
 ON territories FOR SELECT
 TO authenticated
 USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can insert own territories" ON territories;
 CREATE POLICY "Users can insert own territories"
 ON territories FOR INSERT
 TO authenticated
 WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update own territories" ON territories;
 CREATE POLICY "Users can update own territories"
 ON territories FOR UPDATE
 TO authenticated
 USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete own territories" ON territories;
 CREATE POLICY "Users can delete own territories"
 ON territories FOR DELETE
 TO authenticated
@@ -269,11 +273,13 @@ USING (user_id = auth.uid());
 -- Storm Alerts RLS (everyone can read active alerts)
 ALTER TABLE storm_alerts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Everyone can view active alerts" ON storm_alerts;
 CREATE POLICY "Everyone can view active alerts"
 ON storm_alerts FOR SELECT
 TO authenticated
 USING (status = 'active' OR expires_at > NOW() - INTERVAL '24 hours');
 
+DROP POLICY IF EXISTS "Service role can manage alerts" ON storm_alerts;
 CREATE POLICY "Service role can manage alerts"
 ON storm_alerts FOR ALL
 TO service_role
@@ -283,6 +289,7 @@ WITH CHECK (true);
 -- Property Briefings RLS
 ALTER TABLE property_briefings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view briefings for their leads" ON property_briefings;
 CREATE POLICY "Users can view briefings for their leads"
 ON property_briefings FOR SELECT
 TO authenticated
@@ -292,6 +299,7 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "Service role can manage briefings" ON property_briefings;
 CREATE POLICY "Service role can manage briefings"
 ON property_briefings FOR ALL
 TO service_role
@@ -301,6 +309,7 @@ WITH CHECK (true);
 -- Voice Notes RLS
 ALTER TABLE voice_notes ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own voice notes" ON voice_notes;
 CREATE POLICY "Users can manage own voice notes"
 ON voice_notes FOR ALL
 TO authenticated
@@ -310,6 +319,7 @@ WITH CHECK (user_id = auth.uid());
 -- Push Subscriptions RLS
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own push subscriptions" ON push_subscriptions;
 CREATE POLICY "Users can manage own push subscriptions"
 ON push_subscriptions FOR ALL
 TO authenticated
@@ -319,11 +329,13 @@ WITH CHECK (user_id = auth.uid());
 -- Alert Notifications RLS
 ALTER TABLE alert_notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own notifications" ON alert_notifications;
 CREATE POLICY "Users can view own notifications"
 ON alert_notifications FOR SELECT
 TO authenticated
 USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Service role can manage notifications" ON alert_notifications;
 CREATE POLICY "Service role can manage notifications"
 ON alert_notifications FOR ALL
 TO service_role

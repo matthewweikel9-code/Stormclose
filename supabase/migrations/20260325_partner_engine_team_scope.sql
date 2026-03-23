@@ -184,6 +184,7 @@ DROP POLICY IF EXISTS "Settings are user scoped" ON partner_engine_settings;
 -- 7. CREATE NEW TEAM-SCOPED RLS POLICIES
 -- Access: team_id in user's accessible teams OR (legacy) user_id = auth.uid()
 -- ----------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Partners team scoped" ON partner_engine_partners;
 CREATE POLICY "Partners team scoped" ON partner_engine_partners FOR ALL USING (
     team_id IN (SELECT public.get_user_accessible_team_ids())
     OR (team_id IS NULL AND user_id = auth.uid())
@@ -192,6 +193,7 @@ CREATE POLICY "Partners team scoped" ON partner_engine_partners FOR ALL USING (
     OR (team_id IS NULL AND user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "Referrals team scoped" ON partner_engine_referrals;
 CREATE POLICY "Referrals team scoped" ON partner_engine_referrals FOR ALL USING (
     team_id IN (SELECT public.get_user_accessible_team_ids())
     OR (team_id IS NULL AND user_id = auth.uid())
@@ -200,6 +202,7 @@ CREATE POLICY "Referrals team scoped" ON partner_engine_referrals FOR ALL USING 
     OR (team_id IS NULL AND user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "Rewards team scoped" ON partner_engine_rewards;
 CREATE POLICY "Rewards team scoped" ON partner_engine_rewards FOR ALL USING (
     team_id IN (SELECT public.get_user_accessible_team_ids())
     OR (team_id IS NULL AND user_id = auth.uid())
@@ -208,6 +211,7 @@ CREATE POLICY "Rewards team scoped" ON partner_engine_rewards FOR ALL USING (
     OR (team_id IS NULL AND user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "Notifications team scoped" ON partner_engine_notifications;
 CREATE POLICY "Notifications team scoped" ON partner_engine_notifications FOR ALL USING (
     team_id IN (SELECT public.get_user_accessible_team_ids())
     OR (team_id IS NULL AND user_id = auth.uid())
@@ -216,6 +220,7 @@ CREATE POLICY "Notifications team scoped" ON partner_engine_notifications FOR AL
     OR (team_id IS NULL AND user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "Settings team scoped" ON partner_engine_settings;
 CREATE POLICY "Settings team scoped" ON partner_engine_settings FOR ALL USING (
     team_id IN (SELECT public.get_user_accessible_team_ids())
     OR (team_id IS NULL AND user_id = auth.uid())

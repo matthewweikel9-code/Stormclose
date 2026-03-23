@@ -18,6 +18,8 @@ import {
 	TrendingUp,
 	Maximize2,
 	Minimize2,
+	FileText,
+	Play,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -115,6 +117,16 @@ export default function MissionControlPage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [clock, setClock] = useState(new Date());
+	const [missionPack, setMissionPack] = useState<{
+		id: string;
+		title: string;
+		briefing_text: string;
+		recommended_action: string;
+		top_leads_preview: Array<{ address: string; score: number }>;
+		total_opportunity_value: number;
+		created_at: string;
+	} | null>(null);
+	const [pipelineRunning, setPipelineRunning] = useState(false);
 
 	const fetchData = useCallback(async () => {
 		try {
@@ -134,11 +146,40 @@ export default function MissionControlPage() {
 		}
 	}, []);
 
+	const fetchMissionPack = useCallback(async () => {
+		try {
+			const res = await fetch("/api/storm-pipeline/mission-pack");
+			if (!res.ok) return;
+			const json = (await res.json()) as { pack?: { id: string; title: string; briefing_text: string; recommended_action: string; top_leads_preview: Array<{ address: string; score: number }>; total_opportunity_value: number; created_at: string } };
+			setMissionPack(json.pack ?? null);
+		} catch {
+			// Ignore
+		}
+	}, []);
+
+	const runPipeline = useCallback(async () => {
+		setPipelineRunning(true);
+		try {
+			const res = await fetch("/api/storm-pipeline/run", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ triggerType: "manual" }),
+			});
+			if (res.ok) await fetchMissionPack();
+		} finally {
+			setPipelineRunning(false);
+		}
+	}, [fetchMissionPack]);
+
 	useEffect(() => {
 		void fetchData();
 		const interval = setInterval(fetchData, POLL_INTERVAL_MS);
 		return () => clearInterval(interval);
 	}, [fetchData]);
+
+	useEffect(() => {
+		void fetchMissionPack();
+	}, [fetchMissionPack]);
 
 	useEffect(() => {
 		const t = setInterval(() => setClock(new Date()), 1000);
@@ -380,6 +421,41 @@ export default function MissionControlPage() {
 								color="text-storm-glow"
 							/>
 						</div>
+					</div>
+
+					{/* Mission Pack (Storm Pipeline) */}
+					<div className="storm-card p-4">
+						<div className="flex items-center justify-between mb-3">
+							<div className="flex items-center gap-2">
+								<FileText className="h-4 w-4 text-storm-glow" />
+								<h3 className="text-sm font-semibold text-white">Mission Pack</h3>
+							</div>
+							<button
+								type="button"
+								onClick={runPipeline}
+								disabled={pipelineRunning}
+								className="button-secondary flex items-center gap-1.5 text-xs py-1.5 px-2.5"
+							>
+								<Play className="h-3 w-3" />
+								{pipelineRunning ? "Running…" : "Run Pipeline"}
+							</button>
+						</div>
+						{missionPack ? (
+							<div className="space-y-2">
+								<p className="text-xs font-medium text-storm-subtle">{missionPack.title}</p>
+								<p className="text-sm text-white/90 line-clamp-2">{missionPack.briefing_text}</p>
+								<div className="flex items-center gap-2">
+									<Badge variant={missionPack.recommended_action === "deploy" ? "danger" : missionPack.recommended_action === "monitor" ? "warning" : "default"}>
+										{missionPack.recommended_action}
+									</Badge>
+									<span className="text-2xs text-storm-subtle">
+										{missionPack.top_leads_preview?.length ?? 0} leads · ${(missionPack.total_opportunity_value ?? 0).toLocaleString()} opportunity
+									</span>
+								</div>
+							</div>
+						) : (
+							<p className="text-xs text-storm-subtle">No mission pack yet. Run the pipeline after a storm or for a territory.</p>
+						)}
 					</div>
 
 					{/* Opportunity Pipeline */}

@@ -247,75 +247,101 @@ ALTER TABLE routes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 
 -- Teams: Users can see teams they own or are members of
+DROP POLICY IF EXISTS teams_select ON teams;
 CREATE POLICY teams_select ON teams FOR SELECT USING (
     owner_id = auth.uid() OR 
     id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS teams_insert ON teams;
 CREATE POLICY teams_insert ON teams FOR INSERT WITH CHECK (owner_id = auth.uid());
+DROP POLICY IF EXISTS teams_update ON teams;
 CREATE POLICY teams_update ON teams FOR UPDATE USING (owner_id = auth.uid());
+DROP POLICY IF EXISTS teams_delete ON teams;
 CREATE POLICY teams_delete ON teams FOR DELETE USING (owner_id = auth.uid());
 
 -- Team Members: Team owners/admins can manage, members can view
+DROP POLICY IF EXISTS team_members_select ON team_members;
 CREATE POLICY team_members_select ON team_members FOR SELECT USING (
     team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()) OR
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS team_members_insert ON team_members;
 CREATE POLICY team_members_insert ON team_members FOR INSERT WITH CHECK (
     team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()) OR
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
 );
+DROP POLICY IF EXISTS team_members_update ON team_members;
 CREATE POLICY team_members_update ON team_members FOR UPDATE USING (
     team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()) OR
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
 );
+DROP POLICY IF EXISTS team_members_delete ON team_members;
 CREATE POLICY team_members_delete ON team_members FOR DELETE USING (
     team_id IN (SELECT id FROM teams WHERE owner_id = auth.uid()) OR
     user_id = auth.uid() -- Can remove self
 );
 
 -- Leads: Users can see their own leads or team leads
+DROP POLICY IF EXISTS leads_select ON leads;
 CREATE POLICY leads_select ON leads FOR SELECT USING (
     user_id = auth.uid() OR
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS leads_insert ON leads;
 CREATE POLICY leads_insert ON leads FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS leads_update ON leads;
 CREATE POLICY leads_update ON leads FOR UPDATE USING (
     user_id = auth.uid() OR
     assigned_to = auth.uid() OR
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin', 'manager'))
 );
+DROP POLICY IF EXISTS leads_delete ON leads;
 CREATE POLICY leads_delete ON leads FOR DELETE USING (
     user_id = auth.uid() OR
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid() AND role IN ('owner', 'admin'))
 );
 
 -- Activities: Users can see their own activities or team activities
+DROP POLICY IF EXISTS activities_select ON activities;
 CREATE POLICY activities_select ON activities FOR SELECT USING (
     user_id = auth.uid() OR
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS activities_insert ON activities;
 CREATE POLICY activities_insert ON activities FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS activities_update ON activities;
 CREATE POLICY activities_update ON activities FOR UPDATE USING (user_id = auth.uid());
+DROP POLICY IF EXISTS activities_delete ON activities;
 CREATE POLICY activities_delete ON activities FOR DELETE USING (user_id = auth.uid());
 
 -- Hail Events: Everyone can read (public data)
+DROP POLICY IF EXISTS hail_events_select ON hail_events;
 CREATE POLICY hail_events_select ON hail_events FOR SELECT USING (true);
 -- Only service role can insert/update (for sync jobs)
+DROP POLICY IF EXISTS hail_events_insert ON hail_events;
 CREATE POLICY hail_events_insert ON hail_events FOR INSERT WITH CHECK (false);
+DROP POLICY IF EXISTS hail_events_update ON hail_events;
 CREATE POLICY hail_events_update ON hail_events FOR UPDATE USING (false);
 
 -- Routes: Users can see their own routes
+DROP POLICY IF EXISTS routes_select ON routes;
 CREATE POLICY routes_select ON routes FOR SELECT USING (
     user_id = auth.uid() OR
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS routes_insert ON routes;
 CREATE POLICY routes_insert ON routes FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS routes_update ON routes;
 CREATE POLICY routes_update ON routes FOR UPDATE USING (user_id = auth.uid());
+DROP POLICY IF EXISTS routes_delete ON routes;
 CREATE POLICY routes_delete ON routes FOR DELETE USING (user_id = auth.uid());
 
 -- User Settings: Users can only see/edit their own settings
+DROP POLICY IF EXISTS user_settings_select ON user_settings;
 CREATE POLICY user_settings_select ON user_settings FOR SELECT USING (user_id = auth.uid());
+DROP POLICY IF EXISTS user_settings_insert ON user_settings;
 CREATE POLICY user_settings_insert ON user_settings FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS user_settings_update ON user_settings;
 CREATE POLICY user_settings_update ON user_settings FOR UPDATE USING (user_id = auth.uid());
 
 -- ============================================================================
@@ -402,9 +428,13 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create triggers for updated_at
+DROP TRIGGER IF EXISTS teams_updated_at ON teams;
 CREATE TRIGGER teams_updated_at BEFORE UPDATE ON teams FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS leads_updated_at ON leads;
 CREATE TRIGGER leads_updated_at BEFORE UPDATE ON leads FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS routes_updated_at ON routes;
 CREATE TRIGGER routes_updated_at BEFORE UPDATE ON routes FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS user_settings_updated_at ON user_settings;
 CREATE TRIGGER user_settings_updated_at BEFORE UPDATE ON user_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================================

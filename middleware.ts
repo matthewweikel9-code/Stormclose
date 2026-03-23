@@ -7,6 +7,7 @@ import {
 	hasRoleAccess,
 	isPublicApiPath,
 } from "@/lib/auth/access-control";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 function parseEnvBoolean(value: string | undefined): boolean | null {
 	if (typeof value !== "string") return null;
@@ -104,6 +105,16 @@ export async function middleware(request: NextRequest) {
 		}
 
 		if (pathname.startsWith("/api/ai/")) {
+			const rateLimit = await checkRateLimit(supabase, user.id, "ai");
+			if (!rateLimit.allowed) {
+				const headers: Record<string, string> = { "X-RateLimit-Remaining": "0" };
+				if (rateLimit.retryAfter) headers["Retry-After"] = String(rateLimit.retryAfter);
+				return NextResponse.json(
+					{ data: null, error: "AI rate limit exceeded (60/hour). Try again later.", meta: {} },
+					{ status: 429, headers }
+				);
+			}
+
 			const aiEnabled = await isFeatureEnabledForRequest(supabase, user.id, "ai.enabled");
 			if (!aiEnabled) {
 				return NextResponse.json(

@@ -20,9 +20,11 @@ CREATE INDEX IF NOT EXISTS document_exports_entity_idx ON document_exports(entit
 
 ALTER TABLE document_exports ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS document_exports_select ON document_exports;
 CREATE POLICY document_exports_select ON document_exports
     FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS document_exports_insert ON document_exports;
 CREATE POLICY document_exports_insert ON document_exports
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 

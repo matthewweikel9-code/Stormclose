@@ -14,16 +14,20 @@ CREATE INDEX IF NOT EXISTS idx_team_notes_created ON team_notes(created_at DESC)
 ALTER TABLE team_notes ENABLE ROW LEVEL SECURITY;
 
 -- Team members can view notes for their team
+DROP POLICY IF EXISTS team_notes_select ON team_notes;
 CREATE POLICY team_notes_select ON team_notes FOR SELECT USING (
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
 );
 
 -- Team members can insert notes
+DROP POLICY IF EXISTS team_notes_insert ON team_notes;
 CREATE POLICY team_notes_insert ON team_notes FOR INSERT WITH CHECK (
     team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())
     AND user_id = auth.uid()
 );
 
 -- Authors can update/delete their own notes
+DROP POLICY IF EXISTS team_notes_update ON team_notes;
 CREATE POLICY team_notes_update ON team_notes FOR UPDATE USING (user_id = auth.uid());
+DROP POLICY IF EXISTS team_notes_delete ON team_notes;
 CREATE POLICY team_notes_delete ON team_notes FOR DELETE USING (user_id = auth.uid());

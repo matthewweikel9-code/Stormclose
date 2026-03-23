@@ -136,11 +136,12 @@ export async function GET(request: NextRequest) {
 			// This is a simplified version - production would use PostGIS
 			const { data: territories } = await supabaseAdmin
 				.from("territories")
-				.select("user_id, id, name, zip_codes")
+				.select("user_id, team_id, id, name, zip_codes")
 				.eq("is_active", true)
 				.eq("alert_enabled", true);
 
 			if (territories) {
+				let pipelineTriggered = false;
 				for (const territory of territories) {
 					// Record notification for each affected user
 					// Use upsert to handle duplicates
@@ -152,8 +153,28 @@ export async function GET(request: NextRequest) {
 						status: "sent",
 						sent_at: new Date().toISOString(),
 					}, { onConflict: "user_id,alert_id,channel", ignoreDuplicates: true });
-					
+
 					notificationsSent++;
+
+					// Trigger storm-to-rep pipeline for first affected territory (Phase 1 orchestration)
+					if (!pipelineTriggered && territory.user_id && territory.id) {
+						try {
+							const { runStormPipeline } = await import("@/lib/storm-pipeline/orchestrator");
+							await runStormPipeline({
+								triggerType: "storm_alert",
+								triggerId: newAlert.id,
+								userId: territory.user_id,
+								teamId: territory.team_id ?? null,
+								territoryId: territory.id,
+								stormAlertId: newAlert.id,
+								idempotencyKey: `storm_alert_${newAlert.id}_${territory.id}`,
+							});
+							pipelineTriggered = true;
+							console.log(`📋 Pipeline triggered for alert ${newAlert.id}, territory ${territory.id}`);
+						} catch (pipeErr) {
+							console.warn("Storm pipeline trigger failed:", pipeErr);
+						}
+					}
 				}
 			}
 		}

@@ -13,19 +13,23 @@ CREATE INDEX IF NOT EXISTS idx_jobnimbus_integrations_team_id ON jobnimbus_integ
 
 -- Update RLS: team members can access team-level integrations
 DROP POLICY IF EXISTS "Users can view their own integrations" ON jobnimbus_integrations;
+DROP POLICY IF EXISTS "Users can view own or team integrations" ON jobnimbus_integrations;
 CREATE POLICY "Users can view own or team integrations" ON jobnimbus_integrations FOR SELECT USING (
     user_id = auth.uid()
     OR (team_id IS NOT NULL AND team_id IN (SELECT public.get_user_accessible_team_ids()))
 );
 
 DROP POLICY IF EXISTS "Users can insert their own integrations" ON jobnimbus_integrations;
+DROP POLICY IF EXISTS "Users can insert own integrations" ON jobnimbus_integrations;
 CREATE POLICY "Users can insert own integrations" ON jobnimbus_integrations FOR INSERT WITH CHECK (user_id = auth.uid());
 
 DROP POLICY IF EXISTS "Users can update their own integrations" ON jobnimbus_integrations;
+DROP POLICY IF EXISTS "Users can update own or team integrations" ON jobnimbus_integrations;
 CREATE POLICY "Users can update own or team integrations" ON jobnimbus_integrations FOR UPDATE USING (
     user_id = auth.uid()
     OR (team_id IS NOT NULL AND team_id IN (SELECT public.get_user_accessible_team_ids()))
 );
 
 DROP POLICY IF EXISTS "Users can delete their own integrations" ON jobnimbus_integrations;
+DROP POLICY IF EXISTS "Users can delete own integrations" ON jobnimbus_integrations;
 CREATE POLICY "Users can delete own integrations" ON jobnimbus_integrations FOR DELETE USING (user_id = auth.uid());

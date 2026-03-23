@@ -38,6 +38,7 @@ USING (user_id = auth.uid())
 WITH CHECK (user_id = auth.uid());
 
 -- Allow service role full access (for cron jobs)
+DROP POLICY IF EXISTS "Service role full access" ON leads;
 CREATE POLICY "Service role full access"
 ON leads FOR ALL
 TO service_role
@@ -47,7 +48,6 @@ WITH CHECK (true);
 -- Fix the team_members infinite recursion issue
 DROP POLICY IF EXISTS "Team members can view team" ON team_members;
 DROP POLICY IF EXISTS "Users can view their team memberships" ON team_members;
-
 CREATE POLICY "Users can view their team memberships"
 ON team_members FOR SELECT
 TO authenticated

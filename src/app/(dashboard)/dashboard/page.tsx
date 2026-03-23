@@ -5,7 +5,14 @@ import { logout } from "@/app/(auth)/actions";
 import { normalizeTier } from "@/lib/subscriptions/tiers";
 import { DashboardContent } from "./dashboard-content";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+	searchParams,
+}: {
+	searchParams?: Promise<{ error?: string }>;
+}) {
+	const resolved = await searchParams;
+	const forbidden = resolved?.error === "forbidden";
+
 	const supabase = await createClient();
 	const {
 		data: { user }
@@ -30,6 +37,7 @@ export default async function DashboardPage() {
 			subscriptionStatus={subscriptionStatus}
 			subscriptionTier={subscriptionTier}
 			logoutAction={logout}
+			forbiddenError={forbidden}
 		/>
 	);
 }

@@ -214,8 +214,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 ALTER TABLE user_goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE revenue_snapshots ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage their own goals" ON user_goals;
 CREATE POLICY "Users can manage their own goals" ON user_goals
     FOR ALL USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view their own snapshots" ON revenue_snapshots;
 CREATE POLICY "Users can view their own snapshots" ON revenue_snapshots
     FOR ALL USING (auth.uid() = user_id);

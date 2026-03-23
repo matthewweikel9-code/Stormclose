@@ -28,7 +28,7 @@ export function Sidebar({ subscriptionTier = "free", daysUntilTrialEnd }: Sideba
 
 	const navItems = [
 		{
-			label: "Revenue Hub",
+			label: "Dashboard",
 			href: "/dashboard",
 			exact: true,
 			icon: (

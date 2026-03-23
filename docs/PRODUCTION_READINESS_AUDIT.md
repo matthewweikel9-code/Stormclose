@@ -1,7 +1,8 @@
 # Production Readiness Audit — StormClose AI
 
 **Audit date:** March 2025  
-**Status:** Critical blockers addressed; ready for production launch with checklist.
+**Last updated:** March 2026  
+**Status:** P0 blockers addressed; production launch ready with checklist.
 
 ---
 
@@ -37,6 +38,27 @@ Before going live, verify:
 - [ ] Supabase Auth redirect URLs include production domain
 - [ ] Resend domain verified for `RESEND_FROM_EMAIL`
 - [ ] Legal pages reviewed by counsel (privacy, terms, security)
+
+---
+
+## March 2026 — Additional Hardening
+
+### Completed
+- **Content-Security-Policy** — Added CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy headers in `next.config.js`.
+- **Rate limiting** — AI endpoints: 60/hour per user; export-lead: 50/hour per user. Supabase-backed `rate_limit_log` table.
+- **Page-level role guards** — Forbidden redirect (`/dashboard?error=forbidden`) now shows inline message: "You don't have access to that page."
+- **Zod validation** — `POST /api/integrations/jobnimbus/export-lead` validates `leadId` (UUID) and optional fields.
+- **ai_sessions migration** — Table for AI audit trail: `module_id`, `user_id`, `model`, `token_count`, `latency_ms`, `input_hash`, `output_hash`.
+
+### Files Changed
+- `next.config.js` — Security headers
+- `middleware.ts` — AI rate limit check
+- `src/lib/rate-limit.ts` — New
+- `src/app/api/integrations/jobnimbus/export-lead/route.ts` — Rate limit, Zod
+- `src/app/(dashboard)/dashboard/page.tsx` — Forbidden error handling
+- `src/app/(dashboard)/dashboard/dashboard-content.tsx` — Forbidden banner
+- `supabase/migrations/202603320100_rate_limit.sql` — New
+- `supabase/migrations/202603320200_ai_sessions.sql` — New
 
 ---
 

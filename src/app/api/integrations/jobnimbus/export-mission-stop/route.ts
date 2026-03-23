@@ -92,13 +92,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let body: { stopId?: string; packet?: CrmWorkflowPacket };
+    let body: { stopId?: string; packet?: CrmWorkflowPacket; idempotencyKey?: string };
     try {
       body = await request.json();
     } catch {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
-    const { stopId, packet } = body;
+    const { stopId, packet, idempotencyKey } = body;
+    const effectiveIdemKey = idempotencyKey ?? `export_stop_${stopId}`;
+
+    // Idempotency: if same key was used, return existing export (retry-safe)
+    const { data: existingByIdem } = await (supabase as any)
+      .from('lead_exports')
+      .select('id, jn_contact_id, lead_id')
+      .eq('user_id', user.id)
+      .eq('idempotency_key', effectiveIdemKey)
+      .maybeSingle();
+    if (existingByIdem) {
+      return NextResponse.json({
+        success: true,
+        alreadyExported: true,
+        contactId: existingByIdem.jn_contact_id,
+        leadId: existingByIdem.lead_id,
+        message: 'Previously exported (idempotent)',
+      });
+    }
     if (!stopId) {
       return NextResponse.json({ error: 'stopId is required' }, { status: 400 });
     }
@@ -433,6 +451,7 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       destination: 'jobnimbus',
       jn_contact_id: contactId,
+      idempotency_key: effectiveIdemKey,
     });
     if (exportInsertError) {
       console.error('[Export] lead_exports insert failed:', exportInsertError);

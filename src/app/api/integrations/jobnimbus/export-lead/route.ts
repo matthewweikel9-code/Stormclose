@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createJobNimbusClient, JNContact } from '@/lib/jobnimbus';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { z } from 'zod';
 import { decryptJobNimbusApiKey } from '@/lib/jobnimbus/security';
 import { resolveJobNimbusCredentials } from '@/lib/jobnimbus/resolve-integration';
 import { fetchRoofDataForNotes, formatRoofDataForNotes } from '@/lib/solar/solarApi';
@@ -72,15 +74,23 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const body: ExportLeadRequest = await request.json();
-    const { leadId, firstName, lastName, phone, email, notes } = body;
-    
-    if (!leadId) {
+    const body = await request.json();
+    const schema = z.object({
+      leadId: z.string().uuid(),
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+      phone: z.string().optional(),
+      email: z.union([z.string().email(), z.literal('')]).optional(),
+      notes: z.string().optional(),
+    });
+    const parseResult = schema.safeParse(body);
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: 'Lead ID is required' },
+        { error: 'Invalid request', details: parseResult.error.flatten().fieldErrors },
         { status: 400 }
       );
     }
+    const { leadId, firstName, lastName, phone, email, notes } = parseResult.data;
     
     // Get the lead from our database
     const { data: lead, error: leadError } = await (supabase
